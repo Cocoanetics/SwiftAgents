@@ -1,6 +1,6 @@
 //
 //  CoderToolError.swift
-//  AgentCorp
+//  SwiftAgents
 //
 //  Created by Oliver Drobnik on 04.04.26.
 //

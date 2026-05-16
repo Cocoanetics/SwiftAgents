@@ -11,29 +11,22 @@ let package = Package(
 		.watchOS(.v10)
 	],
 	products: [
-		// The headline library: Agent / Runner / Tool / Responses /
-		// OpenAI client. Module name is `AgentCorp` for now so existing
-		// consumers (iBash) keep their `import AgentCorp` lines.
+		// LLM provider clients (OpenAI / Gemini / Ollama) plus the
+		// Agent runtime that's built on top of them. Eventually the
+		// runtime will move to its own target (`Agents`) and this
+		// will contain only the wire-level clients.
 		.library(
-			name: "AgentCorp",
-			targets: ["AgentCorp"]
+			name: "Providers",
+			targets: ["Providers"]
 		),
-		// Legacy alias — same target, kept so the old `AgentCorpCore`
-		// product name resolves while consumers migrate to `AgentCorp`.
-		.library(
-			name: "AgentCorpCore",
-			targets: ["AgentCorp"]
-		),
-		// Reusable ANSI/terminal helpers used by the Coder CLI. Exposed
-		// as a public product so other CLI tools in the ecosystem can
-		// reach for them without re-implementing colour handling.
+		// Reusable ANSI / slash-command helpers. Used by the Coder CLI
+		// and exposed so other CLIs in the ecosystem can pick them up.
 		.library(
 			name: "TerminalUI",
 			targets: ["TerminalUI"]
 		),
-		// `coder` — in-process coding-agent CLI. Mirrors the agent
-		// surface used by iBash but shells out via `Process` (so it's
-		// macOS/Linux-only by construction).
+		// `coder` — in-process coding-agent CLI. Reference consumer of
+		// the Providers target.
 		.executable(
 			name: "Coder",
 			targets: ["Coder"]
@@ -47,12 +40,12 @@ let package = Package(
 	],
 	targets: [
 		.target(
-			name: "AgentCorp",
+			name: "Providers",
 			dependencies: [
 				"SwiftMCP",
 				.product(name: "Logging", package: "swift-log")
 			],
-			path: "Sources/AgentCorp/Core"
+			path: "Sources/Providers"
 		),
 		.target(
 			name: "TerminalUI",
@@ -62,7 +55,7 @@ let package = Package(
 		.executableTarget(
 			name: "Coder",
 			dependencies: [
-				"AgentCorp",
+				"Providers",
 				"TerminalUI",
 				"SwiftMCP",
 				.product(name: "ArgumentParser", package: "swift-argument-parser"),
@@ -71,13 +64,13 @@ let package = Package(
 			path: "Sources/Coder"
 		),
 		.testTarget(
-			name: "AgentCorpTests",
+			name: "ProvidersTests",
 			dependencies: [
-				"AgentCorp",
+				"Providers",
 				"SwiftMCP",
 				.product(name: "SwiftDotenv", package: "swift-dotenv")
 			],
-			path: "Tests/AgentCorpTests",
+			path: "Tests/ProvidersTests",
 			resources: [.process("Resources")]
 		)
 	]

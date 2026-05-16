@@ -1,6 +1,6 @@
 import Foundation
 import ArgumentParser
-import AgentCorp
+import Providers
 import SwiftDotenv
 import TerminalUI
 

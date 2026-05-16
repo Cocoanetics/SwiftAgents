@@ -4,12 +4,11 @@ A Swift-only LLM and Agents SDK, modelled after the OpenAI Agents SDK and built 
 
 ## Status
 
-Early. Split out from the private [AgentCorp](https://git.cocoanetics.com/labs/AgentCorp) project so the public agent surface can stand on its own. APIs will move.
+Early. Split out from the private AgentCorp project so the public agent surface can stand on its own. APIs will move.
 
 ## Products
 
-- **`AgentCorp`** — the headline library. Contains the `Agent` protocol, the `Runner`, `RunConfig`, streaming events, the Tool DSL (built on [SwiftMCP](https://github.com/Cocoanetics/SwiftMCP)), `applyDiff` for V4A-style patches, and clients for OpenAI (Responses + Chat + Embeddings + Assistants + Realtime + Image Generation), Google Gemini, and Ollama.
-- **`AgentCorpCore`** — alias for `AgentCorp`; kept so existing consumers can migrate at their own pace.
+- **`Providers`** — LLM provider clients (OpenAI Responses + Chat + Embeddings + Assistants + Realtime + Image Generation, Google Gemini, Ollama) plus the `Agent` / `Runner` / `Tool` runtime built on top of them. The Tool DSL is powered by [SwiftMCP](https://github.com/Cocoanetics/SwiftMCP); `applyDiff` handles V4A-style patches. The runtime will eventually split into its own `Agents` target; for now everything lives here.
 - **`TerminalUI`** — ANSI colours, slash-command parser, terminal handler. Used by the bundled CLI; reusable by other tools.
 - **`Coder`** — an in-process coding-agent CLI (executable target). Tool surface: `bash`, `read`, `write`, `edit`, `ls`, plus `apply_patch` for models that support it. Reference implementation of an `Agent` against the Responses API.
 
@@ -22,7 +21,7 @@ Early. Split out from the private [AgentCorp](https://git.cocoanetics.com/labs/A
 Then in your target:
 
 ```swift
-.product(name: "AgentCorp", package: "SwiftAgents")
+.product(name: "Providers", package: "SwiftAgents")
 ```
 
 ## Configuration

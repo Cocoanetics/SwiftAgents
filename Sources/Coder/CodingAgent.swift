@@ -1,5 +1,5 @@
 import Foundation
-import AgentCorp
+import Providers
 import SwiftMCP
 
 @MCPServer

@@ -1,5 +1,5 @@
 import Foundation
-import AgentCorp
+import Providers
 
 /// Logs session events as one JSON line per message to a JSONL file under ~/.coder/sessions/.
 struct SessionLogger {
