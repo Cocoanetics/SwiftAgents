@@ -41,46 +41,12 @@ jobs:
       # API keys that public CI doesn't have, so the test gives us
       # no useful signal on this runner.
       - name: Test (macOS)
-        # Run each filter in its own `swift test` invocation so the log
-        # shows progress per suite. Swift Testing buffers its output
-        # within a single run, so one slow / hung suite would otherwise
-        # hide the others. The shell loop also surfaces a banner before
-        # each suite so the GitHub Actions log shows where time is
-        # being spent, since previous runs failed with no Swift Testing
-        # output making it through the buffering. Also captures each
-        # suite's stdout+stderr to a per-suite log file that's
-        # uploaded as a `macos-test-logs` artifact in the next step —
-        # the inline `swift test` output also gets buffered by macOS's
-        # libsystem if a suite hangs, but the file is flushed by the
-        # `tee` line buffer so the artifact still has whatever did
-        # get printed before the timeout.
         run: |
-          set +e
-          mkdir -p test-logs
-          fail=0
-          for suite in \
-            ArrayVectorTests \
-            TracingTests \
-            GoogleGenerateContentResponseTests \
-            GoogleThinkingConfigTests; do
-            echo "::group::Test ${suite}"
-            date "+>>> ${suite} start: %FT%T"
-            swift test -v --skip-build --filter "${suite}" 2>&1 \
-              | tee "test-logs/${suite}.log"
-            rc=${PIPESTATUS[0]}
-            date "+>>> ${suite} end:   %FT%T (rc=${rc})"
-            echo "::endgroup::"
-            if [ "${rc}" -ne 0 ]; then fail=1; fi
-          done
-          echo "fail=${fail}" > test-logs/_summary
-          exit "${fail}"
-      - name: Upload macOS test logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-test-logs
-          path: test-logs/
-          if-no-files-found: warn
+          swift test -v --skip-build \
+            --filter ArrayVectorTests \
+            --filter TracingTests \
+            --filter GoogleGenerateContentResponseTests \
+            --filter GoogleThinkingConfigTests
 
   build-ios:
     # Compile-only check on `generic/platform=iOS`. The `Coder` executable
@@ -115,20 +81,12 @@ jobs:
             build
 
   build-linux:
-    # Linux: full build + test. `VectorStore` is universal except for
-    # `ContextualEmbeddingProvider` and `TextChunker` which are
-    # `#if canImport(NaturalLanguage)`-gated; on Linux those compile to
-    # empty, the rest of the target (Vector math, LocalVectorStore,
-    # OpenAI / Ollama EmbeddingProvider bridges) builds and tests.
-    #
-    # Run inside the official `swift:6.2-jammy` container — SwiftMCP
-    # 1.4.5 requires `swift-tools-version: 6.1`, and the Swift toolchain
-    # pre-installed on `ubuntu-latest` is 6.0.x, which fails dependency
-    # resolution with: `'swiftmcp' >= 1.4.2 contains incompatible tools
-    # version (6.1.0)`. We pin 6.2 (not 6.1) to track the same Linux
-    # toolchain SwiftPorts uses and to align with the Swift 6.3-era
-    # Swift Testing fixes we picked up on the macOS side via Xcode
-    # 26.4.1 — 6.2 is forward-compatible with the 6.1 tools-version.
+    # `VectorStore`'s `ContextualEmbeddingProvider` and `TextChunker`
+    # are `#if canImport(NaturalLanguage)`-gated; everything else
+    # builds and tests on Linux. The `swift:6.2-jammy` container
+    # provides the toolchain SwiftMCP 1.4.5 needs
+    # (`swift-tools-version: 6.1`) — `ubuntu-latest`'s pre-installed
+    # Swift is too old.
     runs-on: ubuntu-latest
     container: swift:6.2-jammy
     timeout-minutes: 15
