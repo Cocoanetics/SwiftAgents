@@ -6,3 +6,12 @@ excluded:
   # Test fixtures (JSON / PNG / text payloads bundled as test resources).
   - Tests/ProvidersTests/Resources
   - "**/.build"
+
+# Provider API model files mirror the real-world JSON structure of the
+# upstream APIs (OpenAI / Gemini / Ollama). Nested types like
+# `Part.FileData` and their accompanying `CodingKeys` are a standard
+# Swift idiom for that — the default `type_level: 1` is too strict to
+# express it cleanly. Bumping the threshold rather than littering
+# `// swiftlint:disable:next nesting` across every Codable model.
+nesting:
+  type_level: 3
