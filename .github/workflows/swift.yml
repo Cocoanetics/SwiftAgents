@@ -33,6 +33,10 @@ jobs:
       - name: Build (macOS)
         run: swift build --build-tests -v
       - name: Test (macOS)
+        # 5-min step ceiling: passing runs finish in under a minute, so
+        # this fails fast on a hang instead of consuming the full
+        # 15-min job budget.
+        timeout-minutes: 5
         run: swift test -v --skip-build
 
   build-ios:
@@ -77,6 +81,7 @@ jobs:
       - name: Build (Linux)
         run: swift build --build-tests -v
       - name: Test (Linux)
+        timeout-minutes: 5
         run: swift test -v --skip-build
 
   # Windows and Android jobs are intentionally not present. SwiftMCP
