@@ -7,7 +7,6 @@
 
 import Foundation
 import SwiftMCP
-import UniformTypeIdentifiers
 
 /// Same as Chat, but with an Assistant instead
 public class AssistantChat: GenericChat {

@@ -43,7 +43,7 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.4.4"),
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.4.5"),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0")
 	],
