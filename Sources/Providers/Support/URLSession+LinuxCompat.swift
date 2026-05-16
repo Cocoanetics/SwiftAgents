@@ -55,14 +55,14 @@ public extension URLSession {
             }
 
             public struct AsyncIterator: AsyncIteratorProtocol {
-                var lines: Array<Substring>.Iterator
+                var lines: [Substring].Iterator
                 public mutating func next() async throws -> String? {
                     lines.next().map(String.init)
                 }
             }
 
             public func makeAsyncIterator() -> AsyncIterator {
-                let string = String(decoding: data, as: UTF8.self)
+                let string = String(bytes: data, encoding: .utf8) ?? ""
                 // `\r\n` and `\n` both behave as line breaks on macOS's
                 // `URLSession.AsyncBytes.lines`; mirror that here.
                 let normalized = string.replacingOccurrences(of: "\r\n", with: "\n")

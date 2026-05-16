@@ -53,7 +53,9 @@ class LocalVectorStore {
 
     func indexText(_ text: String, source: String) async throws {
         #if canImport(NaturalLanguage)
-        let sections = TextChunker(text: text).sections
+        // `TextChunker.sections` is an IUO (`[String]!`); pin the type
+        // here so the for-loop sees a plain `[String]`.
+        let sections: [String] = TextChunker(text: text).sections
         #else
         // Linux / non-Apple: skip `NLLanguageRecognizer`-based chunking
         // and treat the whole input as a single section. Consumers that
