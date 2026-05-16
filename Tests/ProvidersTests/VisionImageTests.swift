@@ -9,7 +9,7 @@ struct VisionImageTests {
 
     @Test("Google inline vision", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func googleInlineImageUnderstanding() async throws {
-        let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+        let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let system = ChatMessage(role: .system, content: .text("Describe any image attachments in a short sentence."))
         let user = try imageOnlyMessage()
         let response = try await google.createChatCompletion(model: googleModel, messages: [system, user])
@@ -21,7 +21,7 @@ struct VisionImageTests {
 
     @Test("Google remote vision", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func googleRemoteImageUnderstanding() async throws {
-        let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+        let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let fixtureURL = try #require(
             Bundle.module.url(forResource: "vision-test", withExtension: "png"),
             "vision-test fixture is required"
@@ -44,7 +44,7 @@ struct VisionImageTests {
 
     @Test("OpenAI inline vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
     func openAIInlineImageUnderstanding() async throws {
-        let client = try OpenAI(apiKey: #require(APIKey.openAI))
+        let client = try OpenAI(apiKey: #require(APIKey.openAI as String?))
         let system = ChatMessage(role: .system, content: .text("Describe any image attachments in a short sentence."))
         let user = try imageOnlyMessage()
         let response = try await client.createChatCompletion(model: openAIModel, messages: [system, user], store: true)
@@ -56,7 +56,7 @@ struct VisionImageTests {
 
     @Test("OpenAI remote vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
     func openAIRemoteImageUnderstanding() async throws {
-        let client = try OpenAI(apiKey: #require(APIKey.openAI))
+        let client = try OpenAI(apiKey: #require(APIKey.openAI as String?))
         let system = ChatMessage(role: .system, content: .text("Describe any image attachments in a short sentence."))
         let user = remoteImageMessage(url: remoteVisionImageURL)
         let response = try await client.createChatCompletion(model: openAIModel, messages: [system, user], store: true)

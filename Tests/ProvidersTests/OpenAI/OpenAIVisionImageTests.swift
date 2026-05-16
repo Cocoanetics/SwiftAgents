@@ -9,7 +9,7 @@ struct OpenAIVisionImageTests {
 
     @Test("OpenAI inline vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
     func openAIInlineImageUnderstanding() async throws {
-        let client = try OpenAI(apiKey: #require(APIKey.openAI))
+        let client = try OpenAI(apiKey: #require(APIKey.openAI as String?))
         let system = ChatMessage(role: .system, content: .text(systemPrompt))
         let user = try VisionImageTestHelpers.imageOnlyMessage()
         let response = try await client.createChatCompletion(model: openAIModel, messages: [system, user], store: true)
@@ -20,7 +20,7 @@ struct OpenAIVisionImageTests {
 
     @Test("OpenAI remote vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
     func openAIRemoteImageUnderstanding() async throws {
-        let client = try OpenAI(apiKey: #require(APIKey.openAI))
+        let client = try OpenAI(apiKey: #require(APIKey.openAI as String?))
         let system = ChatMessage(role: .system, content: .text(systemPrompt))
         let user = VisionImageTestHelpers.remoteImageMessage(url: remoteVisionImageURL)
         let response = try await client.createChatCompletion(model: openAIModel, messages: [system, user], store: true)
@@ -31,7 +31,7 @@ struct OpenAIVisionImageTests {
 
     @Test("OpenAI Responses inline vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
     func openAIResponsesInlineImageUnderstanding() async throws {
-        let client = try OpenAI(apiKey: #require(APIKey.openAI))
+        let client = try OpenAI(apiKey: #require(APIKey.openAI as String?))
         let fixtureData = try VisionImageTestHelpers.visionFixtureData()
         let dataURL = VisionImageTestHelpers.responseDataURL(for: fixtureData, mimeType: "image/png")
         let input = VisionImageTestHelpers.responseInput(
@@ -51,7 +51,7 @@ struct OpenAIVisionImageTests {
 
     @Test("OpenAI Responses remote vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
     func openAIResponsesRemoteImageUnderstanding() async throws {
-        let client = try OpenAI(apiKey: #require(APIKey.openAI))
+        let client = try OpenAI(apiKey: #require(APIKey.openAI as String?))
         let imageURL = try #require(URL(string: remoteVisionImageURL), "Invalid remote vision URL")
         let input = VisionImageTestHelpers.responseInput(
             prompt: "What is shown in this online image?",
@@ -70,7 +70,7 @@ struct OpenAIVisionImageTests {
 
     @Test("OpenAI Responses uploaded vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
     func openAIResponsesUploadedImageUnderstanding() async throws {
-        let client = try OpenAI(apiKey: #require(APIKey.openAI))
+        let client = try OpenAI(apiKey: #require(APIKey.openAI as String?))
         let fixtureData = try VisionImageTestHelpers.visionFixtureData()
         let uploaded = try await client.uploadFile(
             data: fixtureData,

@@ -5,7 +5,7 @@ import Testing
 struct GoogleFilesTests {
     @Test("Google file lifecycle", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func uploadListRetrieveDeleteFile() async throws {
-        let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+        let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let data = sampleImageData()
         let uploaded = try await google.uploadFile(data: data, filename: "files-test.png", mimeType: "image/png")
         guard let name = uploaded.name else {

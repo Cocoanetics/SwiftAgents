@@ -71,7 +71,7 @@ struct GoogleThinkingConfigTests {
 
     @Test("Gemini 3 Pro Preview with thinking level", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func liveGemini3ProPreviewThinkingLevel() async throws {
-        let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+        let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let prompt = "List two Austrian cities and one fun fact about each."
         let thinking = GoogleThinkingConfig(includeThoughts: true, thinkingLevel: .high, thinkingBudget: nil)
         let response = try await google.createChatCompletion(
@@ -88,7 +88,7 @@ struct GoogleThinkingConfigTests {
 
     @Test("Gemini Flash thinking budget", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func liveGeminiFlashThinkingBudget() async throws {
-        let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+        let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let prompt = "Give a two-step plan to brew a cup of tea."
         let thinking = GoogleThinkingConfig(includeThoughts: true, thinkingLevel: nil, thinkingBudget: 256)
         let response = try await google.createChatCompletion(

@@ -9,7 +9,7 @@ struct GoogleImageGenerationTests {
     @Test("Gemini 3 Pro preview generates inline image", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func generatesImageAndSavesToTmp() async throws {
         do {
-            let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+            let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
             let prompt = """
             Create a comic-style sticker of a tiny sloth barista making espresso in zero gravity. \
             Make it bright, readable, and reply with an image payload.
@@ -45,7 +45,7 @@ struct GoogleImageGenerationTests {
 
     @Test("Gemini image 16:9 1K", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func generatesWideImage() async throws {
-        let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+        let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let response = try await google.createChatCompletion(
             model: model,
             messages: [.init(
@@ -60,7 +60,7 @@ struct GoogleImageGenerationTests {
 
     @Test("Gemini image square 2K", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func generatesSquareImage() async throws {
-        let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+        let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let response = try await google.createChatCompletion(
             model: model,
             messages: [.init(

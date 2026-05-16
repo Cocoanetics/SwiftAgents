@@ -7,7 +7,7 @@ struct GoogleVisionImageTests {
 
     @Test("Google inline vision", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func googleInlineImageUnderstanding() async throws {
-        let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+        let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let system = ChatMessage(role: .system, content: .text("Describe any image attachments in a short sentence."))
         let user = try VisionImageTestHelpers.imageOnlyMessage()
         let response = try await google.createChatCompletion(model: googleModel, messages: [system, user])
@@ -18,7 +18,7 @@ struct GoogleVisionImageTests {
 
     @Test("Google remote vision", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
     func googleRemoteImageUnderstanding() async throws {
-        let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
+        let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let fixtureURL = try #require(
             Bundle.module.url(forResource: "vision-test", withExtension: "png"),
             "vision-test fixture is required"
