@@ -1,7 +1,13 @@
 import Foundation
-import ImageIO
 @testable import Providers
 import Testing
+
+// ImageIO / CGImageSource only exist on Apple platforms. On Linux this
+// whole suite is compiled out — its tests are gated with
+// `.enabled(if: APIKey.hasGemini)` anyway and aren't useful Linux CI
+// signal, but `--build-tests` still has to compile the file.
+#if canImport(ImageIO)
+import ImageIO
 
 struct GoogleImageGenerationTests {
     private let model = "gemini-3-pro-image-preview"
@@ -119,3 +125,5 @@ struct GoogleImageGenerationTests {
         )
     }
 }
+
+#endif
