@@ -7,6 +7,9 @@
 //  SeeAlso: [List Responses API](https://platform.openai.com/docs/api-reference/responses/list)
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public extension OpenAI {
     // MARK: - Creating Responses

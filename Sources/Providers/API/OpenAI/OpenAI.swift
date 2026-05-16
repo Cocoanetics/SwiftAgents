@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public class OpenAI: API, @unchecked Sendable {
     /// Initializes OpenAI API. If now API key is provided, then we're looking for OPENAI_API_KEY in the environment

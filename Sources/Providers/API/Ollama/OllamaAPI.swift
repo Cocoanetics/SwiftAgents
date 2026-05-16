@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public class OllamaAPI: API, @unchecked Sendable {
     // MARK: - Chat Completions

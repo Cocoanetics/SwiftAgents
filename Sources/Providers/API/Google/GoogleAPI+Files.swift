@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public extension GoogleAPI {
     func uploadFile(url: URL, filename: String? = nil, mimeType: String) async throws -> GoogleFile {

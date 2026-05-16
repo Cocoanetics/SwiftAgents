@@ -35,15 +35,35 @@ class LocalVectorStore {
     let embeddingProvider: EmbeddingProvider
 
     init(embeddingProvider: EmbeddingProvider? = nil) {
+        #if canImport(NaturalLanguage)
         self.embeddingProvider = embeddingProvider ?? ContextualEmbeddingProvider()
+        #else
+        // `ContextualEmbeddingProvider` and `TextChunker` are
+        // `NaturalLanguage`-backed and only exist on Apple platforms.
+        // On Linux callers must supply an explicit provider (typically
+        // `OpenAI` or `OllamaAPI` as the embedding source).
+        guard let embeddingProvider else {
+            preconditionFailure(
+                "LocalVectorStore requires an explicit embeddingProvider on platforms without NaturalLanguage."
+            )
+        }
+        self.embeddingProvider = embeddingProvider
+        #endif
     }
 
     func indexText(_ text: String, source: String) async throws {
-        let chunker = TextChunker(text: text)
+        #if canImport(NaturalLanguage)
+        let sections = TextChunker(text: text).sections
+        #else
+        // Linux / non-Apple: skip `NLLanguageRecognizer`-based chunking
+        // and treat the whole input as a single section. Consumers that
+        // need real chunking on Linux should pre-split their input.
+        let sections = [text]
+        #endif
 
         var tmpArray = [TextChunk]()
 
-        for section in chunker.sections {
+        for section in sections {
             guard let embedding = try await embeddingProvider.embedding(for: section) else {
                 continue
             }

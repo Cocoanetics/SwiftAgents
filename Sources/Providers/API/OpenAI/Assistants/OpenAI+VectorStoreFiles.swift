@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 extension OpenAI {
     /// Creates a vector store file by attaching an existing file to a specified vector store.

@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public extension OpenAI {
     func uploadFile(url: URL, filename: String? = nil, purpose: File.Purpose = .assistants) async throws -> File {
