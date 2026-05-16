@@ -7,6 +7,26 @@ excluded:
   - Tests/ProvidersTests/Resources
   - "**/.build"
 
+opt_in_rules:
+  - indentation_width
+
+# 4-space indentation across the codebase. The `.editorconfig` at the
+# repo root pre-empts editors going off-script; this rule is the
+# enforcement gate for CI and the pre-commit hook.
+indentation_width:
+  indentation_width: 4
+  include_compiler_directives: true
+  # Multi-line doc comments (`/** … */`) follow the Swift convention of
+  # `indent + 1 space` for body lines so the leading asterisk aligns with
+  # the opening `/*`. That trips `include_comments: true`. Off here.
+  include_comments: false
+  include_multiline_strings: false
+
+# Cases sit one level deeper than the `switch`, matching the
+# indented-case style swiftformat applies via `--indentcase true`.
+switch_case_alignment:
+  indented_cases: true
+
 # Provider API model files mirror the real-world JSON structure of the
 # upstream APIs (OpenAI / Gemini / Ollama). Nested types like
 # `Part.FileData` and their accompanying `CodingKeys` are a standard

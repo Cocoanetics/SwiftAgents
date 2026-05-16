@@ -1,12 +1,11 @@
 import Foundation
 
-extension Collection {
-    public func concurrentMap<T>(
+public extension Collection {
+    func concurrentMap<T>(
         _ transform: @escaping (Element) async throws -> T
     ) async throws -> [T] {
         try await withThrowingTaskGroup(of: (Int, T).self) { group in
-
-			// placeholders so that results are assembled in same order
+            // placeholders so that results are assembled in same order
             var results = [T?](repeating: nil, count: self.count)
 
             for (index, element) in self.enumerated() {

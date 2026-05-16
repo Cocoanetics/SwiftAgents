@@ -1,6 +1,6 @@
-extension ResponseOutput {
+public extension ResponseOutput {
     /// The results of a web search tool call.
-    public struct WebSearchToolCall: Codable, Sendable {
+    struct WebSearchToolCall: Codable, Sendable {
         /// The unique ID of the web search tool call.
         public let id: String
 

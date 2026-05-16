@@ -1,17 +1,18 @@
 //
 //  GPTImageOptions+ImageBackground.swift
-//  
+//
 //
 //  Created by Oliver Drobnik on 23.05.24.
 //
 
 import Foundation
 
-extension GPTImageOptions {
-	/// The background style for GPT Image
-	public enum ImageBackground: String, Codable {
-		/// Transparent background
-		case transparent		/// Opaque background
-		case opaque		/// Auto background
-		case auto	}
+public extension GPTImageOptions {
+    /// The background style for GPT Image
+    enum ImageBackground: String, Codable {
+        /// Transparent background
+        case transparent // Opaque background
+        case opaque // Auto background
+        case auto
+    }
 }

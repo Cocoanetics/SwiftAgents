@@ -8,5 +8,5 @@
 import Foundation
 
 struct ResultsArrayWrapper<T: Decodable>: Decodable {
-	let results: T
+    let results: T
 }

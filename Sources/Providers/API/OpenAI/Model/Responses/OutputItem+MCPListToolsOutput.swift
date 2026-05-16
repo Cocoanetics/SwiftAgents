@@ -1,9 +1,9 @@
 import Foundation
 import SwiftMCP
 
-extension OutputItem {
+public extension OutputItem {
     /// Represents the output for an MCP list tools response.
-    public struct MCPListToolsOutput: Codable, Sendable {
+    struct MCPListToolsOutput: Codable, Sendable {
         /// The unique ID of this output item.
         public let id: String
         /// The server label (e.g., "deepwiki").
@@ -13,7 +13,7 @@ extension OutputItem {
     }
 
     /// Represents a single tool in the MCP list tools output.
-    public struct MCPListTool: Codable, Sendable {
+    struct MCPListTool: Codable, Sendable {
         public let name: String
         public let description: String?
         public let inputSchema: [String: JSONValue]

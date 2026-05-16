@@ -7,7 +7,8 @@
 
 import Foundation
 
-/// Represents token usage details including input tokens, output tokens, a breakdown of output tokens, and the total tokens used.
+/// Represents token usage details including input tokens, output tokens, a breakdown of output tokens, and the total
+/// tokens used.
 public struct ResponsesUsage: Codable, Sendable {
     /// The number of input tokens.
     public let inputTokens: Int

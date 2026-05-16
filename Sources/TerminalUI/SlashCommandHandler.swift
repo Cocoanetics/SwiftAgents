@@ -15,17 +15,17 @@ protocol AnyCommandExecutable {
 
 /// A struct representing a command block of code that can be executed.
 public struct CommandExecutable<ReturnType>: AnyCommandExecutable {
-	let block: () async throws -> ReturnType
+    let block: () async throws -> ReturnType
 
-	public init(block: @escaping () async throws -> ReturnType) {
-		self.block = block
-	}
+    public init(block: @escaping () async throws -> ReturnType) {
+        self.block = block
+    }
 
-	public func execute() async throws -> ReturnType {
-		return try await block()
-	}
+    public func execute() async throws -> ReturnType {
+        return try await block()
+    }
 
-    // Type-erased execution used by SlashCommandHandler
+    /// Type-erased execution used by SlashCommandHandler
     func executeErased() async throws {
         _ = try await block()
     }
@@ -33,41 +33,41 @@ public struct CommandExecutable<ReturnType>: AnyCommandExecutable {
 
 /// A struct for handling slash commands.
 public class SlashCommandHandler {
-	/// A dictionary to store registered slash commands and their associated blocks.
+    /// A dictionary to store registered slash commands and their associated blocks.
     private var commands: [String: any AnyCommandExecutable] = [:]
 
-	/// Registers a new slash command with its associated block.
-	///
-	/// - Parameters:
-	///   - slashCommand: The string representing the slash command.
-	///   - block: The block of code to be executed when the command is triggered.
-	public func register<ReturnType>(slashCommand: String, block: @escaping () async throws -> ReturnType = { }) {
-		commands[slashCommand] = CommandExecutable(block: block)
-	}
+    /// Registers a new slash command with its associated block.
+    ///
+    /// - Parameters:
+    ///   - slashCommand: The string representing the slash command.
+    ///   - block: The block of code to be executed when the command is triggered.
+    public func register(slashCommand: String, block: @escaping () async throws -> some Any = {}) {
+        commands[slashCommand] = CommandExecutable(block: block)
+    }
 
-	/// Executes the specified slash command.
-	///
-	/// - Parameter slashCommand: The string representing the slash command to be executed.
-	/// - Throws: An `UnknownCommandError` if the specified command is not registered.
-	public func execute(slashCommand: String) async throws {
+    /// Executes the specified slash command.
+    ///
+    /// - Parameter slashCommand: The string representing the slash command to be executed.
+    /// - Throws: An `UnknownCommandError` if the specified command is not registered.
+    public func execute(slashCommand: String) async throws {
         guard let executable = commands[slashCommand] else {
             throw UnknownCommandError.unknownCommand(slashCommand)
         }
         try await executable.executeErased()
-	}
+    }
 
-	/// An error type that represents an unknown command.
-	///
-	/// This error is thrown when attempting to execute a command that is not registered.
-	public enum UnknownCommandError: Error, LocalizedError {
-		/// The unrecognized command.
-		case unknownCommand(String)
+    /// An error type that represents an unknown command.
+    ///
+    /// This error is thrown when attempting to execute a command that is not registered.
+    public enum UnknownCommandError: Error, LocalizedError {
+        /// The unrecognized command.
+        case unknownCommand(String)
 
-		public var errorDescription: String? {
-			switch self {
-			case .unknownCommand(let command):
-				return NSLocalizedString("Unknown command: \(command)", comment: "Unknown command error")
-			}
-		}
-	}
+        public var errorDescription: String? {
+            switch self {
+                case let .unknownCommand(command):
+                    return NSLocalizedString("Unknown command: \(command)", comment: "Unknown command error")
+            }
+        }
+    }
 }

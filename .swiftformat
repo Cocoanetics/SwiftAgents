@@ -1,0 +1,30 @@
+# swiftformat configuration for SwiftAgents. Run locally; CI uses
+# SwiftLint only (see .swiftlint.yml + .github/workflows/swiftlint.yml).
+#
+# Run:
+#   swiftformat .
+
+--swiftversion 5.10
+--indent 4
+--indentcase true
+--tabwidth unspecified
+
+# Disabled rules:
+#
+# trailingCommas — conflicts with SwiftLint's default `trailing_comma`
+#   rule (which requires the absence of trailing commas in collection
+#   literals).
+# wrapMultilineStatementBraces — pushes `{` to its own line for
+#   multi-line conditions; conflicts with SwiftLint's `opening_brace`.
+# redundantReturn — strips `return` from single-expression closures and
+#   functions, which breaks generic inference for
+#   `withCheckedThrowingContinuation<T>` in async Void contexts.
+#   (See `ContextualEmbeddingProvider.requestAssets` and
+#   `RealtimeSession.waitForIdle`.)
+--disable trailingCommas,wrapMultilineStatementBraces,redundantReturn
+
+# Block-indent continuations of multi-line conditions instead of
+# aligning with the first `let` — keeps `indentation_width` happy.
+--wrapconditions after-first
+
+--exclude Tests/ProvidersTests/Resources,.build

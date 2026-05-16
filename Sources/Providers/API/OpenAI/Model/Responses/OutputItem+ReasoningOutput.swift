@@ -1,6 +1,6 @@
-extension OutputItem {
+public extension OutputItem {
     /// A description of the chain of thought used by a reasoning model.
-    public struct ReasoningOutput: Sendable {
+    struct ReasoningOutput: Sendable {
         /// The unique identifier of the reasoning content.
         public let id: String
 
@@ -27,14 +27,14 @@ extension OutputItem.ReasoningOutput: Codable {
             self.summary = summary
         } else if let content = try? container.decode([ContentItem].self, forKey: .content) {
             // Convert reasoning_text content items to summary items
-            self.summary = content.compactMap { item in
-                if case .reasoningText(let reasoning) = item {
+            summary = content.compactMap { item in
+                if case let .reasoningText(reasoning) = item {
                     return OutputItem.SummaryItem(type: "summary_text", text: reasoning.text)
                 }
                 return nil
             }
         } else {
-            self.summary = []
+            summary = []
         }
     }
 

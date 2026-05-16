@@ -2,7 +2,7 @@ import Foundation
 import SwiftMCP
 
 /** A processor that batches traces and spans before exporting them.
- 
+
  Implementation notes:
  1. Uses async/await for thread safety
  2. Uses Timer with AsyncStream for scheduled exports
@@ -42,7 +42,7 @@ public actor BatchTraceProcessor: TracingProcessor, @unchecked Sendable {
     // MARK: - Initialization
 
     /** Creates a new batch trace processor with the specified configuration.
-     
+
      - Parameters:
         - exporter: The exporter to use for exporting batched traces and spans
         - maxQueueSize: Maximum number of items to store before dropping (default: 8192)
@@ -62,41 +62,39 @@ public actor BatchTraceProcessor: TracingProcessor, @unchecked Sendable {
         self.maxBatchSize = maxBatchSize
         self.scheduleDelay = scheduleDelay
         self.exportTriggerRatio = exportTriggerRatio
-        self.exportTriggerSize = Int(Double(maxQueueSize) * exportTriggerRatio)
+        exportTriggerSize = Int(Double(maxQueueSize) * exportTriggerRatio)
     }
 
     /** Starts the background export task. Must be called after initialization. */
     public func start() {
+        precondition(!isShutdown, "Cannot start a already shutdown BatchTraceProcessor")
 
-		precondition(!isShutdown, "Cannot start a already shutdown BatchTraceProcessor")
-
-        self.exportTask = Task { [weak self] in
-            while let self = self, await !self.isShutdown {
-                await self.exportBatches(force: false)
-                try? await Task.sleep(for: .seconds(self.scheduleDelay))
+        exportTask = Task { [weak self] in
+            while let self, await !self.isShutdown {
+                await exportBatches(force: false)
+                try? await Task.sleep(for: .seconds(scheduleDelay))
             }
         }
     }
 
-	public func shutdown() async {
+    public func shutdown() async {
+        guard !isShutdown else { return }
 
-		guard !isShutdown else { return }
-
-		isShutdown = true
-		await exportBatches(force: true) // Export all remaining items
-		exportTask?.cancel()             // Now cancel the background task
-		exportTask = nil
-	}
+        isShutdown = true
+        await exportBatches(force: true) // Export all remaining items
+        exportTask?.cancel() // Now cancel the background task
+        exportTask = nil
+    }
 
     // MARK: - TracingProcessor Implementation
 
     public func onTraceStart(_ trace: Trace) async {
         guard !isShutdown else { return }
 
-		// start exporting if we didn't do so yet
-		if exportTask == nil {
-			start()
-		}
+        // start exporting if we didn't do so yet
+        if exportTask == nil {
+            start()
+        }
 
         if queue.count < maxQueueSize {
             queue.append(trace)
@@ -106,18 +104,17 @@ public actor BatchTraceProcessor: TracingProcessor, @unchecked Sendable {
         }
     }
 
-    public func onTraceEnd(_ trace: Trace) async {
+    public func onTraceEnd(_: Trace) async {
         // We handle traces via onTraceStart
 
-		await exportBatches(force: true) // Export all remaining items
+        await exportBatches(force: true) // Export all remaining items
     }
 
-    public func onSpanStart(_ span: TraceSpan) async {
+    public func onSpanStart(_: TraceSpan) async {
         // We handle spans via onSpanEnd
     }
 
     public func onSpanEnd(_ span: TraceSpan) async {
-
         guard !isShutdown else { return }
         if queue.count < maxQueueSize {
             queue.append(span)
@@ -142,7 +139,7 @@ public actor BatchTraceProcessor: TracingProcessor, @unchecked Sendable {
     }
 
     /** Exports items in batches
-     
+
      - Parameter force: If true, exports everything. Otherwise, exports up to maxBatchSize
      */
     private func exportBatches(force: Bool) async {
@@ -150,7 +147,7 @@ public actor BatchTraceProcessor: TracingProcessor, @unchecked Sendable {
             var batch: [[String: JSONValue]] = []
 
             // Take up to maxBatchSize items
-            while !queue.isEmpty && (force || batch.count < maxBatchSize) {
+            while !queue.isEmpty, force || batch.count < maxBatchSize {
                 if let trace = queue.first as? Trace {
                     batch.append(trace.export())
                 } else if let span = queue.first as? TraceSpan {
@@ -163,7 +160,7 @@ public actor BatchTraceProcessor: TracingProcessor, @unchecked Sendable {
                 await exporter.export(batch)
             }
 
-            if !force && queue.count < exportTriggerSize {
+            if !force, queue.count < exportTriggerSize {
                 break
             }
         }

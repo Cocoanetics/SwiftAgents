@@ -1,8 +1,8 @@
 import Foundation
 
-extension OutputItem {
+public extension OutputItem {
     /// Represents the output for an MCP approval request.
-    public struct MCPApprovalRequestOutput: Codable, Sendable {
+    struct MCPApprovalRequestOutput: Codable, Sendable {
         /// The unique ID of this output item.
         public let id: String
         /// The name of the tool being called.

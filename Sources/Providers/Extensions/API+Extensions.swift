@@ -2,13 +2,19 @@ import Foundation
 import SwiftMCP
 
 public extension API {
-    func createStructuredChatCompletion<T>(model: String, messages: [ChatMessage]) async throws -> T
-    where T: Decodable, T: SchemaRepresentable {
-		let completion = try await createChatCompletion(model: model, messages: messages, responseFormat: .jsonSchema(T.jsonSchema))
+    func createStructuredChatCompletion<T: Decodable & SchemaRepresentable>(
+        model: String,
+        messages: [ChatMessage]
+    ) async throws -> T {
+        let completion = try await createChatCompletion(
+            model: model,
+            messages: messages,
+            responseFormat: .jsonSchema(T.jsonSchema)
+        )
 
-		guard let jsonString = completion.choices.first?.message.textContent,
-              let data = jsonString.data(using: .utf8) else {
-			throw APIError.invalidResponse
+        guard let jsonString = completion.choices.first?.message.textContent,
+            let data = jsonString.data(using: .utf8) else {
+            throw APIError.invalidResponse
         }
 
         return try JSONDecoder().decode(T.self, from: data)
@@ -17,7 +23,7 @@ public extension API {
     func withRetry<T>(maxRetries: Int = 3, operation: @escaping () async throws -> T) async throws -> T {
         var lastError: Error?
 
-        for attempt in 0..<maxRetries {
+        for attempt in 0 ..< maxRetries {
             do {
                 return try await operation()
             } catch {

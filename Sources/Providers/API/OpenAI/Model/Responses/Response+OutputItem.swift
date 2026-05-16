@@ -1,9 +1,9 @@
 import Foundation
 import SwiftMCP
 
-extension OutputItem {
+public extension OutputItem {
     /// A function tool call.
-    public struct FunctionCall: Codable, Sendable {
+    struct FunctionCall: Codable, Sendable {
         /// The unique ID of the function tool call.
         public let id: String
 
@@ -27,30 +27,30 @@ extension OutputItem {
             case status
         }
 
-		public func argumentsDictionary() throws -> [String: JSONValue] {
-			guard !arguments.isEmpty,
-				  let data = arguments.data(using: .utf8) else {
-				return [:]
-			}
+        public func argumentsDictionary() throws -> [String: JSONValue] {
+            guard !arguments.isEmpty,
+                let data = arguments.data(using: .utf8) else {
+                return [:]
+            }
 
-			let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
+            let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
 
-			if let dict = jsonObject as? [String: Any] {
-				return .init(jsonObject: dict)
-			} else if let array =  jsonObject as? [[String: Any]] {
-				var argumentsDict: [String: JSONValue] = [:]
+            if let dict = jsonObject as? [String: Any] {
+                return .init(jsonObject: dict)
+            } else if let array = jsonObject as? [[String: Any]] {
+                var argumentsDict: [String: JSONValue] = [:]
 
-				for item in array {
-					if let name = item["name"] as? String,
-						let value = item["value"] {
-						argumentsDict[name] = .init(jsonObject: value)
-					}
-				}
+                for item in array {
+                    if let name = item["name"] as? String,
+                        let value = item["value"] {
+                        argumentsDict[name] = .init(jsonObject: value)
+                    }
+                }
 
-				return argumentsDict
-			}
+                return argumentsDict
+            }
 
-			return [:]
-		}
+            return [:]
+        }
     }
 }

@@ -7,39 +7,38 @@
 
 import Foundation
 
-extension URLRequest {
-	public var debugDescription: String {
-		var tmpStr = ""
+public extension URLRequest {
+    var debugDescription: String {
+        var tmpStr = ""
 
-		if let httpMethod = httpMethod {
-			tmpStr += httpMethod
-		}
+        if let httpMethod {
+            tmpStr += httpMethod
+        }
 
-		if let url = url {
-			if !tmpStr.isEmpty {
-				tmpStr += " "
-			}
+        if let url {
+            if !tmpStr.isEmpty {
+                tmpStr += " "
+            }
 
-			tmpStr += url.absoluteString
-		}
+            tmpStr += url.absoluteString
+        }
 
-		if !tmpStr.isEmpty {
-			tmpStr += "\n\n"
-		}
+        if !tmpStr.isEmpty {
+            tmpStr += "\n\n"
+        }
 
-		if let httpBody = httpBody {
-			do {
-				if let jsonObject = try JSONSerialization.jsonObject(with: httpBody, options: []) as? [String: Any],
-					let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted),
-					let prettyPrintedString = String(data: prettyData, encoding: .utf8) {
+        if let httpBody {
+            do {
+                if let jsonObject = try JSONSerialization.jsonObject(with: httpBody, options: []) as? [String: Any],
+                    let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted),
+                    let prettyPrintedString = String(data: prettyData, encoding: .utf8) {
+                    tmpStr += prettyPrintedString
+                }
+            } catch {
+                print("Error parsing JSON: \(error)")
+            }
+        }
 
-					tmpStr += prettyPrintedString
-				}
-			} catch {
-				print("Error parsing JSON: \(error)")
-			}
-		}
-
-		return tmpStr
-	}
+        return tmpStr
+    }
 }

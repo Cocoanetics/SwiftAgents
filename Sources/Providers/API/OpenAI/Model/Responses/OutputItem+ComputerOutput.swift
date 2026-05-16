@@ -1,6 +1,6 @@
-extension OutputItem {
+public extension OutputItem {
     /// A computer tool call.
-    public struct ComputerOutput: Codable, Sendable {
+    struct ComputerOutput: Codable, Sendable {
         /// The unique ID of the computer call.
         public let id: String
 

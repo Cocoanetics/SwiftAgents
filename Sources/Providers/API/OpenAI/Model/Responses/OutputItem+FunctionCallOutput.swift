@@ -1,6 +1,6 @@
-extension OutputItem {
+public extension OutputItem {
     /// A function tool call.
-    public struct FunctionCallOutput: Codable, Sendable {
+    struct FunctionCallOutput: Codable, Sendable {
         /// The unique ID of the function tool call.
         public let id: String
 

@@ -9,134 +9,132 @@ import Foundation
 import NaturalLanguage
 
 class TextChunker {
-	let text: String
+    let text: String
 
-	var sections: [String]!
+    var sections: [String]!
 
-	var maxChunk = 500
+    var maxChunk = 500
 
-	init(text: String) {
-		self.text = text
+    init(text: String) {
+        self.text = text
 
-		self.process()
-	}
+        process()
+    }
 
-	func process() {
-		var sections = [String]()
+    func process() {
+        var sections = [String]()
 
-		var sectionText = ""
+        var sectionText = ""
 
-		text.enumerateMarkdownParagraphs { paragraph in
+        text.enumerateMarkdownParagraphs { paragraph in
+            if paragraph.isTitle && !sectionText.isEmpty || sectionText.count + paragraph.count > maxChunk {
+                sections.append(sectionText.trimmingCharacters(in: .whitespacesAndNewlines))
+                sectionText = ""
+            }
 
-			if paragraph.isTitle && !sectionText.isEmpty || sectionText.count + paragraph.count > maxChunk {
-				sections.append(sectionText.trimmingCharacters(in: .whitespacesAndNewlines))
-				sectionText = ""
-			}
+            sectionText += paragraph
+        }
 
-			sectionText += paragraph
-		}
+        if !sectionText.isEmpty {
+            sections.append(sectionText.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
 
-		if !sectionText.isEmpty {
-			sections.append(sectionText.trimmingCharacters(in: .whitespacesAndNewlines))
-		}
-
-		self.sections = sections
-	}
+        self.sections = sections
+    }
 }
 
-extension String {
-	public var isTitle: Bool {
-		let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
+public extension String {
+    var isTitle: Bool {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
 
-		guard !trimmed.isEmpty else {
-			return false
-		}
+        guard !trimmed.isEmpty else {
+            return false
+        }
 
-		let lines = trimmed.components(separatedBy: "\n")
+        let lines = trimmed.components(separatedBy: "\n")
 
-		if lines.count > 1 {
-			// A paragraph with multiple lines cannot be a title
-			return false
-		}
+        if lines.count > 1 {
+            // A paragraph with multiple lines cannot be a title
+            return false
+        }
 
-		if trimmed.hasPrefix("#") {
-			return true
-		}
+        if trimmed.hasPrefix("#") {
+            return true
+        }
 
-		if trimmed.contains(".") || trimmed.contains("!") || trimmed.contains("?") || trimmed.contains(",") || trimmed.contains(";") || trimmed.contains(":") {
-			return false
-		}
+        if trimmed.contains(".") || trimmed.contains("!") || trimmed.contains("?") || trimmed.contains(",") || trimmed
+            .contains(";") || trimmed.contains(":") {
+            return false
+        }
 
-		if trimmed.endsWithQuote {
-			// it's quoted text
-			return false
-		}
+        if trimmed.endsWithQuote {
+            // it's quoted text
+            return false
+        }
 
-		return true
-	}
+        return true
+    }
 
-	public var endsWithQuote: Bool {
-		return hasSuffix("\"") || hasSuffix("”") || hasSuffix("“")
-	}
+    var endsWithQuote: Bool {
+        return hasSuffix("\"") || hasSuffix("”") || hasSuffix("“")
+    }
 
-	public func enumerateMarkdownParagraphs(block: (String) -> Void) {
-		let tokenizer = NLTokenizer(unit: .paragraph)
-		tokenizer.string = self
+    func enumerateMarkdownParagraphs(block: (String) -> Void) {
+        let tokenizer = NLTokenizer(unit: .paragraph)
+        tokenizer.string = self
 
-		var currentRange: Range<String.Index>!
+        var currentRange: Range<String.Index>!
 
-		// enumerate paragraphs
-		tokenizer.enumerateTokens(in: self.startIndex..<self.endIndex) { range, _ -> Bool in
+        // enumerate paragraphs
+        tokenizer.enumerateTokens(in: startIndex ..< endIndex) { range, _ -> Bool in
+            let part = String(self[range])
 
-			let part = String(self[range])
+            if currentRange == nil {
+                currentRange = range
+            } else {
+                // extend range to include this part
+                currentRange = currentRange.lowerBound ..< range.upperBound
+            }
 
-			if currentRange == nil {
-				currentRange = range
-			} else {
-				// extend range to include this part
-				currentRange = currentRange.lowerBound..<range.upperBound
-			}
+            if part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || range.upperBound == self.endIndex {
+                // empty line, probably a paragraph break
+                let paragraph = String(self[currentRange])
+                block(paragraph)
 
-			if part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || range.upperBound == self.endIndex {
-				// empty line, probably a paragraph break
-				let paragraph = String(self[currentRange])
-				block(paragraph)
+                currentRange = nil
+            }
 
-				currentRange = nil
-			}
+            return true
+        }
+    }
 
-			return true
-		}
-	}
+    func enumerateSentences(block: (String) -> Void) {
+        let tokenizer = NLTokenizer(unit: .sentence)
+        tokenizer.string = self
 
-	public func enumerateSentences(block: (String) -> Void) {
-		let tokenizer = NLTokenizer(unit: .sentence)
-		tokenizer.string = self
+        var currentRange: Range<String.Index>!
 
-		var currentRange: Range<String.Index>!
+        // enumerate paragraphs
+        tokenizer.enumerateTokens(in: startIndex ..< endIndex) { range, _ -> Bool in
+            let part = String(self[range])
 
-		// enumerate paragraphs
-		tokenizer.enumerateTokens(in: self.startIndex..<self.endIndex) { range, _ -> Bool in
+            if currentRange == nil {
+                currentRange = range
+            } else {
+                // extend range to include this part
+                currentRange = currentRange.lowerBound ..< range.upperBound
+            }
 
-			let part = String(self[range])
+            guard !part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return true
+            }
 
-			if currentRange == nil {
-				currentRange = range
-			} else {
-				// extend range to include this part
-				currentRange = currentRange.lowerBound..<range.upperBound
-			}
+            let paragraph = String(self[currentRange])
+            block(paragraph)
 
-			guard !part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-				return true
-			}
+            currentRange = nil
 
-			let paragraph = String(self[currentRange])
-			block(paragraph)
-
-			currentRange = nil
-
-			return true
-		}
-	}
+            return true
+        }
+    }
 }

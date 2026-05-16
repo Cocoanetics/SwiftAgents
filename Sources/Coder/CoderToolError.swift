@@ -8,11 +8,11 @@
 import Foundation
 
 enum CoderToolError: LocalizedError {
-	case message(String)
+    case message(String)
 
-	var errorDescription: String? {
-		switch self {
-		case .message(let msg): return msg
-		}
-	}
+    var errorDescription: String? {
+        switch self {
+            case let .message(msg): return msg
+        }
+    }
 }

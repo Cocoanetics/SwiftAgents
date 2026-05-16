@@ -8,10 +8,10 @@
 import Foundation
 
 public struct ToolChoiceDescription: Codable, Sendable {
-	public var type: String?
-	public var function: Function?
+    public var type: String?
+    public var function: Function?
 
-	public struct Function: Codable, Sendable {
-		public var name: String?
-	}
+    public struct Function: Codable, Sendable {
+        public var name: String?
+    }
 }

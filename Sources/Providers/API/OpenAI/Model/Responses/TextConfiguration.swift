@@ -9,5 +9,5 @@ import Foundation
 
 /// Configuration options for a text response.
 public struct TextConfiguration: Codable, Sendable {
-	public let format: TextFormat
+    public let format: TextFormat
 }

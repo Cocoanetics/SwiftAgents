@@ -7,10 +7,11 @@
 
 import Foundation
 
-extension GPTImageOptions {
-	/// The moderation level for GPT Image
-	public enum ImageModeration: String, Codable {
-		/// Low moderation
-		case low		/// Auto moderation
-		case auto	}
+public extension GPTImageOptions {
+    /// The moderation level for GPT Image
+    enum ImageModeration: String, Codable {
+        /// Low moderation
+        case low // Auto moderation
+        case auto
+    }
 }

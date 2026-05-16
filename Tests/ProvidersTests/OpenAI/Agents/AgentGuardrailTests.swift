@@ -1,23 +1,25 @@
-import Testing // New import for Swift-Testing
+import Foundation // For ProcessInfo
 @testable import Providers
 import SwiftMCP
-import Foundation // For ProcessInfo
+import Testing // New import for Swift-Testing
 
 struct AgentGuardrailTest {
-
-    // Guardrail, Agent, and Output definitions (can remain top-level or be nested if preferred)
+    /// Guardrail, Agent, and Output definitions (can remain top-level or be nested if preferred)
     struct ForbiddenWordGuardrail: InputGuardrail {
         let name: String
         let forbiddenWord: String
         func evaluate(_ input: String) async throws -> InputGuardrailResult {
             let triggered = input.localizedCaseInsensitiveContains(forbiddenWord)
             try await Task.sleep(nanoseconds: 10_000_000) // Reduced sleep further for faster tests
-            return InputGuardrailResult(tripwireTriggered: triggered, metadata: ["forbiddenWord": JSONValue(forbiddenWord)])
+            return InputGuardrailResult(
+                tripwireTriggered: triggered,
+                metadata: ["forbiddenWord": JSONValue(forbiddenWord)]
+            )
         }
     }
 
     @Schema
-    struct MessageOutput: Codable, Sendable, Equatable {
+    struct MessageOutput: Codable, Equatable {
         let reasoning: String
         let response: String
         let user_name: String
@@ -30,17 +32,21 @@ struct AgentGuardrailTest {
         let outputGuardrails: [any OutputGuardrail]
 
         init() {
-            self.outputGuardrails = [SensitiveDataOutputGuardrail()]
+            outputGuardrails = [SensitiveDataOutputGuardrail()]
         }
     }
 
     struct SensitiveDataOutputGuardrail: OutputGuardrail {
         let name: String = "SensitiveDataCheck"
-        func evaluate(_ output: any Sendable, agent: any Agent) async throws -> OutputGuardrailFunctionOutput {
+        func evaluate(_ output: any Sendable, agent _: any Agent) async throws -> OutputGuardrailFunctionOutput {
             guard let message = output as? MessageOutput else {
-                return OutputGuardrailFunctionOutput(metadata: ["type_mismatch": JSONValue(true)], tripwireTriggered: false)
+                return OutputGuardrailFunctionOutput(
+                    metadata: ["type_mismatch": JSONValue(true)],
+                    tripwireTriggered: false
+                )
             }
-            let containsSensitive = message.response.lowercased().contains("phone number") || message.response.lowercased().contains("650")
+            let containsSensitive = message.response.lowercased().contains("phone number") || message.response
+                .lowercased().contains("650")
             return OutputGuardrailFunctionOutput(
                 metadata: ["contains_sensitive": JSONValue(containsSensitive)],
                 tripwireTriggered: containsSensitive
@@ -48,7 +54,7 @@ struct AgentGuardrailTest {
         }
     }
 
-	@Test("Input Guardrail Allows Safe Input", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Input Guardrail Allows Safe Input", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
     func agentWithInputGuardrail_allowsSafeInput() async throws {
         try await withTrace(name: "Input Guardrail Allows Safe Input") {
             let guardrail = ForbiddenWordGuardrail(name: "NoBanana", forbiddenWord: "banana")
@@ -80,7 +86,10 @@ struct AgentGuardrailTest {
                 #expect(error.guardrailName == "NoBanana")
                 #expect(error.result.tripwireTriggered == true)
                 let metadata = try #require(error.result.metadata, "Expected metadata for guardrail")
-                let forbidden = try #require(metadata["forbiddenWord"]?.value as? String, "Expected forbiddenWord metadata")
+                let forbidden = try #require(
+                    metadata["forbiddenWord"]?.value as? String,
+                    "Expected forbiddenWord metadata"
+                )
                 #expect(forbidden == "banana")
             } catch {
                 Issue.record("Caught unexpected error: \(error) - \(error.localizedDescription)")
@@ -101,7 +110,10 @@ struct AgentGuardrailTest {
                 #expect(error.guardrailName == "SensitiveDataCheck")
                 #expect(error.result.tripwireTriggered == true)
                 let metadata = try #require(error.result.metadata, "Expected metadata for guardrail")
-                let containsSensitive = try #require(metadata["contains_sensitive"]?.value as? Bool, "Expected contains_sensitive metadata")
+                let containsSensitive = try #require(
+                    metadata["contains_sensitive"]?.value as? Bool,
+                    "Expected contains_sensitive metadata"
+                )
                 #expect(containsSensitive == true, "The 'contains_sensitive' metadata should be true.")
             } catch {
                 Issue.record("Caught unexpected error: \(error) - \(error.localizedDescription)")

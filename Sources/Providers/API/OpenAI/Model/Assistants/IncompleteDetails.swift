@@ -9,5 +9,5 @@ import Foundation
 
 /// Represents the details about why a message or run is incomplete.
 public struct IncompleteDetails: Codable, Sendable {
-	var reason: String
+    var reason: String
 }

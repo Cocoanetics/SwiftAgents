@@ -1,6 +1,6 @@
-extension ResponseOutput {
+public extension ResponseOutput {
     /// A tool call to run a function.
-    public struct FunctionToolCall: Codable, Sendable {
+    struct FunctionToolCall: Codable, Sendable {
         /// A JSON string of the arguments to pass to the function.
         public let arguments: String
 

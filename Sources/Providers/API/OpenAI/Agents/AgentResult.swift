@@ -1,10 +1,10 @@
 import Foundation
 
 /** Internal result type for agent execution steps
- 
+
  This enum represents the possible outcomes of an agent's execution step:
  either a final output value or a handoff to another agent.
- 
+
  - Type Parameter T: The type of the final output value
  */
 enum AgentResult<T> {

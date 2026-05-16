@@ -7,9 +7,9 @@
 
 import Foundation
 
-extension ResponsesStreamEvent {
+public extension ResponsesStreamEvent {
     /// Represents information about a completed reasoning summary.
-    public struct ReasoningSummaryDoneInfo: Codable, Sendable {
+    struct ReasoningSummaryDoneInfo: Codable, Sendable {
         /// The ID of the output item that the reasoning summary is for.
         public let itemId: String
 

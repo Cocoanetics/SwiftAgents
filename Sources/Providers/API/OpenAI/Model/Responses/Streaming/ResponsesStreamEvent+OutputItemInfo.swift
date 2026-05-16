@@ -7,13 +7,13 @@
 
 import Foundation
 
-extension ResponsesStreamEvent {
-	/// Represents information about an output item in a response.
-	public struct OutputItemInfo: Codable, Sendable {
-		/// The index of the output item.
-		public let outputIndex: Int
+public extension ResponsesStreamEvent {
+    /// Represents information about an output item in a response.
+    struct OutputItemInfo: Codable, Sendable {
+        /// The index of the output item.
+        public let outputIndex: Int
 
-		/// The output item.
-		public let item: OutputItem
-	}
+        /// The output item.
+        public let item: OutputItem
+    }
 }

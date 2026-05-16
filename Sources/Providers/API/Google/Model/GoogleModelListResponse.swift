@@ -13,8 +13,8 @@ public struct GoogleModelListResponse: Codable {
 //    public var object: String {
 //        "list"
 //    }
-//    
+//
 //    public var data: [Model] {
 //        models
 //    }
-// } 
+// }

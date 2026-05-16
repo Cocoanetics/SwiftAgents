@@ -7,9 +7,9 @@
 
 import Foundation
 
-extension ResponsesStreamEvent {
+public extension ResponsesStreamEvent {
     /// Represents information about an error in a reasoning summary.
-    public struct ReasoningSummaryErrorInfo: Codable, Sendable {
+    struct ReasoningSummaryErrorInfo: Codable, Sendable {
         /// The ID of the output item that the reasoning summary is for.
         public let itemId: String
 

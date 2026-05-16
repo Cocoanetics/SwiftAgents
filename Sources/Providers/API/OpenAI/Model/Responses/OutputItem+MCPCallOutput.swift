@@ -1,8 +1,8 @@
 import Foundation
 
-extension OutputItem {
+public extension OutputItem {
     /// Represents the output for an MCP call response.
-    public struct MCPCallOutput: Codable, Sendable {
+    struct MCPCallOutput: Codable, Sendable {
         public let id: String
         public let approvalRequestId: String?
         public let arguments: String?

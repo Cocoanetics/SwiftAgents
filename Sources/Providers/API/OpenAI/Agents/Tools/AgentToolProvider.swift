@@ -12,7 +12,7 @@ public struct AgentToolProvider: MCPToolProviding {
     public let toolName: String
     public let toolDescription: String
 
-    // Type-erased closure to run the specific agent
+    /// Type-erased closure to run the specific agent
     private let _runAgentAndGetOutput: (String) async throws -> (Encodable & Sendable)
 
     public init<A: Agent>(
@@ -26,7 +26,7 @@ public struct AgentToolProvider: MCPToolProviding {
 
         // This closure captures 'agent' with its concrete type 'A'.
         // Runner.run can then be called with a concrete agent type.
-        self._runAgentAndGetOutput = { inputText in
+        _runAgentAndGetOutput = { inputText in
             let runResult = try await Runner.run(agent: agent, input: inputText, maxTurns: 30, config: config)
             return runResult.finalOutput
         }
@@ -44,17 +44,17 @@ public struct AgentToolProvider: MCPToolProviding {
                         isRequired: true
                     )
                 ],
-				isAsync: true,
-				isThrowing: true
+                isAsync: true,
+                isThrowing: true
             )
         ]
     }
 
     public func callTool(_ name: String, arguments: [String: JSONValue]) async throws -> Encodable & Sendable {
-        guard name == self.toolName else {
+        guard name == toolName else {
             throw MCPToolError.unknownTool(name: name)
         }
         let inputArgument: String = try arguments.extractParameter(named: "input")
-        return try await self._runAgentAndGetOutput(inputArgument)
+        return try await _runAgentAndGetOutput(inputArgument)
     }
 }

@@ -1,6 +1,6 @@
-extension ResponseOutput {
+public extension ResponseOutput {
     /// A tool call to a computer use tool.
-    public struct ComputerToolCall: Codable, Sendable {
+    struct ComputerToolCall: Codable, Sendable {
         /// The action to perform.
         public let action: ComputerAction
 
@@ -21,7 +21,7 @@ extension ResponseOutput {
     }
 
     /// An action for a computer tool call.
-    public struct ComputerAction: Codable, Sendable {
+    struct ComputerAction: Codable, Sendable {
         // Add properties based on API documentation when available
     }
 }

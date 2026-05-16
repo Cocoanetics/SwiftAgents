@@ -1,6 +1,6 @@
-extension ResponseOutput {
+public extension ResponseOutput {
     /// The results of a file search tool call.
-    public struct FileSearchToolCall: Codable, Sendable {
+    struct FileSearchToolCall: Codable, Sendable {
         /// The unique ID of the file search tool call.
         public let id: String
 
@@ -18,7 +18,7 @@ extension ResponseOutput {
     }
 
     /// A result from a file search.
-    public struct FileSearchResult: Codable, Sendable {
+    struct FileSearchResult: Codable, Sendable {
         // Add properties based on API documentation when available
     }
 }

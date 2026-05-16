@@ -8,12 +8,11 @@
 import Foundation
 
 extension KeyedEncodingContainer {
-
-	mutating func encodeIfPresentOrNull(_ value: String?, forKey key: K) throws {
-		if let v = value {
-			try encode(v, forKey: key)
-		} else {
-			try encodeNil(forKey: key)
-		}
-	}
+    mutating func encodeIfPresentOrNull(_ value: String?, forKey key: K) throws {
+        if let v = value {
+            try encode(v, forKey: key)
+        } else {
+            try encodeNil(forKey: key)
+        }
+    }
 }

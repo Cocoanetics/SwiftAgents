@@ -9,5 +9,5 @@ import Foundation
 
 /// Represents a list of models returned by the Ollama API.
 public struct OllamaModelListResponse: Decodable {
-	public var models: [OllamaModel]
+    public var models: [OllamaModel]
 }

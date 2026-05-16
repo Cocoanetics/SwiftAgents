@@ -7,16 +7,16 @@
 
 import Foundation
 
-extension ResponsesStreamEvent {
-	/// Represents information about finalized function-call arguments.
-	public struct FunctionCallArgumentsDoneInfo: Codable, Sendable {
-		/// The ID of the output item that the function-call arguments are finalized for.
-		public let itemId: String
+public extension ResponsesStreamEvent {
+    /// Represents information about finalized function-call arguments.
+    struct FunctionCallArgumentsDoneInfo: Codable, Sendable {
+        /// The ID of the output item that the function-call arguments are finalized for.
+        public let itemId: String
 
-		/// The index of the output item that the function-call arguments are finalized for.
-		public let outputIndex: Int
+        /// The index of the output item that the function-call arguments are finalized for.
+        public let outputIndex: Int
 
-		/// The complete finalized function-call arguments as a JSON string.
-		public let arguments: String
-	}
+        /// The complete finalized function-call arguments as a JSON string.
+        public let arguments: String
+    }
 }

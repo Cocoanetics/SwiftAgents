@@ -22,7 +22,7 @@ public struct ModelSettings: Codable, Sendable {
     public var parallelToolCalls: Bool?
 
     /// Controls how the model handles truncation.
-	public var truncation: Response.TruncationStrategy?
+    public var truncation: Response.TruncationStrategy?
 
     /// Maximum number of tokens to generate.
     public var maxCompletionTokens: Int?

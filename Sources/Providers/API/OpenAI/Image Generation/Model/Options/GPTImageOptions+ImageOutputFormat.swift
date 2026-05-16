@@ -7,11 +7,12 @@
 
 import Foundation
 
-extension GPTImageOptions {
-	/// The output format for GPT Image
-	public enum ImageOutputFormat: String, Codable {
-		/// PNG format
-		case png		/// JPEG format
-		case jpeg		/// WebP format
-		case webp	}
+public extension GPTImageOptions {
+    /// The output format for GPT Image
+    enum ImageOutputFormat: String, Codable {
+        /// PNG format
+        case png // JPEG format
+        case jpeg // WebP format
+        case webp
+    }
 }

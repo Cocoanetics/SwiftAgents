@@ -6,16 +6,15 @@
 //
 
 extension Tool: Equatable {
-
     public static func == (lhs: Tool, rhs: Tool) -> Bool {
         switch (lhs, rhs) {
-        case (.function(let lhsFn), .function(let rhsFn)): lhsFn.name == rhsFn.name
-        case (.fileSearch(let lhsFs), .fileSearch(let rhsFs)): lhsFs.vectorStoreIds == rhsFs.vectorStoreIds
-        case (.webSearch(let lhsWs), .webSearch(let rhsWs)): lhsWs.type == rhsWs.type
-        case (.computer, .computer): true
-        case (.mcp(let lhsMcp), .mcp(let rhsMcp)): lhsMcp == rhsMcp
-        case (.applyPatch, .applyPatch): true
-        default: false
+            case let (.function(lhsFn), .function(rhsFn)): lhsFn.name == rhsFn.name
+            case let (.fileSearch(lhsFs), .fileSearch(rhsFs)): lhsFs.vectorStoreIds == rhsFs.vectorStoreIds
+            case let (.webSearch(lhsWs), .webSearch(rhsWs)): lhsWs.type == rhsWs.type
+            case (.computer, .computer): true
+            case let (.mcp(lhsMcp), .mcp(rhsMcp)): lhsMcp == rhsMcp
+            case (.applyPatch, .applyPatch): true
+            default: false
         }
     }
 }

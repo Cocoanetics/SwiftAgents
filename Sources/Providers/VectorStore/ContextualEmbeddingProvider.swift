@@ -1,97 +1,98 @@
 //
-//  EmbeddingsGenerator.swift
+//  ContextualEmbeddingProvider.swift
 //  OpenAI
 //
 //  Created by Oliver Drobnik on 18.04.24.
 //
 
-import NaturalLanguage
 import Foundation
+import NaturalLanguage
 
 enum EmbeddingsModelError: Error {
-	case unknownLanguage
-	case noModelAvailableForLanguage
+    case unknownLanguage
+    case noModelAvailableForLanguage
 }
 
-/// A built-in embedding provider using `NLContextualEmbedding`. This is multi-language where languages of the same script (e.g. Latin) whare one model.
+/// A built-in embedding provider using `NLContextualEmbedding`. This is multi-language where languages of the same
+/// script (e.g. Latin) whare one model.
 public class ContextualEmbeddingProvider {
-	public var embeddingModelIdentifier: String = "AppleContextualEmbeddingProvider"
+    public var embeddingModelIdentifier: String = "AppleContextualEmbeddingProvider"
 
-	/// lookup table to map language to model
-	private var embeddingsCache: [NLLanguage: NLContextualEmbedding] = [:]
+    /// lookup table to map language to model
+    private var embeddingsCache: [NLLanguage: NLContextualEmbedding] = [:]
 
-	public init() {
+    public init() {}
 
-	}
+    func embeddingVector(for text: String, language: NLLanguage? = nil) async throws -> Vector? {
+        guard let language = language ?? NLLanguageRecognizer.dominantLanguage(for: text) else {
+            throw EmbeddingsModelError.unknownLanguage
+        }
 
-	internal func embeddingVector(for text: String, language: NLLanguage? = nil) async throws -> Vector? {
+        let model = try await model(for: language)
 
-		guard let language = language ?? NLLanguageRecognizer.dominantLanguage(for: text) else {
-			throw EmbeddingsModelError.unknownLanguage
-		}
+        return calculateAverageVector(from: model, for: text)
+    }
 
-		let model = try await self.model(for: language)
+    private func model(for language: NLLanguage) async throws -> NLContextualEmbedding {
+        let embedding: NLContextualEmbedding
 
-		return calculateAverageVector(from: model, for: text)
-	}
+        if let cached = embeddingsCache[language] {
+            embedding = cached
+        } else if let newEmbedding = NLContextualEmbedding(language: language) {
+            // might need to download model first
+            if !newEmbedding.hasAvailableAssets {
+                try await requestAssets(for: newEmbedding)
+            }
 
-	private func model(for language: NLLanguage) async throws -> NLContextualEmbedding {
-		let embedding: NLContextualEmbedding
+            try newEmbedding.load()
 
-		if let cached = embeddingsCache[language] {
-			embedding = cached
-		} else if let newEmbedding = NLContextualEmbedding(language: language) {
+            // cache same NSObject for all supported languages
+            newEmbedding.languages.forEach { embeddingsCache[$0] = newEmbedding }
 
-			// might need to download model first
-			if !newEmbedding.hasAvailableAssets {
-				try await requestAssets(for: newEmbedding)
-			}
+            embedding = newEmbedding
 
-			try newEmbedding.load()
+        } else {
+            throw EmbeddingsModelError.noModelAvailableForLanguage
+        }
 
-			// cache same NSObject for all supported languages
-			newEmbedding.languages.forEach { embeddingsCache[$0] = newEmbedding }
+        return embedding
+    }
 
-			embedding = newEmbedding
+    private func requestAssets(for embedding: NLContextualEmbedding) async throws {
+        return try await withCheckedThrowingContinuation { continuation in
+            embedding.requestAssets { _, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: ()) // Explicitly returning Void
+                }
+            }
+        }
+    }
 
-		} else {
-			throw EmbeddingsModelError.noModelAvailableForLanguage
-		}
+    private func calculateAverageVector(
+        from embedding: NLContextualEmbedding,
+        for text: String,
+        language: NLLanguage = .english
+    ) -> Vector? {
+        guard let result = try? embedding.embeddingResult(for: text, language: language) else {
+            return nil
+        }
 
-		return embedding
-	}
+        var vectors: [Vector] = []
 
-	private func requestAssets(for embedding: NLContextualEmbedding) async throws {
-		return try await withCheckedThrowingContinuation { continuation in
-			embedding.requestAssets { _, error in
-				if let error = error {
-					continuation.resume(throwing: error)
-				} else {
-					continuation.resume(returning: ()) // Explicitly returning Void
-				}
-			}
-		}
-	}
+        result.enumerateTokenVectors(in: text.startIndex ..< text.endIndex) { vector, _ in
+            vectors.append(vector)
+            return true
+        }
 
-	private func calculateAverageVector(from embedding: NLContextualEmbedding, for text: String, language: NLLanguage = .english) -> Vector? {
-		guard let result = try? embedding.embeddingResult(for: text, language: language) else {
-			return nil
-		}
-
-		var vectors: [Vector] = []
-
-		result.enumerateTokenVectors(in: text.startIndex..<text.endIndex) { vector, _ in
-			vectors.append(vector)
-			return true
-		}
-
-		return vectors.averageUnitVector()
-	}
+        return vectors.averageUnitVector()
+    }
 }
 
 extension ContextualEmbeddingProvider: EmbeddingProvider {
-	public func embedding(for text: String) async throws -> Vector? {
-		// return vector created by auto-selected model
-		try await embeddingVector(for: text)
-	}
+    public func embedding(for text: String) async throws -> Vector? {
+        // return vector created by auto-selected model
+        try await embeddingVector(for: text)
+    }
 }

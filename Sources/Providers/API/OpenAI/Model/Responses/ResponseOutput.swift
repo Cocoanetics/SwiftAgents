@@ -32,20 +32,24 @@ public enum ResponseOutput: Codable, Sendable {
         let type = try container.decode(String.self, forKey: .type)
 
         switch type {
-        case "message":
-            self = .message(try OutputMessage(from: decoder))
-        case "file_search_call":
-            self = .fileSearchCall(try FileSearchToolCall(from: decoder))
-        case "function_call":
-            self = .functionCall(try FunctionToolCall(from: decoder))
-        case "web_search_call":
-            self = .webSearchCall(try WebSearchToolCall(from: decoder))
-        case "computer_call":
-            self = .computerCall(try ComputerToolCall(from: decoder))
-        case "reasoning":
-            self = .reasoning(try Reasoning(from: decoder))
-        default:
-            throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown output type: \(type)")
+            case "message":
+                self = try .message(OutputMessage(from: decoder))
+            case "file_search_call":
+                self = try .fileSearchCall(FileSearchToolCall(from: decoder))
+            case "function_call":
+                self = try .functionCall(FunctionToolCall(from: decoder))
+            case "web_search_call":
+                self = try .webSearchCall(WebSearchToolCall(from: decoder))
+            case "computer_call":
+                self = try .computerCall(ComputerToolCall(from: decoder))
+            case "reasoning":
+                self = try .reasoning(Reasoning(from: decoder))
+            default:
+                throw DecodingError.dataCorruptedError(
+                    forKey: .type,
+                    in: container,
+                    debugDescription: "Unknown output type: \(type)"
+                )
         }
     }
 
@@ -53,24 +57,24 @@ public enum ResponseOutput: Codable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         switch self {
-        case .message(let message):
-            try container.encode("message", forKey: .type)
-            try message.encode(to: encoder)
-        case .fileSearchCall(let call):
-            try container.encode("file_search_call", forKey: .type)
-            try call.encode(to: encoder)
-        case .functionCall(let call):
-            try container.encode("function_call", forKey: .type)
-            try call.encode(to: encoder)
-        case .webSearchCall(let call):
-            try container.encode("web_search_call", forKey: .type)
-            try call.encode(to: encoder)
-        case .computerCall(let call):
-            try container.encode("computer_call", forKey: .type)
-            try call.encode(to: encoder)
-        case .reasoning(let reasoning):
-            try container.encode("reasoning", forKey: .type)
-            try reasoning.encode(to: encoder)
+            case let .message(message):
+                try container.encode("message", forKey: .type)
+                try message.encode(to: encoder)
+            case let .fileSearchCall(call):
+                try container.encode("file_search_call", forKey: .type)
+                try call.encode(to: encoder)
+            case let .functionCall(call):
+                try container.encode("function_call", forKey: .type)
+                try call.encode(to: encoder)
+            case let .webSearchCall(call):
+                try container.encode("web_search_call", forKey: .type)
+                try call.encode(to: encoder)
+            case let .computerCall(call):
+                try container.encode("computer_call", forKey: .type)
+                try call.encode(to: encoder)
+            case let .reasoning(reasoning):
+                try container.encode("reasoning", forKey: .type)
+                try reasoning.encode(to: encoder)
         }
     }
 
@@ -84,17 +88,17 @@ public struct OutputMessage: Codable, Sendable {
     /// The content of the output message.
     public let content: [ContentItem]
 
-	/// The unique ID of the output message.
-	public let id: String
+    /// The unique ID of the output message.
+    public let id: String
 
-	/// The role of the output message. Always assistant.
-	public let role: Role
+    /// The role of the output message. Always assistant.
+    public let role: Role
 
     /// The status of the message input.
     public let status: ResponseStatus
 
-	/// The type of the output message. Always message.
-	public let type: Response.MessageItemType
+    /// The type of the output message. Always message.
+    public let type: Response.MessageItemType
 }
 
 /// The results of a file search tool call.
@@ -105,11 +109,11 @@ public struct FileSearchToolCall: Codable, Sendable {
     /// The queries used to search for files.
     public let queries: [String]
 
-	/// The status of the file search tool call.
-	public let status: Response.ToolCallStatus
+    /// The status of the file search tool call.
+    public let status: Response.ToolCallStatus
 
-	/// The type of the file search tool call. Always file_search_call.
-	public let type: Response.FileSearchCallType
+    /// The type of the file search tool call. Always file_search_call.
+    public let type: Response.FileSearchCallType
 
     /// The results of the file search tool call.
     public let results: [FileSearchResult]?
@@ -131,8 +135,8 @@ public struct FunctionToolCall: Codable, Sendable {
     /// The name of the function to run.
     public let name: String
 
-	/// The type of the function tool call. Always function_call.
-	public let type: Response.FunctionCallType
+    /// The type of the function tool call. Always function_call.
+    public let type: Response.FunctionCallType
 
     /// The unique ID of the function tool call.
     public let id: String
@@ -146,11 +150,11 @@ public struct WebSearchToolCall: Codable, Sendable {
     /// The unique ID of the web search tool call.
     public let id: String
 
-	/// The status of the web search tool call.
-	public let status: Response.ToolCallStatus
+    /// The status of the web search tool call.
+    public let status: Response.ToolCallStatus
 
-	/// The type of the web search tool call. Always web_search_call.
-	public let type: Response.WebSearchCallType
+    /// The type of the web search tool call. Always web_search_call.
+    public let type: Response.WebSearchCallType
 
     // Add other properties based on API documentation when available
 }
@@ -172,8 +176,8 @@ public struct ComputerToolCall: Codable, Sendable {
     /// The status of the item.
     public let status: ResponseStatus
 
-	/// The type of the computer call. Always computer_call.
-	public let type: Response.ComputerCallType
+    /// The type of the computer call. Always computer_call.
+    public let type: Response.ComputerCallType
 }
 
 /// An action for a computer tool call.

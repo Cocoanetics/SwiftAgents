@@ -8,11 +8,12 @@
 import Foundation
 
 public struct MCPApprovalFilter: Codable, Equatable, Sendable {
-	public let toolNames: [String]?
-	enum CodingKeys: String, CodingKey {
-		case toolNames = "tool_names"
-	}
-	public init(toolNames: [String]?) {
-		self.toolNames = toolNames
-	}
+    public let toolNames: [String]?
+    enum CodingKeys: String, CodingKey {
+        case toolNames = "tool_names"
+    }
+
+    public init(toolNames: [String]?) {
+        self.toolNames = toolNames
+    }
 }

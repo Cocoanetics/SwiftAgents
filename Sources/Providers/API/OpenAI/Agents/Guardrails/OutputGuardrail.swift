@@ -14,8 +14,8 @@ public enum OutputGuardrailError: Error, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .processingError(let message):
-            return "Output guardrail processing error: \(message)"
+            case let .processingError(message):
+                return "Output guardrail processing error: \(message)"
         }
     }
 }
@@ -33,7 +33,8 @@ public struct OutputGuardrailTripwireTriggered: Error, LocalizedError, Sendable 
     }
 
     public var errorDescription: String? {
-        "Output guardrail '\(guardrailName)' triggered: \(result.tripwireTriggered). Metadata: \(String(describing: result.metadata))".trimmingCharacters(in: .whitespacesAndNewlines)
+        "Output guardrail '\(guardrailName)' triggered: \(result.tripwireTriggered). Metadata: \(String(describing: result.metadata))"
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -53,17 +54,17 @@ public protocol OutputGuardrail: Sendable {
 }
 
 public struct OutputGuardrailFunctionOutput: Sendable {
-	public let metadata: [String: JSONValue]?
-	public let tripwireTriggered: Bool
-	public init(metadata: [String: JSONValue]? = nil, tripwireTriggered: Bool) {
-		self.metadata = metadata
-		self.tripwireTriggered = tripwireTriggered
-	}
+    public let metadata: [String: JSONValue]?
+    public let tripwireTriggered: Bool
+    public init(metadata: [String: JSONValue]? = nil, tripwireTriggered: Bool) {
+        self.metadata = metadata
+        self.tripwireTriggered = tripwireTriggered
+    }
 }
 
 public struct OutputGuardrailResult: Sendable {
-	public let guardrail: any OutputGuardrail
-	public let agentOutput: JSONValue
-	public let agent: any Agent
-	public let output: OutputGuardrailFunctionOutput
+    public let guardrail: any OutputGuardrail
+    public let agentOutput: JSONValue
+    public let agent: any Agent
+    public let output: OutputGuardrailFunctionOutput
 }
