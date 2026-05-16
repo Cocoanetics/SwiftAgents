@@ -37,12 +37,30 @@ jobs:
       # API keys that public CI doesn't have, so the test gives us
       # no useful signal on this runner.
       - name: Test (macOS)
+        # Run each filter in its own `swift test` invocation so the log
+        # shows progress per suite. Swift Testing buffers its output
+        # within a single run, so one slow / hung suite would otherwise
+        # hide the others. The shell loop also surfaces a banner before
+        # each suite so the GitHub Actions log shows where time is
+        # being spent, since previous runs failed with no Swift Testing
+        # output making it through the buffering.
         run: |
-          swift test -v --skip-build \
-            --filter ArrayVectorTests \
-            --filter TracingTests \
-            --filter GoogleGenerateContentResponseTests \
-            --filter GoogleThinkingConfigTests
+          set +e
+          fail=0
+          for suite in \
+            ArrayVectorTests \
+            TracingTests \
+            GoogleGenerateContentResponseTests \
+            GoogleThinkingConfigTests; do
+            echo "::group::Test ${suite}"
+            date "+>>> ${suite} start: %FT%T"
+            swift test -v --skip-build --filter "${suite}"
+            rc=$?
+            date "+>>> ${suite} end:   %FT%T (rc=${rc})"
+            echo "::endgroup::"
+            if [ "${rc}" -ne 0 ]; then fail=1; fi
+          done
+          exit "${fail}"
 
   build-ios:
     # Compile-only check on `generic/platform=iOS`. The `Coder` executable
