@@ -164,7 +164,43 @@ struct RealtimeSessionTests {
             )
         )
 
+        // Wait for the SDK to execute the tool call and dispatch the
+        // follow-up `response.create`. Then emit the matching
+        // `response.created` + `response.done` that the real OpenAI
+        // server would send back — without those, `waitUntilIdle()`
+        // blocks forever because the SDK's `pendingResponseRequests`
+        // counter stays at 1.
         try await Task.sleep(nanoseconds: 100_000_000)
+
+        await model.emit(
+            RealtimeServerEvent(
+                type: "response.created",
+                eventId: "evt_response_created_2",
+                object: .responseCreated(
+                    .init(
+                        eventId: "evt_response_created_2",
+                        response: RealtimeResponse(id: "resp_2", status: .inProgress)
+                    )
+                )
+            )
+        )
+        await model.emit(
+            RealtimeServerEvent(
+                type: "response.done",
+                eventId: "evt_response_done_2",
+                object: .responseDone(
+                    .init(
+                        eventId: "evt_response_done_2",
+                        response: RealtimeResponse(
+                            id: "resp_2",
+                            status: .completed,
+                            conversationId: "conv_1"
+                        )
+                    )
+                )
+            )
+        )
+
         try await session.waitUntilIdle()
 
         let payloads = try await decodedPayloads(from: model)
