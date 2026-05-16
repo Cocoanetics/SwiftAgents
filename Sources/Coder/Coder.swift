@@ -289,8 +289,9 @@ struct Coder: AsyncParsableCommand {
                     for response in completedResponses {
                         for outputItem in response.output {
                             if case let .message(msg) = outputItem {
-                                let text = msg.content
-                                    .compactMap { if case let .outputText(textContent) = $0 { textContent.text } else { nil } }.joined()
+                                let text = msg.content.compactMap { content -> String? in
+                                    if case let .outputText(textContent) = content { textContent.text } else { nil }
+                                }.joined()
                                 if !text.isEmpty {
                                     sessionLogger.log(.assistant(AssistantMessage(content: text)))
                                 }

@@ -194,7 +194,6 @@ public actor Runner {
     }
 
     // Helper function for executing an agent with input guardrails
-    // swiftlint:disable:next function_parameter_count
     private static func executeWithInputGuardrails<A: Agent>(
         agent: A,
         input: String,
@@ -334,7 +333,6 @@ public actor Runner {
     }
 
     // Helper function for executing agent turns
-    // swiftlint:disable:next function_parameter_count
     private static func executeAgentTurns<A: Agent>(
         agent: A,
         agentSpan _: TraceSpan,

@@ -47,7 +47,6 @@ extension Runner {
 
     // MARK: - Internal Streaming Loop
 
-    // swiftlint:disable:next function_parameter_count
     private static func _runStreamedLoop<A: Agent>(
         agent: A,
         input: String,
@@ -163,7 +162,6 @@ extension Runner {
 
     // MARK: - Streamed Turn Execution
 
-    // swiftlint:disable:next function_parameter_count
     private static func _executeStreamedTurns<A: Agent>(
         agent: A,
         agentSpan _: TraceSpan,
@@ -224,7 +222,11 @@ extension Runner {
                                     functionCalls.append(functionCall)
                                     continuation.yield(.runItemEvent(
                                         name: .toolCalled,
-                                        item: .toolCall(name: functionCall.name, arguments: functionCall.arguments, callId: functionCall.callId)
+                                        item: .toolCall(
+                                            name: functionCall.name,
+                                            arguments: functionCall.arguments,
+                                            callId: functionCall.callId
+                                        )
                                     ))
 
                                 case let .message(messageOutput):

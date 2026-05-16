@@ -19,7 +19,10 @@ struct AgentAsToolOpenAITests {
 
         let orchestrator = BasicAgent(
             name: "TranslationOrchestrator",
-            instructions: "Use the provided tools to translate the text into Spanish and French. Respond with clear labels for each language.",
+            instructions: """
+            Use the provided tools to translate the text into Spanish and French. \
+            Respond with clear labels for each language.
+            """,
             toolProvider: [
                 spanishAgent.asToolProvider(
                     toolName: "translate_to_spanish",

@@ -51,3 +51,28 @@ switch_case_alignment:
 # `// swiftlint:disable:next nesting` across every Codable model.
 nesting:
   type_level: 3
+
+# Structural thresholds — the OpenAI / Google / Ollama API clients are
+# inherently large because each provider exposes a dozen-plus endpoints
+# with rich parameter surface, and the agent runtime contains state
+# machines (Runner, RealtimeSession event router, Responses stream
+# decoder) that are clearer as one linear function than as a fan-out
+# of helpers. The defaults (file 400 / type 250 / func 50 /
+# complexity 10) were written for app code, not API-client libraries.
+# These thresholds are roughly 3× the defaults — still strict enough
+# to catch new bloat, lenient enough to express the existing shape.
+file_length:
+  warning: 800
+  error: 1200
+type_body_length:
+  warning: 700
+  error: 900
+function_body_length:
+  warning: 300
+  error: 500
+cyclomatic_complexity:
+  warning: 45
+  error: 60
+function_parameter_count:
+  warning: 12
+  error: 20

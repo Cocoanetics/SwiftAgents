@@ -11,7 +11,8 @@ struct GoogleImageGenerationTests {
         do {
             let google = try GoogleAPI(apiKey: #require(APIKey.gemini))
             let prompt = """
-            Create a comic-style sticker of a tiny sloth barista making espresso in zero gravity. Make it bright, readable, and reply with an image payload.
+            Create a comic-style sticker of a tiny sloth barista making espresso in zero gravity. \
+            Make it bright, readable, and reply with an image payload.
             """
             let response = try await google.createChatCompletion(
                 model: model,

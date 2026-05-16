@@ -214,10 +214,9 @@ public class GoogleAPI: API, @unchecked Sendable {
                         }
 
                         // Save image file with timestamp and indices
-                        let imageURL =
-                            URL(
-                                fileURLWithPath: "/tmp/google_response_\(timestamp)_candidate\(index)_part\(partIndex).\(fileExtension)"
-                            )
+                        let filename =
+                            "google_response_\(timestamp)_candidate\(index)_part\(partIndex).\(fileExtension)"
+                        let imageURL = URL(fileURLWithPath: "/tmp/\(filename)")
                         try? imageData.write(to: imageURL)
                     }
                 }

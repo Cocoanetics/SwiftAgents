@@ -28,7 +28,8 @@ public enum ApplyDiffError: LocalizedError {
             case let .invalidEOFContext(cursor, ctx): return "Invalid EOF Context \(cursor):\n\(ctx)"
             case let .emptySection(index, line): return "Nothing in this section - index=\(index) \(line)"
             case let .chunkOutOfBounds(idx, len): return "applyDiff: chunk.origIndex \(idx) > input length \(len)"
-            case let .overlappingDiffChunk(idx, cursor): return "applyDiff: overlapping chunk at \(idx) (cursor \(cursor))"
+            case let .overlappingDiffChunk(idx, cursor):
+                return "applyDiff: overlapping chunk at \(idx) (cursor \(cursor))"
         }
     }
 }
@@ -205,8 +206,11 @@ private func advanceCursorToAnchor(_ anchor: String, inputLines: [String], curso
     }
 
     let trimmedAnchor = anchor.trimmingCharacters(in: .whitespaces)
-    if !found, !inputLines[0 ..< cursor].contains(where: { $0.trimmingCharacters(in: .whitespaces) == trimmedAnchor }) {
-        for index in cursor ..< inputLines.count where inputLines[index].trimmingCharacters(in: .whitespaces) == trimmedAnchor {
+    let alreadySeenTrimmed = inputLines[0 ..< cursor]
+        .contains(where: { $0.trimmingCharacters(in: .whitespaces) == trimmedAnchor })
+    if !found, !alreadySeenTrimmed {
+        for index in cursor ..< inputLines.count
+        where inputLines[index].trimmingCharacters(in: .whitespaces) == trimmedAnchor {
             cursor = index + 1
             parser.fuzz += 1
             found = true

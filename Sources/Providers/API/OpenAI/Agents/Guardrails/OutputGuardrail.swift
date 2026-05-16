@@ -33,8 +33,11 @@ public struct OutputGuardrailTripwireTriggered: Error, LocalizedError, Sendable 
     }
 
     public var errorDescription: String? {
-        "Output guardrail '\(guardrailName)' triggered: \(result.tripwireTriggered). Metadata: \(String(describing: result.metadata))"
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let metadata = String(describing: result.metadata)
+        return """
+        Output guardrail '\(guardrailName)' triggered: \
+        \(result.tripwireTriggered). Metadata: \(metadata)
+        """.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

@@ -32,7 +32,10 @@ public enum RealtimeSessionError: LocalizedError {
             case .notConnected:
                 return "Realtime session is not connected"
             case let .modelChangeRequiresNewSession(current, requested):
-                return "Realtime sessions cannot change model from \(current) to \(requested) after the WebSocket has connected. Start a new session instead."
+                return """
+                Realtime sessions cannot change model from \(current) to \(requested) \
+                after the WebSocket has connected. Start a new session instead.
+                """
         }
     }
 }
