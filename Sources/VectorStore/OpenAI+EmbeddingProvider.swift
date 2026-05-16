@@ -5,8 +5,6 @@
 //  Created by Oliver Drobnik on 19.04.24.
 //
 
-#if canImport(NaturalLanguage)
-
 import Foundation
 import Providers
 
@@ -18,5 +16,3 @@ extension OpenAI: EmbeddingProvider {
         return vectors.averageUnitVector()
     }
 }
-
-#endif

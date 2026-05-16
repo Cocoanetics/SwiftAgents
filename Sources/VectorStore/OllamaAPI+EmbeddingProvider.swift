@@ -5,8 +5,6 @@
 //  Created by Oliver Drobnik on 19.04.24.
 //
 
-#if canImport(NaturalLanguage)
-
 import Foundation
 import Providers
 
@@ -17,5 +15,3 @@ extension OllamaAPI: EmbeddingProvider {
         return embedding.unitVector()
     }
 }
-
-#endif
