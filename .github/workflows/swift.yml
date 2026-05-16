@@ -43,9 +43,16 @@ jobs:
         # hide the others. The shell loop also surfaces a banner before
         # each suite so the GitHub Actions log shows where time is
         # being spent, since previous runs failed with no Swift Testing
-        # output making it through the buffering.
+        # output making it through the buffering. Also captures each
+        # suite's stdout+stderr to a per-suite log file that's
+        # uploaded as a `macos-test-logs` artifact in the next step —
+        # the inline `swift test` output also gets buffered by macOS's
+        # libsystem if a suite hangs, but the file is flushed by the
+        # `tee` line buffer so the artifact still has whatever did
+        # get printed before the timeout.
         run: |
           set +e
+          mkdir -p test-logs
           fail=0
           for suite in \
             ArrayVectorTests \
@@ -54,13 +61,22 @@ jobs:
             GoogleThinkingConfigTests; do
             echo "::group::Test ${suite}"
             date "+>>> ${suite} start: %FT%T"
-            swift test -v --skip-build --filter "${suite}"
-            rc=$?
+            swift test -v --skip-build --filter "${suite}" 2>&1 \
+              | tee "test-logs/${suite}.log"
+            rc=${PIPESTATUS[0]}
             date "+>>> ${suite} end:   %FT%T (rc=${rc})"
             echo "::endgroup::"
             if [ "${rc}" -ne 0 ]; then fail=1; fi
           done
+          echo "fail=${fail}" > test-logs/_summary
           exit "${fail}"
+      - name: Upload macOS test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-test-logs
+          path: test-logs/
+          if-no-files-found: warn
 
   build-ios:
     # Compile-only check on `generic/platform=iOS`. The `Coder` executable
