@@ -28,18 +28,18 @@ jobs:
         run: swift --version
       - name: Build (macOS)
         run: swift build --build-tests -v
-      # Run the genuinely-offline test suites. The integration suites
-      # (gated with `.enabled(if: APIKey.has*)`) need API keys we don't
-      # have on public CI; trying to evaluate the gates pulls in
-      # `NLContextualEmbedding` model downloads that can hang the
-      # runner for ~10 minutes. `--no-parallel` keeps Swift Testing's
-      # output streamed so failures show up in the log instead of
-      # being buffered until process exit.
+      # Pure-offline test suites only. `LocalVectorStoreTests` is
+      # dropped from the filter — its only Apple-relevant test
+      # (`contextualEmbeddingProvider`) needs `NLContextualEmbedding`
+      # which downloads a model from Apple servers on first use and
+      # fresh GitHub runners have no cache, which hung the test step
+      # for 8+ minutes in earlier runs. The model is also tied to
+      # API keys that public CI doesn't have, so the test gives us
+      # no useful signal on this runner.
       - name: Test (macOS)
         run: |
-          swift test -v --skip-build --no-parallel \
+          swift test -v --skip-build \
             --filter ArrayVectorTests \
-            --filter LocalVectorStoreTests \
             --filter TracingTests \
             --filter GoogleGenerateContentResponseTests \
             --filter GoogleThinkingConfigTests
@@ -90,15 +90,11 @@ jobs:
         run: swift --version
       - name: Build (Linux)
         run: swift build --build-tests -v
-      # Same offline-only filter as macOS. `LocalVectorStoreTests`'s
-      # `contextualEmbeddingProvider` is `#if canImport(NaturalLanguage)`-gated
-      # so it compiles out on Linux; the other tests in that suite are
-      # `.enabled(if:)`-gated on API keys and will skip without them.
+      # Same offline filter as macOS.
       - name: Test (Linux)
         run: |
-          swift test -v --skip-build --no-parallel \
+          swift test -v --skip-build \
             --filter ArrayVectorTests \
-            --filter LocalVectorStoreTests \
             --filter TracingTests \
             --filter GoogleGenerateContentResponseTests \
             --filter GoogleThinkingConfigTests
@@ -122,9 +118,8 @@ jobs:
       - name: Test (Windows)
         shell: pwsh
         run: |
-          swift test -v --skip-build --no-parallel `
+          swift test -v --skip-build `
             --filter ArrayVectorTests `
-            --filter LocalVectorStoreTests `
             --filter TracingTests `
             --filter GoogleGenerateContentResponseTests `
             --filter GoogleThinkingConfigTests
