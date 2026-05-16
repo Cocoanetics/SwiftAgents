@@ -32,21 +32,8 @@ jobs:
         run: swift --version
       - name: Build (macOS)
         run: swift build --build-tests -v
-      # Pure-offline test suites only. `LocalVectorStoreTests` is
-      # dropped from the filter — its only Apple-relevant test
-      # (`contextualEmbeddingProvider`) needs `NLContextualEmbedding`
-      # which downloads a model from Apple servers on first use and
-      # fresh GitHub runners have no cache, which hung the test step
-      # for 8+ minutes in earlier runs. The model is also tied to
-      # API keys that public CI doesn't have, so the test gives us
-      # no useful signal on this runner.
       - name: Test (macOS)
-        run: |
-          swift test -v --skip-build \
-            --filter ArrayVectorTests \
-            --filter TracingTests \
-            --filter GoogleGenerateContentResponseTests \
-            --filter GoogleThinkingConfigTests
+        run: swift test -v --skip-build
 
   build-ios:
     # Compile-only check on `generic/platform=iOS`. The `Coder` executable
