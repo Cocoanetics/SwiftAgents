@@ -73,7 +73,15 @@ let package = Package(
 				"TerminalUI",
 				"SwiftMCP",
 				.product(name: "ArgumentParser", package: "swift-argument-parser"),
-				.product(name: "SwiftDotenv", package: "swift-dotenv")
+				// swift-dotenv imports `Darwin` unconditionally so it only
+				// builds on Apple platforms. The CLI's `.env` loader is a
+				// developer convenience; on Linux / Windows / Android the
+				// env still works via plain `ProcessInfo.processInfo.environment`.
+				.product(
+					name: "SwiftDotenv",
+					package: "swift-dotenv",
+					condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS])
+				)
 			],
 			path: "Sources/Coder"
 		),
@@ -83,7 +91,11 @@ let package = Package(
 				"Providers",
 				"VectorStore",
 				"SwiftMCP",
-				.product(name: "SwiftDotenv", package: "swift-dotenv")
+				.product(
+					name: "SwiftDotenv",
+					package: "swift-dotenv",
+					condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS])
+				)
 			],
 			path: "Tests/ProvidersTests",
 			resources: [.process("Resources")]

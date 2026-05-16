@@ -1,8 +1,14 @@
 import ArgumentParser
 import Foundation
 import Providers
-import SwiftDotenv
 import TerminalUI
+
+// SwiftDotenv only builds on Apple platforms (its public surface imports
+// `Darwin` unconditionally). On Linux / Windows / Android the CLI just
+// reads vars from `ProcessInfo.processInfo.environment` directly.
+#if canImport(SwiftDotenv)
+import SwiftDotenv
+#endif
 
 /// Flushes buffered text, rendering complete markdown inline markers (**bold**, *italic*, `code`).
 /// Returns the remaining buffer (text after an unmatched opening marker).
@@ -135,9 +141,12 @@ struct Coder: AsyncParsableCommand {
     func run() async throws {
         let workDir = directory ?? FileManager.default.currentDirectoryPath
 
-        // Load .env file if present (sets missing env vars)
+        // Load .env file if present (sets missing env vars). Apple-only
+        // — see the conditional `import SwiftDotenv` at the top of file.
+        #if canImport(SwiftDotenv)
         let envPath = (workDir as NSString).appendingPathComponent(".env")
         try? Dotenv.configure(atPath: envPath)
+        #endif
 
         // Re-initialize trace exporter now that env vars are loaded
         if let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] {

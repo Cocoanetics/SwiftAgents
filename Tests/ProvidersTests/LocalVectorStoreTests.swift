@@ -9,8 +9,20 @@ struct LocalVectorStoreTests {
     // in `Sources/VectorStore/ContextualEmbeddingProvider.swift`, so on
     // Linux / Windows / Android the symbol doesn't exist and this test
     // can't reference it. Gate it out on those platforms.
+    //
+    // On CI (where `$CI` is set), also skip: the first call to
+    // `NLContextualEmbedding(language:)` downloads an Apple model and
+    // a fresh runner has no cache, which hangs the test step for
+    // ~10 minutes before the CI step times out. Locally the model is
+    // cached so this runs in <250ms.
     #if canImport(NaturalLanguage)
-    @Test("Contextual embeddings produce unit vectors")
+    @Test(
+        "Contextual embeddings produce unit vectors",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CI"] == nil,
+            "Skipped on CI — NLContextualEmbedding asset download stalls fresh runners"
+        )
+    )
     func contextualEmbeddingProvider() async throws {
         let provider = ContextualEmbeddingProvider()
         let queryVector = try await #require(provider.embedding(for: "A place where people can gather to discuss")?

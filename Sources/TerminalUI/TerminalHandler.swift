@@ -88,14 +88,11 @@ public class TerminalHandler {
 
     private var terminalWidth: Int {
         var winSize = winsize()
-        // `ioctl`'s second argument is `UInt` on Darwin and `UInt32` on
-        // Glibc; pick the right type per platform.
-        #if canImport(Darwin)
-        let request = UInt(TIOCGWINSZ)
-        #else
-        let request = UInt32(TIOCGWINSZ)
-        #endif
-        if ioctl(STDOUT_FILENO, request, &winSize) == 0, winSize.ws_col > 0 {
+        // `ioctl`'s second argument is `UInt` on both Darwin and Glibc
+        // (despite my earlier guess otherwise); `TIOCGWINSZ` is the
+        // type that differs (`UInt` vs `Int32`). `UInt(TIOCGWINSZ)`
+        // converts cleanly on both.
+        if ioctl(STDOUT_FILENO, UInt(TIOCGWINSZ), &winSize) == 0, winSize.ws_col > 0 {
             return Int(winSize.ws_col)
         }
         return 80

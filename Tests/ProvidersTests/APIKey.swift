@@ -1,10 +1,19 @@
 import Foundation
+
+// SwiftDotenv only builds on Apple platforms. On Linux / Windows /
+// Android the tests still read keys from the environment directly via
+// `ProcessInfo.processInfo.environment[…]`; .env loading is just a
+// developer convenience that we skip out on those platforms.
+#if canImport(SwiftDotenv)
 import SwiftDotenv
+#endif
 
 enum APIKey {
     private static let envLoaded: Void = {
+        #if canImport(SwiftDotenv)
         guard let envURL = findEnvFile() else { return }
         try? Dotenv.configure(atPath: envURL.path)
+        #endif
     }()
 
     private static func findEnvFile() -> URL? {
