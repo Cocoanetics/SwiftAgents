@@ -1,0 +1,7 @@
+{
+  "url": "https://example.com/mcp-server",
+  "headers": {
+    "Authorization": "Bearer your_token_here",
+    "X-Custom-Header": "custom_value"
+  }
+} 

@@ -1,0 +1,84 @@
+My AI Company Vision
+
+A year ago, I posted an article that showed my CV as tuned by ChatGPT 4. As I have witnessed announcements and demonstrations of agent systems over the past months, a vision has started to form in my head that begged me to be written down. This is the shape how I want my software development business to achieve, given a long enough time horizon.
+
+Generally people tend to greatly overestimate what kind of progress can be made within one year. And they greatly underestimate the kind of progress that can be achieved in 10 years. We can discuss the reasons for that in detail another day, but for the sake of argument lets say that I think the following vision can be achieved within 3-5 years.
+
+Before I start, I feel that I need to give you some context where this vision is based on, a bit of history. Formative events, if you will. 14 years ago I started developing software on Apple platforms, initially on iOS, but later also on others. Nowadays possibly even the majority of work on macOS as I am building tools that help a client of mine manage certain workflows.
+
+The Past
+
+Somewhere I heard the statement “I’d rather make 10% off the work of 10 people, than 100% of only myself”. At that time this made total sense to me. I have only a certain capacity of output myself, if I wanted to make more money I would have to somehow scale up my business. So I tried this approach with having employees. At one time I had three employed. Two software engineers, and one business developer.
+
+But in reverse I lost my guys just as I had gained them: The business developer took me for a fool to the tune of 10000 Euros. The younger of the two software engineers decided that he didn’t want to be a Swift developer after all but rather “do his own thing” as to not have any regrets when he is older. The remaining one was exclusively servicing a client of mine.
+
+The problem was with the assumption that I could be making some margin on top of what the developer cost me in salary and related expenses. Turns out that in Austria at least the true costs of a full-time developer as about twice what their salary is. So essentially all that my client paid was flowing to my employee, leaving nothing for me.
+
+So when my client needed to cut their software development costs in half, I could no longer afford to employ my final developer. Also while I still had developers I found that I constantly needed to stand up for my guys as clients frequently signalled that they wished I would work for them instead. Making sure that my clients get good value for their money outwardly, and supporting/coaching/training my guys to be up to snuff. That’s a lot of unpaid overhead.
+
+The painful learning can be summed up such: 10% off other people’s work my ass!
+
+One of the reasons why I wanted to have employed engineers was also because I have a lot of old crufty code on my repos. Both on open source ones on GitHub, as well as my own private GitLab. It was always a dream for me that have some junior developer cut his teeth on modernising all my code. Organise it, document it, add unit tests, add new features. Possibly make me a few more apps for which I had ideas for.
+
+The problem though was always, when somebody wants to get paid you have to get serious. There needs to be a source of money to fund such development work. The hope that some of my apps would make enough money to pay for the efforts turned out to be false without fail.
+
+Clearly there are agencies that successfully do all that, employing dozens of software engineers to do all sorts of things profitably. I have come to the bitter realisation that I am apparently neither entrepreneurial nor lucky enough to drum up enough business so that the 10% of OPW could ever work for me.
+
+You might say: “so what about freelancers”? well, same problem! They still want to be paid. And if you don’t have a magical ATM that provides this cashflow out of thin air then the formula just doesn’t work. On top of that freelancers have a disadvantage over employees when it comes to the ownership of code they write and also they are not integrated into your company fabric as regular employees are.
+
+Any efforts you exert in shaping a freelancer to harmonise with your style are sunk costs. When the freelancer leaves, this knowledge leaves with him. Much more so than an employee that would at least stick with your company long enough to leave some of that knowledge in your company, in the form of documentation or wikis or the like.
+
+Sorry, to be brambling so much, but I hope you get an idea for my dilemma. Let’s talk about the present and then the future now.
+
+The Present
+
+At present I have two main clients who keep me reasonably busy. Also I have arrangements with them that give me a degree of plan-ability so that I can make some estimates to how to pay for the costs that my company has.
+
+ChatGPT 4 has become a very good helper in my day to day business. If I need a new function commented, a compiler error or warning fixed, a new function whipped up, this LLM is quite capable of it. My knowledge of Swift and software development allows me to judge ChatGPT output critically and also to know when it is doing something not optimal or hallucinates something stupid. I’ve blogged before how I see ChatGPT become my Junior Developer and me taking on the role of seasoned code reviewer or mentor to this fledgling AI.
+
+Over the past year we have learned that while zero-shot results have improved slightly over time if you give an LLM “time to think” or a “chain of thought” then the results are dramatically better. And if you add on top of that an “agentic workflow” then you get the best results so far. This basically means that besides the chat history and a set of tools that the LLM may use you also have some steering on top of it. Multiple agents that are each specialised in some area and have no more than a hand full of tools can outperform a single chat.
+
+You have to pay for input tokens and output tokens for ChatGPT. And since the prior chat messages have to be always resent for the next completion you keep paying again and again for the same tokens. Your initial system prompt and user prompt are input tokens. Then comes the first completion with output tokens. Then all of that has to be sent for the next user prompt, which makes even more input tokens, and so on and so forth.
+
+And if you were to input an entire source code base as context that would turn pretty expensive. So people are researching methods to cut down on unnecessary context (i.e. input tokens). One way is to have a vector database built from your documents where you extract a few paragraphs that might fit with the user query (that have a similar vector) to the LLM. This method is called RAG, retrieval-augmented generation. This has become mature enough so that large enterprises can apply this to their internal documents to enhance copilot responses.
+
+Unfortunately I am not large enterprise that has all its content in documents or data lakes. I have large code bases distributed over multiple repositories. And much of the know how of my company is still in my very own brain.
+
+We have seen several developments trying to tie together a self-structuring work flows with LLM-based agents in the form of Autogen Studio (“Revolutionising AI Agents”), CrewAI (“AI Agents reimagined for real use cases”) or more recently Agents-as-a-Service (“Scale Your Business With AI Agent Teams”). I feel that we are on the threshold of teams of agents becoming viable to replace parts of business processes with.
+
+The second tag line of Agents-as-a-Service hits the nail on the head:
+“Expand your operations without raising overhead costs.”
+
+Any reasonably capable LLM nowadays costs something. As I explained earlier there are input and output token costs. One of the ways to reduce these costs is to use less capable but cheaper models for mundane tasks. Or possibly even do inference on your local machine. We have yet to see what Apple will throw into the AI race as their focus was always to try to do the “machine learning” on local hardware.
+
+Also there is a huge gap at the moment between what AI can be run locally (image classification, LLM based autocorrection in iOS) and pre-trained transformers which still needs huge GPU clusters in huge data centres using huge amounts of electricity.
+
+In a recent project for a client of mine I employed ChatGPT via API to proofread 700 pages of text on a website and list all fragments that could be improved. The result was brilliant and useful, but the total cost was about 50 cents per page. The tangible benefit for my client made it worthwhile.
+
+But we do see that cost for reasoning comedown over time. At some time in the not too distant future we will be able to make a case for a team of agents perform the simplest software engineering tasks cost effectively. This brings me to the vision for …
+
+The Future
+
+I want to be the CEO of my own software development company completely comprised of AI agents.
+
+The first thing my agents will do is to go over all existing code and determine what every function is doing. They will produce documentation in a way that will allow AI agents to navigate the code base and reason about it.
+
+The agents will start polishing the code: remove obsolete code, update or create documentation comments for all functions and data types, refactor code related to certain topics into separate extensions to make all files smaller.
+
+The cleaner and more documented everything is, the easier it is for AI to reasoned about it. My agents will devise and add unit tests to everything. 100% test coverage! These unit tests make it possible for agents to know if changes would break something and avoid doing so.
+
+My agents will go over the existing code bases of live apps to clean up and organise the projects. Obsolete code will be deleted, warnings by Xcode and the static analyzer can be fixed. All of that the same way as simple changes requested by my clients. With a documented and tested merge request.
+
+My team will watch for issues raised by my clients on GitLab issues, come up with possible solutions for the issue or feature request, and test the solution with existing or new unit tests. At the end I will get a merge request with a functioning solution with a summary of what was changed and why.
+
+Where I am going with this is that my role will be one and ultimate code reviewer. My agent team will be a multiplier for my ability to architect and mentor. Contrasting to humans though when I’ve explained something once to my agents, they will never forget it.
+
+Provided that LLM completions will still cost something, I will set a budget of how much money my team may consume in “intelligence for rent” for the important creative tasks. For lower value tasks or when budget is exhausted then alternate or even local models will be used.
+
+And of course if all the other important work has been done, then I can also ask my team to built prototypes for new apps for which I have had ideas in my head but never the endurance to start building them. Of those I have a few.
+
+Conclusion
+
+I believe that in the next few years it will be possible as well as financially viable for us solo developers to have our own AI agent team. Those teams will embody knowledge and procedures that we have accumulated in private code bases and will initially act like Junior developers. It will be a great future for solo-preneurs who would rather want to focus on the big picture for their business then getting bogged down in the day to day of software development and all the boring tasks that come with it.
+
+PS: I had started out with this article in ChatGPT but in the end I scrapped the results. ChatGPT kept removing parts that I felt are necessary for context and to reflect that importance and hopefulness that I feel for this topic. So this blog post is the raw output, please forgive the errors.

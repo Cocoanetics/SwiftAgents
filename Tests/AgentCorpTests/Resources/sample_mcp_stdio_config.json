@@ -1,0 +1,8 @@
+{
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/samples"],
+  "workingDirectory": "/tmp",
+  "environment": {
+    "NODE_ENV": "development"
+  }
+} 

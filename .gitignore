@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+.swiftpm/
+build/
+xcuserdata/
+*.xcuserstate
+Package.resolved
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+Local.xcconfig
