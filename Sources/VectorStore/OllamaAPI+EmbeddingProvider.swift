@@ -1,17 +1,21 @@
 //
-//  OpenAI+EmbeddingProvider.swift
-//  OpenAI
+//  OllamaAPI+EmbeddingProvider.swift
+//  SwiftAgents
 //
 //  Created by Oliver Drobnik on 19.04.24.
 //
 
-import Foundation
+#if canImport(NaturalLanguage)
 
-extension OpenAI: EmbeddingProvider {
+import Foundation
+import Providers
+
+extension OllamaAPI: EmbeddingProvider {
     public func embedding(for text: String) async throws -> Vector? {
         let embedding = try await embedding(input: text, model: embeddingModelIdentifier)
 
-        let vectors = embedding.map(\.embedding)
-        return vectors.averageUnitVector()
+        return embedding.unitVector()
     }
 }
+
+#endif

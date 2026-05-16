@@ -1,9 +1,11 @@
 //
 //  TextChunker.swift
-//  Unit Tests
+//  SwiftAgents
 //
 //  Created by Oliver Drobnik on 18.04.24.
 //
+
+#if canImport(NaturalLanguage)
 
 import Foundation
 import NaturalLanguage
@@ -138,3 +140,5 @@ public extension String {
         }
     }
 }
+
+#endif

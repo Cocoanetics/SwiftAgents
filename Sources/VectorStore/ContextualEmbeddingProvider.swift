@@ -1,12 +1,15 @@
 //
 //  ContextualEmbeddingProvider.swift
-//  OpenAI
+//  SwiftAgents
 //
 //  Created by Oliver Drobnik on 18.04.24.
 //
 
+#if canImport(NaturalLanguage)
+
 import Foundation
 import NaturalLanguage
+import Providers
 
 enum EmbeddingsModelError: Error {
     case unknownLanguage
@@ -96,3 +99,5 @@ extension ContextualEmbeddingProvider: EmbeddingProvider {
         try await embeddingVector(for: text)
     }
 }
+
+#endif

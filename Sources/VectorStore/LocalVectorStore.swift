@@ -1,11 +1,14 @@
 //
 //  LocalVectorStore.swift
-//  OpenAI
+//  SwiftAgents
 //
 //  Created by Oliver Drobnik on 16.04.24.
 //
 
+#if canImport(NaturalLanguage)
+
 import Foundation
+import Providers
 
 struct TextFragment {
     var text: String
@@ -81,3 +84,5 @@ class LocalVectorStore {
         return results.sorted { $0.similarity > $1.similarity }.prefix(topN).map { $0 }
     }
 }
+
+#endif

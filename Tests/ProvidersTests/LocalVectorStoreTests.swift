@@ -1,6 +1,7 @@
 import Foundation
 @testable import Providers
 import Testing
+@testable import VectorStore
 
 struct LocalVectorStoreTests {
     @Test("Contextual embeddings produce unit vectors")

@@ -1,6 +1,7 @@
 import Foundation
 @testable import Providers
 import Testing
+@testable import VectorStore
 
 struct ArrayVectorTests {
     @Test("Magnitude calculations")

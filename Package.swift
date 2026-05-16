@@ -14,10 +14,19 @@ let package = Package(
 		// LLM provider clients (OpenAI / Gemini / Ollama) plus the
 		// Agent runtime that's built on top of them. Eventually the
 		// runtime will move to its own target (`Agents`) and this
-		// will contain only the wire-level clients.
+		// will contain only the wire-level clients. Cross-platform.
 		.library(
 			name: "Providers",
 			targets: ["Providers"]
+		),
+		// In-memory vector store, Accelerate-backed vector math, and
+		// the `NLContextualEmbedding`-based local embedding provider.
+		// Apple-only — each file is wrapped in `#if canImport(NaturalLanguage)`,
+		// so the target compiles to nothing on Linux. Opt-in: consumers
+		// that don't need local embedding can ignore this product.
+		.library(
+			name: "VectorStore",
+			targets: ["VectorStore"]
 		),
 		// Reusable ANSI / slash-command helpers. Used by the Coder CLI
 		// and exposed so other CLIs in the ecosystem can pick them up.
@@ -48,6 +57,11 @@ let package = Package(
 			path: "Sources/Providers"
 		),
 		.target(
+			name: "VectorStore",
+			dependencies: ["Providers"],
+			path: "Sources/VectorStore"
+		),
+		.target(
 			name: "TerminalUI",
 			dependencies: [],
 			path: "Sources/TerminalUI"
@@ -67,6 +81,7 @@ let package = Package(
 			name: "ProvidersTests",
 			dependencies: [
 				"Providers",
+				"VectorStore",
 				"SwiftMCP",
 				.product(name: "SwiftDotenv", package: "swift-dotenv")
 			],

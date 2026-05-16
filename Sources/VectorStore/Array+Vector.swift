@@ -1,15 +1,15 @@
 //
 //  Array+Vector.swift
-//  OpenAI
+//  SwiftAgents
 //
 //  Created by Oliver Drobnik on 16.04.24.
 //
 
+#if canImport(Accelerate)
+
 import Accelerate
 import Foundation
-
-/// use this alias for convenience
-public typealias Vector = [Double]
+import Providers
 
 public extension Sequence<Double> {
     /// Computes the Euclidean norm (magnitude) of a vector.
@@ -218,3 +218,5 @@ public extension [Vector] {
         return sumVector.unitVector()
     }
 }
+
+#endif
