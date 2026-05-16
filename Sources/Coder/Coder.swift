@@ -199,8 +199,8 @@ struct Coder: AsyncParsableCommand {
 
                     for try await event in result.events {
                         switch event {
-                            case let .rawResponseEvent(e):
-                                switch e.object {
+                            case let .rawResponseEvent(raw):
+                                switch raw.object {
                                     case let .reasoningTextDelta(info):
                                         let text = info.delta
                                         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -290,7 +290,7 @@ struct Coder: AsyncParsableCommand {
                         for outputItem in response.output {
                             if case let .message(msg) = outputItem {
                                 let text = msg.content
-                                    .compactMap { if case let .outputText(t) = $0 { t.text } else { nil } }.joined()
+                                    .compactMap { if case let .outputText(textContent) = $0 { textContent.text } else { nil } }.joined()
                                 if !text.isEmpty {
                                     sessionLogger.log(.assistant(AssistantMessage(content: text)))
                                 }

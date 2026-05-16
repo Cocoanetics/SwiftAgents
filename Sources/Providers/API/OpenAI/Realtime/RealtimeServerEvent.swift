@@ -34,7 +34,10 @@ public struct RealtimeServerEvent: Sendable {
         case conversationItemDone(ConversationItemEvent)
         case conversationItemDeleted(ConversationItemDeletedEvent)
         case conversationItemTruncated(ConversationItemTruncatedEvent)
+        // Names mirror OpenAI's Realtime event types; >40 chars by design.
+        // swiftlint:disable:next identifier_name
         case conversationItemInputAudioTranscriptionDelta(InputAudioTranscriptionDeltaEvent)
+        // swiftlint:disable:next identifier_name
         case conversationItemInputAudioTranscriptionCompleted(InputAudioTranscriptionCompletedEvent)
         case responseCreated(ResponseEvent)
         case responseDone(ResponseEvent)

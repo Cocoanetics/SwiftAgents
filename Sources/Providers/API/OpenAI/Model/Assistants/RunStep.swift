@@ -118,7 +118,8 @@ public struct RunStep: Codable {
                 /// The outputs from the code interpreter.
                 let outputs: [Output]
 
-                /// Represents the output of a code interpreter tool call.
+                // Represents the output of a code interpreter tool call.
+                // swiftlint:disable:next nesting
                 public struct Output: Codable {
                     /// The type of the output.
                     let type: String

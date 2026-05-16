@@ -52,8 +52,8 @@ public enum MCPRequireApproval: Codable, Sendable, Equatable {
         switch (lhs, rhs) {
             case (.never, .never): return true
             case (.always, .always): return true
-            case let (.neverFilter(la), .neverFilter(ra)): return la == ra
-            case let (.alwaysFilter(la), .alwaysFilter(ra)): return la == ra
+            case let (.neverFilter(lhs), .neverFilter(rhs)): return lhs == rhs
+            case let (.alwaysFilter(lhs), .alwaysFilter(rhs)): return lhs == rhs
             default: return false
         }
     }

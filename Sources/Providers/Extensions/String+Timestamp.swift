@@ -9,11 +9,11 @@ import Foundation
 
 public extension String {
     static var timestamp: String {
-        var ts = timespec()
-        clock_gettime(CLOCK_REALTIME, &ts)
+        var timestamp = timespec()
+        clock_gettime(CLOCK_REALTIME, &timestamp)
 
-        let seconds = ts.tv_sec
-        let nanoseconds = ts.tv_nsec
+        let seconds = timestamp.tv_sec
+        let nanoseconds = timestamp.tv_nsec
         let microseconds = nanoseconds / 1000
 
         // Format the seconds portion using Date

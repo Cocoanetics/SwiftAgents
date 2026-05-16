@@ -65,15 +65,15 @@ private struct ContextMatch {
 
 // MARK: - Constants
 
-private let END_PATCH = "*** End Patch"
-private let END_FILE = "*** End of File"
-private let SECTION_TERMINATORS = [
-    END_PATCH,
+private let endPatch = "*** End Patch"
+private let endFile = "*** End of File"
+private let sectionTerminators = [
+    endPatch,
     "*** Update File:",
     "*** Delete File:",
     "*** Add File:"
 ]
-private let END_SECTION_MARKERS = SECTION_TERMINATORS + [END_FILE]
+private let endSectionMarkers = sectionTerminators + [endFile]
 
 // MARK: - Public API
 
@@ -125,10 +125,10 @@ private func readStr(_ state: ParserState, prefix: String) -> String {
 // MARK: - Create Diff
 
 private func parseCreateDiff(_ lines: [String], newline: String) throws -> String {
-    let parser = ParserState(lines: lines + [END_PATCH])
+    let parser = ParserState(lines: lines + [endPatch])
     var output = [String]()
 
-    while !isDone(parser, prefixes: SECTION_TERMINATORS) {
+    while !isDone(parser, prefixes: sectionTerminators) {
         guard parser.index < parser.lines.count else { break }
         let line = parser.lines[parser.index]
         parser.index += 1
@@ -144,12 +144,12 @@ private func parseCreateDiff(_ lines: [String], newline: String) throws -> Strin
 // MARK: - Update Diff
 
 private func parseUpdateDiff(_ lines: [String], input: String) throws -> [DiffChunk] {
-    let parser = ParserState(lines: lines + [END_PATCH])
+    let parser = ParserState(lines: lines + [endPatch])
     let inputLines = input.components(separatedBy: "\n")
     var chunks = [DiffChunk]()
     var cursor = 0
 
-    while !isDone(parser, prefixes: END_SECTION_MARKERS) {
+    while !isDone(parser, prefixes: endSectionMarkers) {
         let anchor = readStr(parser, prefix: "@@ ")
         let hasBareAnchor = anchor.isEmpty
             && parser.index < parser.lines.count
@@ -180,11 +180,11 @@ private func parseUpdateDiff(_ lines: [String], input: String) throws -> [DiffCh
         parser.fuzz += findResult.fuzz
         parser.index = section.endIndex
 
-        for ch in section.sectionDiffChunks {
+        for chunk in section.sectionDiffChunks {
             chunks.append(DiffChunk(
-                origIndex: ch.origIndex + findResult.newIndex,
-                delLines: ch.delLines,
-                insLines: ch.insLines
+                origIndex: chunk.origIndex + findResult.newIndex,
+                delLines: chunk.delLines,
+                insLines: chunk.insLines
             ))
         }
     }
@@ -197,8 +197,8 @@ private func advanceCursorToAnchor(_ anchor: String, inputLines: [String], curso
     var found = false
 
     if !inputLines[0 ..< cursor].contains(where: { $0 == anchor }) {
-        for i in cursor ..< inputLines.count where inputLines[i] == anchor {
-            cursor = i + 1
+        for index in cursor ..< inputLines.count where inputLines[index] == anchor {
+            cursor = index + 1
             found = true
             break
         }
@@ -206,8 +206,8 @@ private func advanceCursorToAnchor(_ anchor: String, inputLines: [String], curso
 
     let trimmedAnchor = anchor.trimmingCharacters(in: .whitespaces)
     if !found, !inputLines[0 ..< cursor].contains(where: { $0.trimmingCharacters(in: .whitespaces) == trimmedAnchor }) {
-        for i in cursor ..< inputLines.count where inputLines[i].trimmingCharacters(in: .whitespaces) == trimmedAnchor {
-            cursor = i + 1
+        for index in cursor ..< inputLines.count where inputLines[index].trimmingCharacters(in: .whitespaces) == trimmedAnchor {
+            cursor = index + 1
             parser.fuzz += 1
             found = true
             break
@@ -231,9 +231,9 @@ private func readSection(_ lines: [String], startIndex: Int) throws -> ReadSecti
     while index < lines.count {
         let raw = lines[index]
 
-        if raw.hasPrefix("@@") || raw.hasPrefix(END_PATCH)
+        if raw.hasPrefix("@@") || raw.hasPrefix(endPatch)
             || raw.hasPrefix("*** Update File:") || raw.hasPrefix("*** Delete File:")
-            || raw.hasPrefix("*** Add File:") || raw.hasPrefix(END_FILE) {
+            || raw.hasPrefix("*** Add File:") || raw.hasPrefix(endFile) {
             break
         }
         if raw == "***" { break }
@@ -286,7 +286,7 @@ private func readSection(_ lines: [String], startIndex: Int) throws -> ReadSecti
         ))
     }
 
-    if index < lines.count, lines[index] == END_FILE {
+    if index < lines.count, lines[index] == endFile {
         return ReadSectionResult(
             nextContext: context,
             sectionDiffChunks: sectionDiffChunks,
@@ -322,26 +322,26 @@ private func findContextCore(_ lines: [String], context: [String], start: Int) -
     }
 
     // Exact match
-    for i in start ..< lines.count where equalsSlice(lines, target: context, start: i, map: { $0 }) {
-        return ContextMatch(newIndex: i, fuzz: 0)
+    for index in start ..< lines.count where equalsSlice(lines, target: context, start: index, map: { $0 }) {
+        return ContextMatch(newIndex: index, fuzz: 0)
     }
     // Trailing whitespace fuzz
-    for i in start ..< lines.count where equalsSlice(
+    for index in start ..< lines.count where equalsSlice(
         lines,
         target: context,
-        start: i,
+        start: index,
         map: { $0.replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression) }
     ) {
-        return ContextMatch(newIndex: i, fuzz: 1)
+        return ContextMatch(newIndex: index, fuzz: 1)
     }
     // Full whitespace fuzz
-    for i in start ..< lines.count where equalsSlice(
+    for index in start ..< lines.count where equalsSlice(
         lines,
         target: context,
-        start: i,
+        start: index,
         map: { $0.trimmingCharacters(in: .whitespaces) }
     ) {
-        return ContextMatch(newIndex: i, fuzz: 100)
+        return ContextMatch(newIndex: index, fuzz: 100)
     }
 
     return ContextMatch(newIndex: -1, fuzz: 0)

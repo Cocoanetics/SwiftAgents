@@ -10,6 +10,22 @@ excluded:
 opt_in_rules:
   - indentation_width
 
+# Doc comments wrap differently from code and shouldn't count against
+# the 120-char code line limit. URLs in comments are common (e.g. links
+# to the OpenAI API reference) and natural to keep on one line.
+line_length:
+  ignores_comments: true
+  ignores_urls: true
+
+# `n` is OpenAI's parameter name for "number of completions" — surfaces
+# in every `createChatCompletion` signature on every provider plus the
+# Image Generation request. `id` is the standard short name for object
+# identifiers. Both are too well-established to rename.
+identifier_name:
+  excluded:
+    - n
+    - id
+
 # 4-space indentation across the codebase. The `.editorconfig` at the
 # repo root pre-empts editors going off-script; this rule is the
 # enforcement gate for CI and the pre-commit hook.

@@ -11,7 +11,9 @@ public extension Dalle3Options {
     /// Quality options for DALL-E 3
     enum Quality: String, Codable {
         /// Standard quality
-        case standard // HD quality
+        case standard
+        // HD quality. Name mirrors OpenAI DALL·E 3 API value.
+        // swiftlint:disable:next identifier_name
         case hd
     }
 }

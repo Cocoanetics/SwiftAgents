@@ -77,9 +77,9 @@ public class TerminalHandler {
     }
 
     private var terminalWidth: Int {
-        var ws = winsize()
-        if ioctl(STDOUT_FILENO, UInt(TIOCGWINSZ), &ws) == 0, ws.ws_col > 0 {
-            return Int(ws.ws_col)
+        var winSize = winsize()
+        if ioctl(STDOUT_FILENO, UInt(TIOCGWINSZ), &winSize) == 0, winSize.ws_col > 0 {
+            return Int(winSize.ws_col)
         }
         return 80
     }
@@ -134,10 +134,10 @@ public class TerminalHandler {
         var escapeBuffer = [UInt8]() // Buffer to capture the escape sequence
 
         while true {
-            var ch: UInt8 = 0
-            if read(STDIN_FILENO, &ch, 1) == 1 {
+            var char: UInt8 = 0
+            if read(STDIN_FILENO, &char, 1) == 1 {
                 if escapeSequenceActive {
-                    escapeBuffer.append(ch)
+                    escapeBuffer.append(char)
 
                     if escapeBuffer.count == 3 { // Length of typical arrow key sequence
                         if escapeBuffer[0] == 27, escapeBuffer[1] == 91 { // ESC + [
@@ -155,22 +155,22 @@ public class TerminalHandler {
                         }
                         escapeBuffer.removeAll()
                     }
-                } else if ch == 27 { // Start of an escape sequence
+                } else if char == 27 { // Start of an escape sequence
                     escapeSequenceActive = true
-                    escapeBuffer.append(ch)
+                    escapeBuffer.append(char)
                     continue
                 }
 
                 // Regular input processing
                 if !escapeSequenceActive {
-                    await processNormally(ch)
+                    await processNormally(char)
                 }
             }
         }
     }
 
-    public func processNormally(_ ch: UInt8) async {
-        if ch == 10 { // Newline character
+    public func processNormally(_ char: UInt8) async {
+        if char == 10 { // Newline character
 
             // Beep and stay on the same line if input is empty
             guard !inputBuffer.isEmpty else {
@@ -200,16 +200,16 @@ public class TerminalHandler {
 
             inputBuffer = "" // Clear the buffer after handling the command
             updateDisplay()
-        } else if ch == 127 { // Backspace character
+        } else if char == 127 { // Backspace character
             if !inputBuffer.isEmpty {
                 inputBuffer.removeLast()
                 updateDisplay()
             }
-        } else if ch == 23 { // Ctrl+W — delete word
+        } else if char == 23 { // Ctrl+W — delete word
             deleteWord()
             updateDisplay()
         } else {
-            inputBuffer.append(Character(UnicodeScalar(ch)))
+            inputBuffer.append(Character(UnicodeScalar(char)))
             updateDisplay()
         }
     }

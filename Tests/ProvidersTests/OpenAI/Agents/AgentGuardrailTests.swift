@@ -22,7 +22,13 @@ struct AgentGuardrailTest {
     struct MessageOutput: Codable, Equatable {
         let reasoning: String
         let response: String
-        let user_name: String
+        let userName: String
+
+        enum CodingKeys: String, CodingKey {
+            case reasoning
+            case response
+            case userName = "user_name"
+        }
     }
 
     final class MessageOutputAgent: Agent {

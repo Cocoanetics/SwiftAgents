@@ -67,24 +67,24 @@ enum SessionEntry: Encodable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-            case let .sessionStart(v):
+            case let .sessionStart(value):
                 try container.encode("session_start", forKey: .type)
-                try v.encode(to: encoder)
-            case let .user(v):
+                try value.encode(to: encoder)
+            case let .user(value):
                 try container.encode("user", forKey: .type)
-                try v.encode(to: encoder)
-            case let .toolCall(v):
+                try value.encode(to: encoder)
+            case let .toolCall(value):
                 try container.encode("tool_call", forKey: .type)
-                try v.encode(to: encoder)
-            case let .toolResult(v):
+                try value.encode(to: encoder)
+            case let .toolResult(value):
                 try container.encode("tool_result", forKey: .type)
-                try v.encode(to: encoder)
-            case let .assistant(v):
+                try value.encode(to: encoder)
+            case let .assistant(value):
                 try container.encode("assistant", forKey: .type)
-                try v.encode(to: encoder)
-            case let .usage(v):
+                try value.encode(to: encoder)
+            case let .usage(value):
                 try container.encode("usage", forKey: .type)
-                try v.encode(to: encoder)
+                try value.encode(to: encoder)
         }
     }
 }

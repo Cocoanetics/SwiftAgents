@@ -663,8 +663,8 @@ public actor Runner {
     private static func outputItemToDict(_ item: OutputItem) -> [String: JSONValue] {
         switch item {
             case let .message(message):
-                let content = message.content.compactMap { c in
-                    if case let .outputText(t) = c { return t.text }
+                let content = message.content.compactMap { content in
+                    if case let .outputText(textContent) = content { return textContent.text }
                     return nil
                 }.joined(separator: "\n")
                 return [
@@ -783,11 +783,11 @@ public actor Runner {
             }
             // As soon as one returns tripwireTriggered, cancel all and throw
             while let result = try await group.next() {
-                if let r = result, r.output.tripwireTriggered {
+                if let guardrailResult = result, guardrailResult.output.tripwireTriggered {
                     group.cancelAll()
                     throw OutputGuardrailTripwireTriggered(
-                        guardrailName: r.guardrail.name,
-                        result: r.output
+                        guardrailName: guardrailResult.guardrail.name,
+                        result: guardrailResult.output
                     )
                 }
             }

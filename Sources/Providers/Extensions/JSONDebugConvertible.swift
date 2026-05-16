@@ -35,31 +35,31 @@ private struct PrettyJSONProxy: Encodable {
         }
         var container = encoder.singleValueContainer()
         switch value {
-            case let v as Int:
-                try container.encode(v)
-            case let v as Double:
-                let rounded = Double(String(format: "%.6f", v)) ?? v
+            case let value as Int:
+                try container.encode(value)
+            case let value as Double:
+                let rounded = Double(String(format: "%.6f", value)) ?? value
                 try container.encode(rounded)
-            case let v as Decimal:
-                let ns = NSDecimalNumber(decimal: v)
-                let doubleValue = ns.doubleValue
+            case let value as Decimal:
+                let decimal = NSDecimalNumber(decimal: value)
+                let doubleValue = decimal.doubleValue
                 if doubleValue.isFinite {
                     let rounded = Double(String(format: "%.6f", doubleValue)) ?? doubleValue
                     try container.encode(rounded)
                 } else {
-                    try container.encode(ns.stringValue)
+                    try container.encode(decimal.stringValue)
                 }
-            case let v as String:
-                try container.encode(v)
-            case let v as Bool:
-                try container.encode(v)
-            case let v as Date:
-                let str = ISO8601DateFormatter().string(from: v)
+            case let value as String:
+                try container.encode(value)
+            case let value as Bool:
+                try container.encode(value)
+            case let value as Date:
+                let str = ISO8601DateFormatter().string(from: value)
                 try container.encode(str)
-            case let v as URL:
-                try container.encode(v.absoluteString)
-            case let v as [Any]:
-                let filtered = v.compactMap { elem -> PrettyJSONProxy? in
+            case let value as URL:
+                try container.encode(value.absoluteString)
+            case let value as [Any]:
+                let filtered = value.compactMap { elem -> PrettyJSONProxy? in
                     // Omit nils in arrays
                     let mirror = Mirror(reflecting: elem)
                     if mirror.displayStyle == .optional, mirror.children.first == nil {
@@ -74,8 +74,8 @@ private struct PrettyJSONProxy: Encodable {
                     // Encode empty array as null to be omitted by parent
                     try container.encodeNil()
                 }
-            case let v as [String: Any]:
-                let mapped = v.compactMapValues { elem -> PrettyJSONProxy? in
+            case let value as [String: Any]:
+                let mapped = value.compactMapValues { elem -> PrettyJSONProxy? in
                     let mirror = Mirror(reflecting: elem)
                     if mirror.displayStyle == .optional, mirror.children.first == nil {
                         return nil

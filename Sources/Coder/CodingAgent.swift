@@ -43,7 +43,12 @@ final class CodingAgent: Agent, @unchecked Sendable {
             let subAgent = CodingAgent(workingDirectory: workingDirectory, isSubAgent: true, config: config)
             let subAgentProvider = subAgent.asToolProvider(
                 toolName: "sub_agent",
-                toolDescription: "Delegate a task to a sub-agent that has its own tools and conversation. Use this for exploration, research, or complex multi-step tasks that would clutter your own context. The sub-agent has the same tools as you. Pass a clear, self-contained request as input. Returns the sub-agent's final text response.",
+                toolDescription: """
+                Delegate a task to a sub-agent that has its own tools and conversation. \
+                Use this for exploration, research, or complex multi-step tasks that would \
+                clutter your own context. The sub-agent has the same tools as you. Pass a \
+                clear, self-contained request as input. Returns the sub-agent's final text response.
+                """,
                 config: config
             )
             toolProviders = [subAgentProvider]
@@ -214,7 +219,7 @@ final class CodingAgent: Agent, @unchecked Sendable {
         let dir = resolve(relativePath)
         let excludeDirs = Set(gitIgnore.excludeDirs)
         let excludeFiles = Set(gitIgnore.excludeFiles)
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         let maxResults = limit ?? 200
         let mode = outputMode ?? "files"
 
@@ -225,7 +230,7 @@ final class CodingAgent: Agent, @unchecked Sendable {
 
         // If path points to a file, search just that file
         var isDirectory: ObjCBool = false
-        guard fm.fileExists(atPath: dir, isDirectory: &isDirectory) else {
+        guard fileManager.fileExists(atPath: dir, isDirectory: &isDirectory) else {
             return "Error: Path not found: \(relativePath)"
         }
 
@@ -239,7 +244,7 @@ final class CodingAgent: Agent, @unchecked Sendable {
                 fileMatches.append((relativePath, matches))
             }
         } else {
-            guard let enumerator = fm.enumerator(atPath: dir) else {
+            guard let enumerator = fileManager.enumerator(atPath: dir) else {
                 return "Error: Cannot read directory: \(relativePath)"
             }
 
@@ -334,9 +339,9 @@ final class CodingAgent: Agent, @unchecked Sendable {
         let relativePath = relativize(path ?? ".")
         let dir = resolve(relativePath)
         let excludeDirs = Set(gitIgnore.excludeDirs)
-        let fm = FileManager.default
+        let fileManager = FileManager.default
 
-        guard let enumerator = fm.enumerator(atPath: dir) else {
+        guard let enumerator = fileManager.enumerator(atPath: dir) else {
             return "Error: Cannot read directory: \(relativePath)"
         }
 

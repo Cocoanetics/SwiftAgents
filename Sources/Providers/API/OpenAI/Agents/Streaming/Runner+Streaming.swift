@@ -48,7 +48,6 @@ extension Runner {
     // MARK: - Internal Streaming Loop
 
     // swiftlint:disable:next function_parameter_count
-
     private static func _runStreamedLoop<A: Agent>(
         agent: A,
         input: String,
@@ -165,7 +164,6 @@ extension Runner {
     // MARK: - Streamed Turn Execution
 
     // swiftlint:disable:next function_parameter_count
-
     private static func _executeStreamedTurns<A: Agent>(
         agent: A,
         agentSpan _: TraceSpan,
@@ -222,11 +220,11 @@ extension Runner {
                     switch event.object {
                         case let .outputItemDone(info):
                             switch info.item {
-                                case let .functionCall(fc):
-                                    functionCalls.append(fc)
+                                case let .functionCall(functionCall):
+                                    functionCalls.append(functionCall)
                                     continuation.yield(.runItemEvent(
                                         name: .toolCalled,
-                                        item: .toolCall(name: fc.name, arguments: fc.arguments, callId: fc.callId)
+                                        item: .toolCall(name: functionCall.name, arguments: functionCall.arguments, callId: functionCall.callId)
                                     ))
 
                                 case let .message(messageOutput):
@@ -303,14 +301,14 @@ extension Runner {
             }
 
             // Check for handoffs in function calls
-            for fc in functionCalls {
-                if let handoff = agent.handoffs.first(where: { $0.toolName == fc.name }),
+            for functionCall in functionCalls {
+                if let handoff = agent.handoffs.first(where: { $0.toolName == functionCall.name }),
                     let targetAgent = handoff.targetAgent {
                     // Execute handoff callback
                     do {
                         if handoff.inputType.self == Void.self {
                             try await handoff.callPerform(input: ())
-                        } else if let payload = fc.arguments.data(using: .utf8),
+                        } else if let payload = functionCall.arguments.data(using: .utf8),
                             let codableType = handoff.inputType as? Decodable.Type {
                             let typedInput = try JSONDecoder().decode(codableType, from: payload)
                             try await handoff.callPerform(input: typedInput)
@@ -333,8 +331,8 @@ extension Runner {
             }
 
             // Execute tool calls
-            let toolOnlyCalls = functionCalls.filter { fc in
-                !agent.handoffs.contains(where: { $0.toolName == fc.name })
+            let toolOnlyCalls = functionCalls.filter { functionCall in
+                !agent.handoffs.contains(where: { $0.toolName == functionCall.name })
             }
 
             // Collect all tool results

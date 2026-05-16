@@ -118,7 +118,7 @@ public extension Agent {
 
         let providedTools: [Tool] = if tools.contains(.applyPatch) {
             allProviders.tools.filter {
-                if case let .function(fn) = $0 { return !["edit", "write"].contains(fn.name) }
+                if case let .function(function) = $0 { return !["edit", "write"].contains(function.name) }
                 return true
             }
         } else {
