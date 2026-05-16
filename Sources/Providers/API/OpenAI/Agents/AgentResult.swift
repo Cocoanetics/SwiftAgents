@@ -12,9 +12,9 @@ enum AgentResult<T> {
      - Parameter T: The final output value
      */
     case finalOutput(T, String?)
-    
+
     /** Indicates the agent is handing off execution to another agent
      - Parameter Agent: The agent to continue execution with
      */
     case handOff(any Agent)
-} 
+}

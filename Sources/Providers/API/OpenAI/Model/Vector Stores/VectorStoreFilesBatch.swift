@@ -12,8 +12,7 @@ import Foundation
  
  - SeeAlso: For more information, see [Vector Store Files Batch API Documentation](https://platform.openai.com/docs/api-reference/vector-stores-file-batches).
  */
-struct VectorStoreFilesBatch: Codable
-{
+struct VectorStoreFilesBatch: Codable {
 	/// The unique identifier for the batch.
 	let id: String
 

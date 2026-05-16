@@ -16,7 +16,7 @@ public struct Trace: Identifiable, Codable {
 	public let groupID: String?
 	/* Optional metadata associated with the trace */
 	public let metadata: [String: String]?
-	
+
 	/*
 	 Creates a new trace.
 	 
@@ -47,15 +47,15 @@ extension Trace {
 			"id": JSONValue(id),
 			"workflow_name": JSONValue(workflowName)
 		]
-		
+
 		if let groupID = groupID {
 			result["group_id"] = JSONValue(groupID)
 		}
-		
+
 		if let metadata = metadata {
 			result["metadata"] = JSONValue(metadata)
 		}
-		
+
 		return result
 	}
-} 
+}

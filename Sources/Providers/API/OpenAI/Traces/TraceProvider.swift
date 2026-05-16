@@ -10,12 +10,12 @@ private let tracingLogsEnabled = ProcessInfo.processInfo.environment["TRACE_LOGS
 public final class TraceProvider {
     /* Shared instance of the trace provider */
     public static let shared = TraceProvider()
-    
+
     /* Actor that manages the collection of trace processors */
     let processorsActor = ProcessorsActor()
     /* Flag indicating whether tracing is disabled */
     private var isDisabled = false
-    
+
     /*
      Adds a trace processor to the collection of processors.
      
@@ -24,7 +24,7 @@ public final class TraceProvider {
     public func addProcessor(_ processor: TracingProcessor) async {
         await processorsActor.addProcessor(processor)
     }
-    
+
     /*
      Replaces all trace processors with the given ones.
      
@@ -33,7 +33,7 @@ public final class TraceProvider {
     public func setProcessors(_ newProcessors: [TracingProcessor]) async {
         await processorsActor.setProcessors(newProcessors)
     }
-    
+
     /*
      Sets whether tracing is disabled.
      
@@ -42,7 +42,7 @@ public final class TraceProvider {
     public func setDisabled(_ disabled: Bool) {
         isDisabled = disabled
     }
-    
+
     /*
      Shuts down the trace provider and all processors.
      */
@@ -59,7 +59,7 @@ public final class TraceProvider {
 actor ProcessorsActor {
     /* The collection of trace processors */
     private var processors: [TracingProcessor] = []
-    
+
     /*
      Adds a trace processor to the collection.
      
@@ -68,7 +68,7 @@ actor ProcessorsActor {
     func addProcessor(_ processor: TracingProcessor) {
         processors.append(processor)
     }
-    
+
     /*
      Replaces all trace processors with the given ones.
      
@@ -77,7 +77,7 @@ actor ProcessorsActor {
     func setProcessors(_ newProcessors: [TracingProcessor]) {
         processors = newProcessors
     }
-    
+
     /*
      Executes an action on all processors.
      
@@ -88,19 +88,15 @@ actor ProcessorsActor {
             await action(processor)
         }
     }
-	
-	init()
-	{
-		if let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"]
-		{
+
+	init() {
+		if let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] {
 			let openAI = OpenAI(apiKey: apiKey)
 			processors = [BatchTraceProcessor(exporter: BackendSpanExporter(openAI: openAI))]
 			if tracingLogsEnabled {
 				NSLog("Started OpenAI Batch Trace Exporter")
 			}
-		}
-		else
-		{
+		} else {
 			if tracingLogsEnabled {
 				NSLog("No OPENAI_API_KEY environment variable found, falling back to console trace exporter")
 			}

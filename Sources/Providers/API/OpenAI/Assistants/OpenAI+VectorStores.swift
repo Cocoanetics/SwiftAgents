@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension OpenAI
-{
+extension OpenAI {
 	/**
 	 Creates a vector store on the OpenAI platform.
 	 
@@ -24,17 +23,16 @@ extension OpenAI
 	 
 	 - SeeAlso: [Create Vector Store](https://platform.openai.com/docs/api-reference/vector-stores/create)
 	 */
-	func createVectorStore(name: String? = nil, expiresAfter policy: ExpirationPolicy? = nil, metadata: [String: String] = [:], fileIds: [String]? = nil) async throws -> VectorStore
-	{
+	func createVectorStore(name: String? = nil, expiresAfter policy: ExpirationPolicy? = nil, metadata: [String: String] = [:], fileIds: [String]? = nil) async throws -> VectorStore {
 		let vectorStore = VectorStoreOptionals(name: name, expiresAfter: policy, metadata: metadata, fileIds: fileIds)
-		
+
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/vector_stores", body: vectorStore)
 
 		let (data, response) = try await session.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Modifies a vector store with the specified parameters.
 
@@ -49,20 +47,20 @@ extension OpenAI
 	func modifyVectorStore(id: String, name: String? = nil, expiresAfter: ExpirationPolicy? = nil, metadata: [String: String]? = nil) async throws -> VectorStore {
 		// Construct the request body
 		let requestBody = VectorStoreOptionals(name: name, expiresAfter: expiresAfter, metadata: metadata, fileIds: nil)
-		
+
 		// Create the URL path
 		let endpoint = "/v1/vector_stores/\(id)"
-		
+
 		// Create the URL request
 		let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: requestBody)
-		
+
 		// Perform the API call
 		let (data, response) = try await session.data(for: request)
-		
+
 		// Process the response data
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Fetches a paginated list of vector stores.
 
@@ -78,30 +76,29 @@ extension OpenAI
 	 
 	 - SeeAlso: [OpenAI Platform API Documentation - List Vector Stores](https://platform.openai.com/docs/api-reference/vector-stores/list)
 	 */
-	func listVectorStores(limit: Int = 20, order: SortOrder = .descending, after: String? = nil, before: String? = nil) async throws -> ListPagedResponse<VectorStore>
-	{
+	func listVectorStores(limit: Int = 20, order: SortOrder = .descending, after: String? = nil, before: String? = nil) async throws -> ListPagedResponse<VectorStore> {
 		var queryItems: [URLQueryItem] = [
 			URLQueryItem(name: "limit", value: String(limit)),
 			URLQueryItem(name: "order", value: order.rawValue)
 		]
-		
+
 		if let after = after {
 			queryItems.append(URLQueryItem(name: "after", value: after))
 		}
-		
+
 		if let before = before {
 			queryItems.append(URLQueryItem(name: "before", value: before))
 		}
-		
+
 		let request = try self.createUrlRequest(path: "/v1/vector_stores", queryItems: queryItems)
-		
+
 		let (data, response) = try await session.data(for: request)
-		
+
 		let list: ListPagedResponse<VectorStore> = try process(data: data, response: response)
-		
+
 		return list
 	}
-	
+
 	/**
 	 Returns an asynchronous stream of all vector stores.
 
@@ -115,50 +112,43 @@ extension OpenAI
 
 	 - Throws: An error if the request fails or if the response cannot be processed.
 	 */
-	func listVectorStoresStream(limit: Int? = nil, order: SortOrder = .descending) -> AsyncThrowingStream<VectorStore, Error>
-	{
+	func listVectorStoresStream(limit: Int? = nil, order: SortOrder = .descending) -> AsyncThrowingStream<VectorStore, Error> {
 		return AsyncThrowingStream { continuation in
-			
-			Task 
-			{
+
+			Task {
 				do {
 					var count = 0
-					
+
 					var after: String?
 					var hasMore: Bool = false
-					
-					repeat
-					{
+
+					repeat {
 						let page = try await self.listVectorStores(order: order, after: after)
 
 						hasMore = page.hasMore
 						after = page.lastId
 
-						for vectorStore in page.data
-						{
+						for vectorStore in page.data {
 							continuation.yield(vectorStore)
 							count += 1
-							
+
 							if let limit = limit,
-							   count >= limit
-							{
+							   count >= limit {
 								hasMore = false
 								break
 							}
 						}
-						
+
 					} while hasMore
-								
+
 					continuation.finish()
-				}
-				catch let error
-				{
+				} catch let error {
 					continuation.finish(throwing: error)
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 Retrieves a vector store by its identifier.
 
@@ -170,15 +160,14 @@ extension OpenAI
 
 	 - SeeAlso: [Retrieve Vector Store](https://platform.openai.com/docs/api-reference/vector-stores/retrieve)
 	 */
-	func retrieveVectorStore(id: String) async throws -> VectorStore
-	{
+	func retrieveVectorStore(id: String) async throws -> VectorStore {
 		let request = try self.createUrlRequest(path: "/v1/vector_stores/" + id)
-		
+
 		let (data, response) = try await session.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Waits until all files in the specified VectorStore have been processed.
 
@@ -206,18 +195,18 @@ extension OpenAI
 		while true {
 			// Retrieve the current status of the VectorStore
 			let polledStore = try await retrieveVectorStore(id: id)
-			
+
 			print("Current file count in progress: \(polledStore.fileCounts.inProgress)")
 
 			if polledStore.fileCounts.inProgress == 0 {
 				return polledStore
 			}
-			
+
 			// Sleep for a few seconds before polling again to manage API request frequency
 			try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
 		}
 	}
-	
+
 	/**
 	 Deletes a VectorStore by its identifier.
 
@@ -230,14 +219,13 @@ extension OpenAI
 
 	 - SeeAlso: [OpenAI Platform API Documentation - Delete Vector Store](https://platform.openai.com/docs/api-reference/vector-stores/delete)
 	 */
-	@discardableResult func deleteVectorStore(id: String) async throws -> Bool
-	{
+	@discardableResult func deleteVectorStore(id: String) async throws -> Bool {
 		let request = try self.createUrlRequest(httpMethod: "DELETE", path: "/v1/vector_stores/" + id)
-		
+
 		let (data, response) = try await session.data(for: request)
-		
+
 		let deletionStatus: DeletionStatus = try process(data: data, response: response)
-		
+
 		return deletionStatus.deleted
 	}
 }

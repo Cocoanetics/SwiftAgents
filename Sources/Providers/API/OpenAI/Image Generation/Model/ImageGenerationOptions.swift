@@ -13,4 +13,4 @@ public protocol ImageGenerationOptions {
 	var count: Int { get }
 	/// A unique identifier representing your end-user
 	var user: String? { get }
-} 
+}

@@ -22,16 +22,15 @@ extension OpenAI {
 	 */
 	public func createThread(messages: [MessageCreation]? = nil,
 					  toolResources: ToolResources? = nil,
-					  metadata: [String: String]? = nil) async throws -> Thread 
-	{
+					  metadata: [String: String]? = nil) async throws -> Thread {
 		let details = ThreadOptionals(messages: messages, toolResources: toolResources, metadata: metadata)
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/threads", body: details)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Retrieves a thread from the OpenAI platform using the thread's unique identifier.
 	 
@@ -41,15 +40,14 @@ extension OpenAI {
 	 
 	 - SeeAlso: [Get Thread API](https://platform.openai.com/docs/api-reference/threads/getThread)
 	 */
-	public func retrieveThread(id: String) async throws -> Thread
-	{
+	public func retrieveThread(id: String) async throws -> Thread {
 		let request = try self.createUrlRequest(path: "/v1/threads/" + id)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Modifies an existing thread on the OpenAI platform using the thread's unique identifier.
 	 This function updates the tool resources and metadata associated with the specified thread.
@@ -70,10 +68,10 @@ extension OpenAI {
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/threads/" + id, body: threadDetails)
 
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Deletes a thread from the OpenAI platform using the thread's unique identifier.
 	 
@@ -86,11 +84,11 @@ extension OpenAI {
 	@discardableResult
 	func deleteThread(id: String) async throws -> Bool {
 		let request = try self.createUrlRequest(httpMethod: "DELETE", path: "/v1/threads/" + id)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		let deletionStatus: DeletionStatus = try process(data: data, response: response)
-		
+
 		return deletionStatus.deleted
 	}
 }

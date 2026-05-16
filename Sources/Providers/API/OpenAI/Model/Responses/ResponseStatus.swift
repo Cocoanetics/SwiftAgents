@@ -8,17 +8,16 @@
 import Foundation
 
 /// The status of the response generation.
-public enum ResponseStatus: String, Codable, Sendable
-{
+public enum ResponseStatus: String, Codable, Sendable {
     /// The response has been completed successfully.
     case completed
-    
+
     /// The response generation failed.
     case failed
-    
+
     /// The response is still being generated.
     case inProgress = "in_progress"
-    
+
     /// The response is incomplete.
     case incomplete
 
@@ -27,4 +26,4 @@ public enum ResponseStatus: String, Codable, Sendable
 
     /// The response was cancelled before completion.
     case cancelled
-} 
+}

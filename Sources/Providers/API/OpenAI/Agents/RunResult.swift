@@ -9,6 +9,6 @@ import Foundation
 public struct RunResult<T: Sendable>: Sendable {
     /** The final output value produced by the agent workflow */
     public var finalOutput: T
-	
+
 	public var finalReasoning: String?
 }

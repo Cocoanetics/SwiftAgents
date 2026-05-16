@@ -4,7 +4,7 @@ import Testing
 
 struct GoogleVisionImageTests {
 	private let googleModel = "gemini-2.5-flash"
-	
+
 	@Test("Google inline vision", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
 	func googleInlineImageUnderstanding() async throws {
 		let google = GoogleAPI(apiKey: APIKey.gemini!)
@@ -15,7 +15,7 @@ struct GoogleVisionImageTests {
 		let content = VisionImageTestHelpers.text(from: choice.message)
 		#expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 	}
-	
+
 	@Test("Google remote vision", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
 	func googleRemoteImageUnderstanding() async throws {
 		let google = GoogleAPI(apiKey: APIKey.gemini!)

@@ -6,7 +6,7 @@ public extension GoogleAPI {
 		let resolvedName = filename ?? url.lastPathComponent
 		return try await uploadFile(data: data, filename: resolvedName, mimeType: mimeType)
 	}
-	
+
 	func uploadFile(data: Data, filename: String, mimeType: String) async throws -> GoogleFile {
 		guard let apiKey = apiKey else {
 			throw APIError.authenticationError("Missing GEMINI_API_KEY")
@@ -46,7 +46,7 @@ public extension GoogleAPI {
 		let uploaded = try decoder.decode(GoogleFileUploadResponse.self, from: responseData)
 		return uploaded.file
 	}
-	
+
 	func listFiles() async throws -> [GoogleFile] {
 		let request = try makeFilesRequest(path: "\(versionPath)/files")
 		let (data, response) = try await session.data(for: request)
@@ -57,7 +57,7 @@ public extension GoogleAPI {
 		let list = try decoder.decode(GoogleFileListResponse.self, from: data)
 		return list.files ?? []
 	}
-	
+
 	func retrieveFile(name: String) async throws -> GoogleFile {
 		let request = try makeFilesRequest(path: "\(versionPath)/files/\(normalizedFileIdentifier(name))")
 		let (data, response) = try await session.data(for: request)
@@ -68,7 +68,7 @@ public extension GoogleAPI {
 		let file = try decoder.decode(GoogleFile.self, from: data)
 		return file
 	}
-	
+
 	@discardableResult
 	func deleteFile(name: String) async throws -> Bool {
 		var request = try makeFilesRequest(path: "\(versionPath)/files/\(normalizedFileIdentifier(name))")
@@ -80,7 +80,7 @@ public extension GoogleAPI {
 		}
 		return true
 	}
-	
+
 	private func makeFilesRequest(path: String) throws -> URLRequest {
 		guard let apiKey = apiKey else {
 			throw APIError.authenticationError("Missing GEMINI_API_KEY")

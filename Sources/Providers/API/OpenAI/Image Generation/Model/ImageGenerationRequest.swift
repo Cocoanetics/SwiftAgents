@@ -21,7 +21,7 @@ public struct ImageGenerationRequest: Codable {
 	let outputCompression: Int?
 	let outputFormat: String?
 	let user: String?
-	
+
 	// Simplified initializer taking only raw values
 	init(
 		prompt: String,

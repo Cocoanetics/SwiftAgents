@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension OpenAI
-{
+extension OpenAI {
 	/**
 	 Retrieves a list of run steps belonging to a specific run on the OpenAI platform.
 	 
@@ -29,25 +28,24 @@ extension OpenAI
 					  limit: Int = 20,
 					  order: SortOrder = .descending,
 					  after: String? = nil,
-					  before: String? = nil) async throws -> ListPagedResponse<RunStep>
-	{
+					  before: String? = nil) async throws -> ListPagedResponse<RunStep> {
 		var queryItems: [URLQueryItem] = [
 			URLQueryItem(name: "limit", value: String(limit)),
 			URLQueryItem(name: "order", value: order.rawValue)
 		]
-		
+
 		if let after = after {
 			queryItems.append(URLQueryItem(name: "after", value: after))
 		}
-		
+
 		if let before = before {
 			queryItems.append(URLQueryItem(name: "before", value: before))
 		}
-		
+
 		let request = try self.createUrlRequest(path: "/v1/threads/\(threadId)/runs/\(runId)/steps", queryItems: queryItems)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
 }

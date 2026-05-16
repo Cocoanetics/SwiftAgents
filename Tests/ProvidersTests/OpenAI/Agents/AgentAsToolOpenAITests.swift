@@ -10,13 +10,13 @@ struct AgentAsToolOpenAITests {
 			instructions: "Translate the user's message to Spanish. Respond with ONLY the Spanish translation.",
 			modelSettings: ModelSettings(temperature: 0)
 		)
-		
+
 		let frenchAgent = BasicAgent(
 			name: "FrenchTranslator",
 			instructions: "Translate the user's message to French. Respond with ONLY the French translation.",
 			modelSettings: ModelSettings(temperature: 0)
 		)
-		
+
 		let orchestrator = BasicAgent(
 			name: "TranslationOrchestrator",
 			instructions: "Use the provided tools to translate the text into Spanish and French. Respond with clear labels for each language.",
@@ -32,10 +32,10 @@ struct AgentAsToolOpenAITests {
 			],
 			modelSettings: ModelSettings(temperature: 0.1, toolChoice: .auto)
 		)
-		
+
 		let userInput = "Hello, how are you today? Please translate this to Spanish and French."
 		let result = try await Runner.run(agent: orchestrator, input: userInput, maxTurns: 5)
-		
+
 		let output = result.finalOutput.lowercased()
 		#expect(!output.isEmpty)
 		#expect(output.contains("spanish:") || output.contains("español"))

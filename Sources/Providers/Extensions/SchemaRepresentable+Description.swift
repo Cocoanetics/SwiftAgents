@@ -13,8 +13,7 @@ import SwiftMCP
  
  This extension adds the ability to generate a schema description for any type that conforms to SchemaRepresentable.
  */
-extension SchemaRepresentable
-{
+extension SchemaRepresentable {
 	/**
 	 Returns a schema description for the conforming type.
 	 
@@ -24,10 +23,10 @@ extension SchemaRepresentable
 	 - Returns: A SchemaDescription containing the type's name and schema definition.
 	 */
 	public static var schemaDescription: SchemaDescription {
-		
+
 		SchemaDescription(name: self.schemaMetadata.name, schema: self.schemaMetadata.schema)
 	}
-	
+
 	public static var jsonSchema: JSONSchemaFormat {
 		JSONSchemaFormat(name: schemaMetadata.name, schema: schemaDescription.schema.addingAdditionalPropertiesRestrictionToObjects)
 	}

@@ -15,7 +15,7 @@ public enum ImageGenerationModel {
 	case dalle3(Dalle3Options)
 	/// GPT Image model with specific options
 	case gptImage(GPTImageOptions)
-	
+
 	/// The raw model identifier used in the API
 	public var identifier: String {
 		switch self {
@@ -24,7 +24,7 @@ public enum ImageGenerationModel {
 			case .gptImage: return "gpt-image-1"
 		}
 	}
-	
+
 	/// The options specific to this model
 	public var options: ImageGenerationOptions {
 		switch self {

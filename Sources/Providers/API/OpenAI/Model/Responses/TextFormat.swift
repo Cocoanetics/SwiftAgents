@@ -12,19 +12,19 @@ import SwiftMCP
 public enum TextFormat: Codable, Sendable {
 	/// Default text response format
 	case text
-	
+
 	/// JSON response format
 	case json
-	
+
 	/// JSON Schema response format
 	case jsonSchema(JSONSchemaFormat)
-	
+
 	private enum CodingKeys: String, CodingKey {
 		case type
 		case name
 		case schema
 	}
-	
+
 	public func encode(to encoder: Encoder) throws {
 		var container = encoder.container(keyedBy: CodingKeys.self)
 		switch self {
@@ -38,7 +38,7 @@ public enum TextFormat: Codable, Sendable {
 			try container.encode(format.schema, forKey: .schema)
 		}
 	}
-	
+
 	public init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)
 		let type = try container.decode(String.self, forKey: .type)
@@ -61,7 +61,7 @@ public enum TextFormat: Codable, Sendable {
 public struct JSONSchemaFormat: Codable, Sendable {
 	/// The name of the response format
 	public let name: String
-	
+
 	/// The schema for the response format
 	public let schema: JSONSchema
 }

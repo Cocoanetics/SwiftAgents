@@ -6,6 +6,6 @@ struct GoogleErrorResponse: Codable {
 		let message: String
 		let status: String?
 	}
-	
+
 	let error: ErrorBody
 }

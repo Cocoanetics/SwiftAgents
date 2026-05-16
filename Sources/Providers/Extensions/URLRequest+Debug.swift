@@ -7,34 +7,27 @@
 
 import Foundation
 
-extension URLRequest
-{
-	public var debugDescription: String
-	{
+extension URLRequest {
+	public var debugDescription: String {
 		var tmpStr = ""
 
-		if let httpMethod = httpMethod
-		{
+		if let httpMethod = httpMethod {
 			tmpStr += httpMethod
 		}
 
-		if let url = url
-		{
-			if !tmpStr.isEmpty
-			{
+		if let url = url {
+			if !tmpStr.isEmpty {
 				tmpStr += " "
 			}
 
 			tmpStr += url.absoluteString
 		}
 
-		if !tmpStr.isEmpty
-		{
+		if !tmpStr.isEmpty {
 			tmpStr += "\n\n"
 		}
 
-		if let httpBody = httpBody
-		{
+		if let httpBody = httpBody {
 			do {
 				if let jsonObject = try JSONSerialization.jsonObject(with: httpBody, options: []) as? [String: Any],
 					let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted),

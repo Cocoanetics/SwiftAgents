@@ -3,9 +3,9 @@ import Foundation
 /// Central registry for API providers, keyed by provider name
 public actor Providers {
 	public static let shared = Providers()
-	
+
 	private var apis: [String: API] = [:]
-	
+
 	/// Returns the API instance for a given model name or provider name.
 	/// - Parameter name: e.g. "local/llama3", "openai/gpt-4o", or just "gpt-4o" or nil
 	/// - Throws: ProviderError if the provider is unknown or misconfigured
@@ -36,11 +36,11 @@ public actor Providers {
 		// Create and register OpenAI if needed
 		if normalizedProvider.lowercased() == "openai" {
 			let openAI = OpenAI()
-			
+
 			guard openAI.apiKey != nil else {
 				throw ProviderError.missingAPIKey("OpenAI")
 			}
-			
+
 			apis["openai"] = openAI
 			return openAI
 		}
@@ -70,7 +70,7 @@ public actor Providers {
 		// Unknown provider
 		throw ProviderError.unknownProvider(normalizedProvider)
 	}
-	
+
 	/// Registers a custom API instance for a provider name
 	public func register(api: API, forProvider provider: String) async {
 		apis[provider] = api

@@ -18,4 +18,4 @@ public struct UserLocation: Codable, Sendable {
         self.region = region
         self.timezone = timezone
     }
-} 
+}

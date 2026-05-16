@@ -5,11 +5,9 @@
 //  Created by Oliver Drobnik on 15.05.25.
 //
 
-
 import Foundation
 
-extension Response.Input
-{
+extension Response.Input {
 	// Helper function to convert Response.Input to ChatMessage
 	func toChatMessage() -> [ChatMessage] {
 		switch self {
@@ -17,7 +15,7 @@ extension Response.Input
 				return [ChatMessage(role: .user, content: .text(text))]
 			case .array(let elements):
 				var messages: [ChatMessage] = []
-				
+
 				for element in elements {
 					switch element {
 						case .message(let message):

@@ -8,8 +8,7 @@
 import Foundation
 
 /// Represents the truncation strategy to use for the thread.
-public struct TruncationStrategy: Codable, Sendable
-{
+public struct TruncationStrategy: Codable, Sendable {
 	public let type: String
 	public let lastMessages: Int?
 }

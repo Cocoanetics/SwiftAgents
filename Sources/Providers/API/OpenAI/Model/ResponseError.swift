@@ -7,13 +7,11 @@
 
 import Foundation
 
-public struct ErrorResponse: Codable, Sendable
-{
+public struct ErrorResponse: Codable, Sendable {
 	let error: ErrorDetail
 }
 
-public struct ErrorDetail: Codable, Sendable
-{
+public struct ErrorDetail: Codable, Sendable {
 	let message: String
 	let type: String
 	let param: String?

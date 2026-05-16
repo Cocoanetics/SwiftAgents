@@ -11,15 +11,15 @@ import Foundation
 struct GitIgnore {
     var excludeDirs: [String] = []
     var excludeFiles: [String] = []
-    
+
     init(workingDirectory: String) {
         let path = (workingDirectory as NSString).appendingPathComponent(".gitignore")
         guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else { return }
-        
+
         for line in contents.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, !trimmed.hasPrefix("#"), !trimmed.hasPrefix("!") else { continue }
-            
+
             if trimmed.hasSuffix("/") {
                 let dir = String(trimmed.dropLast()).trimmingCharacters(in: .init(charactersIn: "/"))
                 if !dir.isEmpty { excludeDirs.append(dir) }
@@ -34,7 +34,7 @@ struct GitIgnore {
                 if !last.contains(".") { excludeDirs.append(last) }
             }
         }
-        
+
         if !excludeDirs.contains(".git") { excludeDirs.append(".git") }
     }
 }

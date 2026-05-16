@@ -8,10 +8,10 @@ extension ContentItem {
 
 		/// Optional token-level log probability data.
 		public let logprobs: [Logprob]?
-        
+
         /// The text output from the model.
         public let text: String
-        
+
         /// Initialize a new OutputText instance.
         /// - Parameters:
         ///   - text: The text output from the model.
@@ -23,20 +23,20 @@ extension ContentItem {
             self.annotations = annotations
 			self.logprobs = logprobs
         }
-        
+
         private enum CodingKeys: String, CodingKey {
             case text
             case annotations
 			case logprobs
         }
-        
+
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             text = try container.decode(String.self, forKey: .text)
             annotations = try container.decode([OutputItem.MessageOutput.Annotation].self, forKey: .annotations)
 			logprobs = try container.decodeIfPresent([Logprob].self, forKey: .logprobs)
         }
-        
+
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(text, forKey: .text)
@@ -57,4 +57,4 @@ extension ContentItem {
 			public let logprob: Double
 		}
 	}
-} 
+}

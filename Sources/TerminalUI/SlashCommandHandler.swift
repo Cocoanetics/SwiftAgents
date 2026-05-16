@@ -16,15 +16,15 @@ protocol AnyCommandExecutable {
 /// A struct representing a command block of code that can be executed.
 public struct CommandExecutable<ReturnType>: AnyCommandExecutable {
 	let block: () async throws -> ReturnType
-	
+
 	public init(block: @escaping () async throws -> ReturnType) {
 		self.block = block
 	}
-	
+
 	public func execute() async throws -> ReturnType {
 		return try await block()
 	}
-    
+
     // Type-erased execution used by SlashCommandHandler
     func executeErased() async throws {
         _ = try await block()
@@ -55,14 +55,14 @@ public class SlashCommandHandler {
         }
         try await executable.executeErased()
 	}
-	
+
 	/// An error type that represents an unknown command.
 	///
 	/// This error is thrown when attempting to execute a command that is not registered.
 	public enum UnknownCommandError: Error, LocalizedError {
 		/// The unrecognized command.
 		case unknownCommand(String)
-		
+
 		public var errorDescription: String? {
 			switch self {
 			case .unknownCommand(let command):
@@ -71,4 +71,3 @@ public class SlashCommandHandler {
 		}
 	}
 }
-

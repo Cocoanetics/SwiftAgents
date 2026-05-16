@@ -7,7 +7,6 @@
 
 import Foundation
 
-struct ResultsArrayWrapper<T: Decodable>: Decodable
-{
+struct ResultsArrayWrapper<T: Decodable>: Decodable {
 	let results: T
 }

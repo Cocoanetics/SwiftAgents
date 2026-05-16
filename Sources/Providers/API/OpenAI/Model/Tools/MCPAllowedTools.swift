@@ -16,7 +16,7 @@ import SwiftMCP
 public enum MCPAllowedTools: Codable, Sendable, Equatable {
 	/// Specifies allowed tools as a simple list of tool names.
 	case list([String])
-	
+
 	/// Specifies allowed tools using a filter object with tool names.
 	case filter([String])
 
@@ -52,26 +52,18 @@ public enum MCPAllowedTools: Codable, Sendable, Equatable {
 				try container.encode(MCPAllowedToolsFilter(toolNames: names))
 		}
 	}
-	
+
 	// MARK: - Private Structs
-	
+
 	/**
 	 Internal struct representing the filter object for allowed tools.
 	 */
 	fileprivate struct MCPAllowedToolsFilter: Codable, Sendable, Equatable {
 		/// The list of allowed tool names.
 		let toolNames: [String]?
-		
+
 		enum CodingKeys: String, CodingKey {
 			case toolNames = "tool_names"
-		}
-
-		/**
-		 Initializes a filter with the given tool names.
-		 - Parameter toolNames: The names of the allowed tools.
-		 */
-		init(toolNames: [String]?) {
-			self.toolNames = toolNames
 		}
 	}
 }

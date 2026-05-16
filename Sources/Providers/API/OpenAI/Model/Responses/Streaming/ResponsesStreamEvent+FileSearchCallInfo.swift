@@ -7,14 +7,12 @@
 
 import Foundation
 
-extension ResponsesStreamEvent
-{
+extension ResponsesStreamEvent {
 	/// Represents information about a file search call.
-	public struct FileSearchCallInfo: Codable, Sendable
-	{
+	public struct FileSearchCallInfo: Codable, Sendable {
 		/// The ID of the output item for the file search call.
 		public let itemId: String
-		
+
 		/// The index of the output item for the file search call.
 		public let outputIndex: Int
 	}

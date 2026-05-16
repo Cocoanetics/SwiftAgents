@@ -19,4 +19,4 @@ extension GPTImageOptions {
 		/// Auto quality
 		case auto = "auto"
 	}
-} 
+}

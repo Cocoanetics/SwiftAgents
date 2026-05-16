@@ -138,7 +138,7 @@ extension ToolChoice {
             ]
         }
     }
-    
+
     /// Creates a ToolChoice from a generation output dictionary.
     public static func from(generationOutput: [String: Any?]) -> ToolChoice? {
         if let toolCalls = generationOutput["tool_calls"] as? [[String: Any]] {
@@ -147,7 +147,7 @@ extension ToolChoice {
                   let name = function["name"] as? String else {
                 return nil
             }
-            
+
             switch name {
             case "file_search":
                 return .tool(ToolChoiceDescription(type: "file_search"))
@@ -162,11 +162,11 @@ extension ToolChoice {
                 ))
             }
         }
-        
+
         if let _ = generationOutput["content"] as? String {
 			return ToolChoice.none
         }
-        
+
         return nil
     }
-} 
+}

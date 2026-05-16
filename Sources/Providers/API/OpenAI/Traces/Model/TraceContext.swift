@@ -25,21 +25,19 @@ public enum TraceContext {
 	public static func withTrace<T>(_ trace: Trace, operation: () async throws -> T) async throws -> T {
 
 		let needsNotification = currentTrace?.id != trace.id
-		
-		if needsNotification
-		{
+
+		if needsNotification {
 			await TraceProvider.shared.processorsActor.notifyProcessors { await $0.onTraceStart(trace) }
 		}
 
 		let result = try await $currentTrace.withValue(trace) {
 			try await operation()
 		}
-		
-		if needsNotification
-		{
+
+		if needsNotification {
 			await TraceProvider.shared.processorsActor.notifyProcessors { await $0.onTraceEnd(trace) }
 		}
-		
+
 		return result
 	}
 
@@ -67,4 +65,4 @@ public enum TraceContext {
 			try await operation()
 		}
 	}
-} 
+}

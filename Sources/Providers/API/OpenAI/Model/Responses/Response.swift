@@ -9,14 +9,13 @@ import Foundation
 import SwiftMCP
 
 /// Represents a response from the OpenAI API.
-public struct Response: Codable, Sendable
-{
+public struct Response: Codable, Sendable {
 	/// Unique identifier for this Response.
 	public let id: String
-	
+
 	/// The object type of this resource - always set to "response".
 	public var object: String = "response"
-	
+
 	/// Unix timestamp (in seconds) of when this Response was created.
 	public let createdAt: Date
 
@@ -31,13 +30,13 @@ public struct Response: Codable, Sendable
 
 	/// An error object returned when the model fails to generate a Response.
 	public let error: ErrorDetail?
-	
+
 	/// Details about why the response is incomplete.
 	public let incompleteDetails: IncompleteDetails?
-	
+
 	/// Inserts a system (or developer) message as the first item in the model's context.
 	public let instructions: String?
-	
+
 	/// An upper bound for the number of tokens that can be generated for a response.
 	public let maxOutputTokens: Int?
 
@@ -55,40 +54,40 @@ public struct Response: Codable, Sendable
 
 	/// Whether to allow the model to run tool calls in parallel.
 	public let parallelToolCalls: Bool?
-	
+
 	/// The unique ID of the previous response to the model.
 	public let previousResponseId: String?
-	
+
 	/// Configuration options for reasoning models (o-series models only).
 	public let reasoning: Reasoning?
-	
+
 	/// What sampling temperature to use, between 0 and 2.
 	public let temperature: Double?
-	
+
 	/// Configuration options for a text response from the model.
 	public let text: TextConfiguration
-	
+
 	/// How the model should select which tool (or tools) to use.
 	public let toolChoice: ToolChoice
-	
+
 	/// An array of tools the model may call while generating a response.
 	public let tools: [ToolDescription]
-	
+
 	/// An alternative to sampling with temperature, called nucleus sampling.
 	public var topP: Double?
-	
+
 	/// The truncation strategy to use for the model response.
 	public let truncation: TruncationStrategy?
-	
+
 	/// Represents token usage details.
 	public let usage: ResponsesUsage?
-	
+
 	/// A unique identifier representing your end-user.
 	public let user: String?
-	
+
 	/// Set of key-value pairs that can be attached to an object.
 	public let metadata: [String: String]?
-	
+
 	/// The service tier used to process the request.
 	/// When not set, the default behavior is 'auto'.
 	public let serviceTier: ServiceTier?
@@ -126,7 +125,7 @@ public struct Response: Codable, Sendable
 	public enum EntryType: String, Codable, Sendable {
 		case compaction
 	}
-		
+
 	private enum CodingKeys: String, CodingKey {
 		case id
 		case object
@@ -161,7 +160,7 @@ public struct Response: Codable, Sendable
 		case promptCacheRetention
 		case safetyIdentifier
 	}
-	
+
 	public init(id: String,
 					createdAt: Date,
 					completedAt: Date? = nil,

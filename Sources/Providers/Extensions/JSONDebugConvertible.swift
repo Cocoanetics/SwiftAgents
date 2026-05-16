@@ -91,7 +91,7 @@ private struct PrettyJSONProxy: Encodable {
                 let mirror = Mirror(reflecting: encodable)
                 if mirror.displayStyle == .struct || mirror.displayStyle == .class {
                     var dict: [String: Any] = [:]
-                    
+
                     // Use reflection to get the actual property values (preserving types)
                     for child in mirror.children {
                         if let label = child.label {
@@ -106,7 +106,7 @@ private struct PrettyJSONProxy: Encodable {
                             dict[label] = child.value
                         }
                     }
-                    
+
                     let mapped = dict.compactMapValues { elem -> PrettyJSONProxy? in
                         let mirror = Mirror(reflecting: elem)
                         if mirror.displayStyle == .optional, mirror.children.first == nil {

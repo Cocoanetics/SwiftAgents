@@ -6,7 +6,7 @@ struct OpenAIVisionImageTests {
 	private let remoteVisionImageURL = "https://i0.wp.com/www.cocoanetics.com/files/iWoman.png?w=150&ssl=1"
 	private let openAIModel = "gpt-4.1-mini"
 	private let systemPrompt = "Describe any image attachments in a short sentence."
-	
+
 	@Test("OpenAI inline vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
 	func openAIInlineImageUnderstanding() async throws {
 		let client = OpenAI(apiKey: APIKey.openAI!)
@@ -17,7 +17,7 @@ struct OpenAIVisionImageTests {
 		let content = VisionImageTestHelpers.text(from: choice.message)
 		#expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 	}
-	
+
 	@Test("OpenAI remote vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
 	func openAIRemoteImageUnderstanding() async throws {
 		let client = OpenAI(apiKey: APIKey.openAI!)
@@ -28,7 +28,7 @@ struct OpenAIVisionImageTests {
 		let content = VisionImageTestHelpers.text(from: choice.message)
 		#expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 	}
-	
+
 	@Test("OpenAI Responses inline vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
 	func openAIResponsesInlineImageUnderstanding() async throws {
 		let client = OpenAI(apiKey: APIKey.openAI!)
@@ -48,7 +48,7 @@ struct OpenAIVisionImageTests {
 		let content = VisionImageTestHelpers.responseText(from: response)
 		#expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 	}
-	
+
 	@Test("OpenAI Responses remote vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
 	func openAIResponsesRemoteImageUnderstanding() async throws {
 		let client = OpenAI(apiKey: APIKey.openAI!)
@@ -67,7 +67,7 @@ struct OpenAIVisionImageTests {
 		let content = VisionImageTestHelpers.responseText(from: response)
 		#expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 	}
-	
+
 	@Test("OpenAI Responses uploaded vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
 	func openAIResponsesUploadedImageUnderstanding() async throws {
 		let client = OpenAI(apiKey: APIKey.openAI!)

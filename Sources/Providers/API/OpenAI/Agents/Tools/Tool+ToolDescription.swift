@@ -5,12 +5,11 @@
 //  Created by Oliver Drobnik on 20.05.25.
 //
 
-
 extension Array where Element == Tool {
 
 	/// Converts an array of Tool to ToolDescription for use with ChatCompletions
 	public var toolDescriptions: [ToolDescription] {
-		
+
 		map { tool -> ToolDescription in
 			switch tool {
 				case .function(let functionTool):
@@ -25,7 +24,7 @@ extension Array where Element == Tool {
 					return ToolDescription(type: "web_search")
 				case .computer:
 					return ToolDescription(type: "computer_use_preview")
-				case .mcp(_):
+				case .mcp:
 					preconditionFailure("MCP Tools not supported")
 				case .applyPatch:
 					return ToolDescription(type: "apply_patch")
@@ -33,4 +32,3 @@ extension Array where Element == Tool {
 		}
 	}
 }
-

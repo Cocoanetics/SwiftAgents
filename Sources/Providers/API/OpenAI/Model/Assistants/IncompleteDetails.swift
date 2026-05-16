@@ -8,7 +8,6 @@
 import Foundation
 
 /// Represents the details about why a message or run is incomplete.
-public struct IncompleteDetails: Codable, Sendable
-{
+public struct IncompleteDetails: Codable, Sendable {
 	var reason: String
 }

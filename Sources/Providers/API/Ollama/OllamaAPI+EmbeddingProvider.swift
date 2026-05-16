@@ -7,12 +7,11 @@
 
 import Foundation
 
-extension OllamaAPI: EmbeddingProvider
-{
+extension OllamaAPI: EmbeddingProvider {
 	public func embedding(for text: String) async throws -> Vector? {
-		
+
 		let embedding = try await self.embedding(input: text, model: embeddingModelIdentifier)
-		
+
 		return embedding.unitVector()
 	}
 }

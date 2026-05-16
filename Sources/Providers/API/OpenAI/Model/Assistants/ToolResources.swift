@@ -7,10 +7,6 @@
 
 import Foundation
 
-import Foundation
-
-import Foundation
-
 public struct ToolResources: Codable {
 	// Nested structs for each tool type.
 	public struct CodeInterpreter: Codable {
@@ -30,12 +26,11 @@ public struct ToolResources: Codable {
 	public var codeInterpreter: CodeInterpreter?
 	public var fileSearch: FileSearch?
 	public var vectorStores: [VectorStoreFiles]?  // Assuming multiple vector stores can be attached.
-	
-	public init()
-	{
-		
+
+	public init() {
+
 	}
-	
+
 	// Custom initializer from Decoder to handle optional decoding.
 	public init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)

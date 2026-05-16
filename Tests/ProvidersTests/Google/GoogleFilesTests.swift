@@ -19,9 +19,9 @@ struct GoogleFilesTests {
 		let deleted = try await google.deleteFile(name: name)
 		#expect(deleted)
 	}
-	
+
 	// MARK: - Helpers
-	
+
 	private func sampleImageData() -> Data {
 		guard let url = Bundle.module.url(forResource: "vision-test", withExtension: "png"),
 		      let data = try? Data(contentsOf: url) else {

@@ -55,4 +55,3 @@ public enum MCPRequireApproval: Codable, Sendable, Equatable {
 		}
 	}
 }
-

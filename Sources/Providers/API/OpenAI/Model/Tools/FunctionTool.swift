@@ -16,4 +16,4 @@ public struct FunctionTool: Codable, Sendable {
         self.parameters = parameters
         self.strict = strict
     }
-} 
+}

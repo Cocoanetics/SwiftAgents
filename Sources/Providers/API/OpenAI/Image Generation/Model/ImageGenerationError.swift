@@ -21,7 +21,7 @@ public enum ImageGenerationError: LocalizedError {
 	case authenticationError
 	/// Server error
 	case serverError
-	
+
 	public var errorDescription: String? {
 		switch self {
 		case .invalidParameter(let message):
@@ -38,4 +38,4 @@ public enum ImageGenerationError: LocalizedError {
 			return "Server error"
 		}
 	}
-} 
+}

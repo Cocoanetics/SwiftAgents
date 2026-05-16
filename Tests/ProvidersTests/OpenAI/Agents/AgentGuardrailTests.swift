@@ -57,7 +57,7 @@ struct AgentGuardrailTest {
                 instructions: "Echo back whatever the user says.",
                 inputGuardrails: [guardrail]
             )
-            
+
             let result = try await Runner.run(agent: agent, input: "hello world", config: RunConfig())
             #expect(result.finalOutput.contains("hello world"), "Agent should echo the input")
         }
@@ -72,7 +72,7 @@ struct AgentGuardrailTest {
                 instructions: "Echo back whatever the user says.",
                 inputGuardrails: [guardrail]
             )
-            
+
             do {
                 _ = try await Runner.run(agent: agent, input: "I like banana smoothies", config: RunConfig())
                 Issue.record("Expected InputGuardrailTripwireTriggered to be thrown")
@@ -93,7 +93,7 @@ struct AgentGuardrailTest {
         try await withTrace(name: "Output Guardrail Triggers On Sensitive Data") {
             let agent = MessageOutputAgent()
             let input = "My phone number is 650-123-4567. Where do you think I live?"
-            
+
             do {
                 _ = try await Runner.run(agent: agent, input: input)
                 Issue.record("Expected OutputGuardrailTripwireTriggered to be thrown")
@@ -108,4 +108,4 @@ struct AgentGuardrailTest {
             }
         }
     }
-} 
+}

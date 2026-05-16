@@ -8,8 +8,7 @@
 import Foundation
 
 /// Specifies additional output data to include in the model response.
-public enum Include: String, Codable, Sendable
-{
+public enum Include: String, Codable, Sendable {
     /// Include the search results of the file search tool call.
     case fileSearchResults = "file_search_call.results"
 
@@ -33,4 +32,4 @@ public enum Include: String, Codable, Sendable
 
 	/// Include token logprobs for assistant output text.
 	case messageOutputTextLogprobs = "message.output_text.logprobs"
-} 
+}

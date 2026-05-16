@@ -33,4 +33,4 @@ public extension String {
 		let prefix = String(uuid.prefix(24))
 		return "group_\(prefix)"
 	}
-} 
+}

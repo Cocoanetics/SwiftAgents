@@ -7,18 +7,15 @@
 
 import Foundation
 
-
-extension Response
-{
+extension Response {
 	/// Represents the input for a response, which can be text, image, or file
-	public enum Input: Codable
-	{
+	public enum Input: Codable {
 		/// Simple text input
 		case text(String)
-		
+
 		/// Array of input elements (text, image URLs, etc.)
 		case array([Response.Input.Element])
-		
+
 		public init(from decoder: Decoder) throws {
 			let container = try decoder.singleValueContainer()
 			if let string = try? container.decode(String.self) {
@@ -29,7 +26,7 @@ extension Response
 				throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid input format")
 			}
 		}
-		
+
 		public func encode(to encoder: Encoder) throws {
 			var container = encoder.singleValueContainer()
 			switch self {

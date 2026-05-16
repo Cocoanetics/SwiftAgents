@@ -8,8 +8,7 @@
 import Foundation
 
 /// The role of the author of this message.
-public enum Role: String, Codable, Sendable
-{
+public enum Role: String, Codable, Sendable {
 	case system
 	case user
 	case assistant

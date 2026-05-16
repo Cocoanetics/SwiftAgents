@@ -21,7 +21,7 @@ extension Sequence where Element == Double {
 		vDSP_svesqD(array, 1, &result, vDSP_Length(array.count))
 		return sqrt(result)
 	}
-	
+
 	/// Converts a vector to its unit vector form.
 	///
 	/// This function normalizes the vector to a unit vector by dividing each element by the vector's magnitude.
@@ -30,24 +30,24 @@ extension Sequence where Element == Double {
 	/// - Returns: A unit vector of the original vector or nil if the magnitude is zero.
 	public func unitVector() -> Vector? {
 		let array = Array(self)
-		
+
 		// Handle the empty array case explicitly
 		if array.isEmpty {
 			return []
 		}
-		
+
 		let mag = array.magnitude()
-		
+
 		guard mag != 0 else {
 			return nil
 		}
-		
+
 		var normalized = Vector(repeating: 0.0, count: array.count)
 		vDSP_vsdivD(array, 1, [mag], &normalized, 1, vDSP_Length(array.count))
-		
+
 		return normalized
 	}
-	
+
 	/// Calculates the cosine similarity between two vectors.
 	///
 	/// Cosine similarity measures the cosine of the angle between two vectors in the multidimensional space.
@@ -60,20 +60,20 @@ extension Sequence where Element == Double {
 		guard array.count == otherVector.count, !array.isEmpty, !otherVector.isEmpty else {
 			return 0
 		}
-		
+
 		let myMagnitude = array.magnitude()
 		let otherMagnitude = otherVector.magnitude()
-		
+
 		// Check for zero magnitude to avoid division by zero
 		if myMagnitude == 0 || otherMagnitude == 0 {
 			return 0
 		}
-		
+
 		var result = 0.0
 		vDSP_dotprD(array, 1, otherVector, 1, &result, vDSP_Length(array.count))
 		return result / (myMagnitude * otherMagnitude)
 	}
-	
+
 	/// Computes cosine similarity for unit vectors.
 	///
 	/// When dealing with unit vectors (vectors of magnitude 1), the cosine similarity simplifies to just the dot product.
@@ -86,12 +86,12 @@ extension Sequence where Element == Double {
 		guard array.count == otherUnitVector.count else {
 			return 0
 		}
-		
+
 		var result = 0.0
 		vDSP_dotprD(array, 1, otherUnitVector, 1, &result, vDSP_Length(array.count))
 		return result
 	}
-	
+
 	/// Calculates the Euclidean distance between this vector and another vector.
 	///
 	/// Euclidean distance is the "straight line" distance between two points in Euclidean space.
@@ -104,22 +104,22 @@ extension Sequence where Element == Double {
 		guard array.count == otherVector.count else {
 			return .greatestFiniteMagnitude
 		}
-		
+
 		var differences = Vector(repeating: 0.0, count: array.count)
 		vDSP_vsubD(otherVector, 1, array, 1, &differences, 1, vDSP_Length(array.count))
-		
+
 		var squaredDifferences = Vector(repeating: 0.0, count: array.count)
 		vDSP_vsqD(differences, 1, &squaredDifferences, 1, vDSP_Length(array.count))
-		
+
 		var sumOfSquaredDifferences = 0.0
 		vDSP_sveD(squaredDifferences, 1, &sumOfSquaredDifferences, vDSP_Length(array.count))
-		
+
 		return sqrt(sumOfSquaredDifferences)
 	}
 }
 
 extension Array where Element == Vector {
-	
+
 	/// Computes the element-wise average of multiple vectors contained within an array.
 	///
 	/// This function returns a single vector that is the element-wise average of all vectors contained in the array.
@@ -130,35 +130,34 @@ extension Array where Element == Vector {
 		guard !self.isEmpty, let firstLength = self.first?.count else {
 			return nil
 		}
-		
+
 		// Ensure all vectors are of the same length
 		guard self.allSatisfy({ $0.count == firstLength }) else {
 			return nil
 		}
-		
-		if self.count == 1
-		{
+
+		if self.count == 1 {
 			return first
 		}
-		
+
 		var result = Vector(repeating: 0.0, count: firstLength)
 		var count = 0.0
-		
+
 		for vector in self {
 			var tempResult = Vector(repeating: 0.0, count: firstLength)
 			vDSP_vaddD(result, 1, vector, 1, &tempResult, 1, vDSP_Length(firstLength))
 			result = tempResult
 			count += 1
 		}
-		
+
 		// Average the result by dividing each element by the count of vectors
 		if count > 0 {
 			vDSP_vsdivD(result, 1, [count], &result, 1, vDSP_Length(firstLength))
 		}
-		
+
 		return result
 	}
-	
+
 	/// Computes the unit vector of the element-wise average of multiple vectors.
 	///
 	/// This function first computes the average vector using `averageVector()` and then normalizes it.
@@ -167,11 +166,11 @@ extension Array where Element == Vector {
 		guard let avgVector = self.averageVector() else {
 			return nil
 		}
-		
+
 		// Normalize the average vector to get the unit vector
 		return avgVector.unitVector()
 	}
-	
+
 	/// Sums all vectors contained within the array.
 	///
 	/// This function returns a single vector that is the sum of all vectors contained in the array.
@@ -187,9 +186,8 @@ extension Array where Element == Vector {
 		guard self.allSatisfy({ $0.count == firstLength }) else {
 			return nil
 		}
-		
-		if self.count == 1
-		{
+
+		if self.count == 1 {
 			return first
 		}
 
@@ -199,10 +197,10 @@ extension Array where Element == Vector {
 			// Use Accelerate to add vectors directly
 			vDSP_vaddD(result, 1, vector, 1, &result, 1, vDSP_Length(firstLength))
 		}
-		
+
 		return result
 	}
-	
+
 	/// Sums all vectors and normalizes the result to create a unit vector.
 	///
 	/// This function first computes the sum of all vectors using `sumVectors()` and then normalizes it.
@@ -211,7 +209,7 @@ extension Array where Element == Vector {
 		guard let sumVector = self.sumVector() else {
 			return nil
 		}
-		
+
 		// Normalize the sum vector to get the unit vector
 		return sumVector.unitVector()
 	}

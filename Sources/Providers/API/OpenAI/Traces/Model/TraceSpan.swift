@@ -22,7 +22,7 @@ public class TraceSpan: Identifiable {
 	public var spanData: SpanData?
 	/* Error information, if an error occurred during this span */
 	public var error: SpanError?
-	
+
 	/*
 	 Creates a new trace span.
 	 
@@ -43,7 +43,7 @@ public class TraceSpan: Identifiable {
 		self.spanData = spanData
 		self.error = error
 	}
-	
+
 	/*
 	 Marks the span as completed by setting the end time to the current time.
 	 */
@@ -67,25 +67,25 @@ extension TraceSpan {
 			"trace_id": JSONValue(traceID),
 			"started_at": JSONValue(startedAt)
 		]
-		
+
 		if let parentID = parentID {
 			result["parent_id"] = JSONValue(parentID)
 		}
-		
+
 		if let endedAt = endedAt {
 			result["ended_at"] = JSONValue(endedAt)
 		}
-		
+
 		if let spanData = spanData {
 			result["span_data"] = JSONValue(spanData.export())
 		}
-		
+
 		if let error = error {
 			result["error"] = JSONValue(error)
 		} else {
 			result["error"] = JSONValue(nil)
 		}
-		
+
 		return result
 	}
-} 
+}

@@ -8,10 +8,9 @@
 
 import Foundation
 
-extension OpenAI
-{
+extension OpenAI {
 	// MARK: - Creating Responses
-	
+
 	/**
 	 Creates a response from the OpenAI API with the specified parameters.
 	 
@@ -68,20 +67,16 @@ extension OpenAI
 							   topP: Double? = nil,
 							   truncation: Response.TruncationStrategy? = nil,
 							   user: String? = nil,
-							   background: Bool? = nil) async throws -> Response
-	{
+							   background: Bool? = nil) async throws -> Response {
 		let text: TextConfiguration?
-		
-		if let textFormat
-		{
+
+		if let textFormat {
 			text = TextConfiguration(format: textFormat)
-		}
-		else
-		{
+		} else {
 			// defaults to format: text
 			text = nil
 		}
-		
+
 		let details = ResponseOptionals(
 			input: input,
 			model: model,
@@ -113,21 +108,21 @@ extension OpenAI
 		)
 
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/responses", body: details)
-		
+
 //		let string = String(data: request.httpBody!, encoding: .utf8)!
 //		print("Request body: \(string)")
-		
+
 		let config = URLSessionConfiguration.default
 		config.timeoutIntervalForRequest = 300
 		config.timeoutIntervalForResource = 300
-		
+
 		let session = URLSession(configuration: config)
-		
+
 		let (data, response) = try await session.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Creates a streaming response from the OpenAI API with the specified parameters.
 	 
@@ -182,8 +177,7 @@ extension OpenAI
 									 topP: Double? = nil,
 									 truncation: Response.TruncationStrategy? = nil,
 									 user: String? = nil,
-									 background: Bool? = nil) async throws -> AsyncThrowingStream<ResponsesStreamEvent, Error>
-	{
+									 background: Bool? = nil) async throws -> AsyncThrowingStream<ResponsesStreamEvent, Error> {
 		let details = ResponseOptionals(
 			input: input,
 			model: model,
@@ -213,7 +207,7 @@ extension OpenAI
 			user: user,
 			background: background
 		)
-		
+
 		let request = try createUrlRequest(httpMethod: "POST", path: "/v1/responses", body: details)
 
 		if ProcessInfo.processInfo.environment["DEBUG_REQUESTS"] != nil {
@@ -229,9 +223,9 @@ extension OpenAI
 		let (asyncBytes, response) = try await streamSession.bytes(for: request)
 		return try await processResponseEventStream(asyncBytes: asyncBytes, response: response)
 	}
-	
+
 	// MARK: - Managing Responses
-	
+
 	/**
 	 Retrieves a model response with the given ID.
 	 
@@ -243,21 +237,20 @@ extension OpenAI
 	 
 	 - SeeAlso: [Get Response API](https://platform.openai.com/docs/api-reference/responses/get)
 	 */
-	public func getResponse(id: String, include: [Include]? = nil) async throws -> Response
-	{
+	public func getResponse(id: String, include: [Include]? = nil) async throws -> Response {
 		var queryItems: [URLQueryItem] = []
-		
+
 		if let include = include, !include.isEmpty {
 			queryItems.append(URLQueryItem(name: "include", value: include.map { $0.rawValue }.joined(separator: ",")))
 		}
-		
+
 		let request = try self.createUrlRequest(path: "/v1/responses/\(id)", queryItems: queryItems)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Deletes a model response with the given ID.
 	 
@@ -269,17 +262,16 @@ extension OpenAI
 	 - SeeAlso: [Delete Response API](https://platform.openai.com/docs/api-reference/responses/delete)
 	 */
 	@discardableResult
-	public func deleteResponse(id: String) async throws -> Bool
-	{
+	public func deleteResponse(id: String) async throws -> Bool {
 		let request = try self.createUrlRequest(httpMethod: "DELETE", path: "/v1/responses/\(id)")
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		let deletionStatus: DeletionStatus = try process(data: data, response: response)
-		
+
 		return deletionStatus.deleted
 	}
-	
+
 	/**
 	 Lists input items for a given response.
 	 
@@ -302,41 +294,40 @@ extension OpenAI
 		include: [Include]? = nil,
 		limit: Int? = nil,
 		order: SortOrder? = nil
-	) async throws -> ResponseInputList
-	{
+	) async throws -> ResponseInputList {
 		var queryItems: [URLQueryItem] = []
-		
+
 		if let after = after {
 			queryItems.append(URLQueryItem(name: "after", value: after))
 		}
-		
+
 		if let before = before {
 			queryItems.append(URLQueryItem(name: "before", value: before))
 		}
-		
+
 		if let include = include, !include.isEmpty {
 			for option in include {
 				queryItems.append(URLQueryItem(name: "include[]", value: option.rawValue))
 			}
 		}
-		
+
 		if let limit = limit {
 			queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
 		}
-		
+
 		if let order = order {
 			queryItems.append(URLQueryItem(name: "order", value: order.rawValue))
 		}
-		
+
 		let request = try self.createUrlRequest(path: "/v1/responses/\(responseId)/input_items", queryItems: queryItems)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	// MARK: - Helpers
-	
+
 	/**
 	 Processes an asynchronous byte stream from a URLSession and returns a stream of ResponsesStreamEvent.
 	 
@@ -348,10 +339,8 @@ extension OpenAI
 	 
 	 - Throws: An error if the response is invalid (non-200 status code), or if there's an issue parsing the JSON data.
 	 */
-	internal func processResponseEventStream(asyncBytes: URLSession.AsyncBytes, response: URLResponse) async throws -> AsyncThrowingStream<ResponsesStreamEvent, Error>
-	{
-		if let response = response as? HTTPURLResponse, response.statusCode != 200
-		{
+	internal func processResponseEventStream(asyncBytes: URLSession.AsyncBytes, response: URLResponse) async throws -> AsyncThrowingStream<ResponsesStreamEvent, Error> {
+		if let response = response as? HTTPURLResponse, response.statusCode != 200 {
 			// read until end
 			let data = try await asyncBytes.reduce(into: Data()) { partialResult, byte in
 				partialResult.append(byte)
@@ -366,32 +355,32 @@ extension OpenAI
 
 			throw errorFromResponse(data: data, response: response)
 		}
-		
+
 		return AsyncThrowingStream { continuation in
-			
+
 			Task {
 				var currentEvent: String = ""
-				
+
 				for try await line in asyncBytes.lines {
 					if let range = line.range(of: "event: ") {
 						currentEvent = String(line[range.upperBound...])
 						continue
 					}
-					
+
 					guard let range = line.range(of: "data: ") else {
 						// Skip blank lines and other non-data lines (SSE separators)
 						continue
 					}
-					
+
 					let jsonString = line[range.upperBound...]
-					
+
 					if jsonString == "[DONE]" {
 						continuation.finish()
 						return
 					}
-					
+
 					let jsonData = jsonString.data(using: .utf8)!
-					
+
 					do {
 						// Dump raw SSE JSON to file if DEBUG_RESPONSES is set
 						if ProcessInfo.processInfo.environment["DEBUG_RESPONSES"] != nil {
@@ -532,15 +521,14 @@ extension OpenAI
 									print("Unknown event type '\(currentEvent)'")
 								}
 						}
-					}
-					catch let error {
+					} catch let error {
 						if ProcessInfo.processInfo.environment["DEBUG_RESPONSES"] != nil {
 							NSLog("[DEBUG] Decoding error for event '%@': %@\nJSON: %@", currentEvent, String(describing: error), String(jsonString))
 						}
 						continuation.finish(throwing: error)
 					}
 				}
-				
+
 				// Stream ended naturally
 				continuation.finish()
 			}
@@ -549,17 +537,16 @@ extension OpenAI
 }
 
 /// Represents optional parameters for creating a response
-struct ResponseOptionals: Codable
-{
+struct ResponseOptionals: Codable {
 	/// Text, image, or file inputs to the model
 	public let input: Response.Input
-	
+
 	/// Model ID used to generate the response
 	public let model: String
 
 	/// Context management configuration for this request.
 	public let contextManagement: [Response.ContextManagement]?
-	
+
 	/// Conversation ID to attach this response to
 	public let conversation: String?
 
@@ -568,19 +555,19 @@ struct ResponseOptionals: Codable
 
 	/// System message to insert as first item in context
 	public let instructions: String?
-	
+
 	/// Upper bound for number of tokens to generate
 	public let maxOutputTokens: Int?
 
 	/// Maximum number of built-in tool calls the model may make.
 	public let maxToolCalls: Int?
-	
+
 	/// Key-value pairs for additional information
 	public let metadata: [String: String]?
-	
+
 	/// Whether to allow parallel tool calls
 	public let parallelToolCalls: Bool?
-	
+
 	/// ID of previous response for conversation state
 	public let previousResponseId: String?
 
@@ -592,40 +579,40 @@ struct ResponseOptionals: Codable
 
 	/// Prompt cache retention policy.
 	public let promptCacheRetention: Response.PromptCacheRetention?
-	
+
 	/// Configuration for reasoning models
 	public let reasoning: Reasoning?
 
 	/// Stable identifier for OpenAI safety systems.
 	public let safetyIdentifier: String?
-	
+
 	/// Latency tier for processing
 	public let serviceTier: ServiceTier?
-	
+
 	/// Whether to store the response
 	public let store: Bool?
-	
+
 	/// Whether to stream the response
 	public let stream: Bool?
-	
+
 	/// Sampling temperature
 	public let temperature: Double?
-	
+
 	/// Text response configuration
 	public let text: TextConfiguration?
-	
+
 	/// Tool selection configuration
 	public let toolChoice: ToolChoice?
-	
+
 	/// Available tools for the model
 	public let tools: [Tool]?
-	
+
 	/// Nucleus sampling probability
 	public let topP: Double?
-	
+
 	/// Truncation strategy
 	public let truncation: Response.TruncationStrategy?
-	
+
 	/// End-user identifier
 	public let user: String?
 
@@ -634,7 +621,7 @@ struct ResponseOptionals: Codable
 }
 
 /// Wrapper type for decoding response events that contain a nested response object
-fileprivate struct ResponseWrapper: Decodable {
+private struct ResponseWrapper: Decodable {
 	let type: String
 	let response: Response
 }

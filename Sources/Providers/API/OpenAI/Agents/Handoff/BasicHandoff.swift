@@ -13,7 +13,7 @@ import Foundation
 public struct BasicHandoff: Handoff {
 	/** The type of input accepted by the handoff (Void). */
 	public typealias Input = Void
-	
+
 	// MARK: - Properties
 	/** The tool name for the handoff. */
 	public let toolName: String
@@ -22,8 +22,8 @@ public struct BasicHandoff: Handoff {
 	/** The agent to which the handoff is targeted. */
 	public weak var targetAgent: (any Agent)?
 	/** The async function to perform the handoff. */
-	public var perform: @Sendable (Input) async throws -> ()
-	
+	public var perform: @Sendable (Input) async throws -> Void
+
 	// MARK: - Initialization
 	/**
 	 Creates a new BasicHandoff.
@@ -41,11 +41,11 @@ public struct BasicHandoff: Handoff {
 	) {
 		// Set the target agent
 		self.targetAgent = targetAgent
-		
+
 		// Set tool name and description
 		self.toolName = toolNameOverride ?? "transfer_to_\(targetAgent.name.formattedToolName)"
 		self.toolDescription = toolDescriptionOverride ?? targetAgent.defaultHandoffDescription
-		
+
 		// Set an optional block that gets called when the handoff is performed
 		self.perform = perform
 	}

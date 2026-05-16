@@ -12,4 +12,4 @@ extension OutputItem {
         /// The arguments for the tool call, as a JSON string.
         public let arguments: String
     }
-} 
+}

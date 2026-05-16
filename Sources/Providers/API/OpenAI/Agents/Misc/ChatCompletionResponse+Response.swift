@@ -12,9 +12,9 @@ extension ChatCompletionResponse {
 		var outputItems: [OutputItem] = []
 		for choice in choices {
 			let message = choice.message
-			
+
 			var content: [OutputItem.MessageContent] = []
-			
+
 			// Deepseek API: reasoning comes in separate property
 			if let reasoning = message.reasoningContent, !reasoning.isEmpty {
 				let reasoningOutput = OutputItem.ReasoningOutput(
@@ -24,12 +24,12 @@ extension ChatCompletionResponse {
 				)
 				outputItems.append(.reasoning(reasoningOutput))
 			}
-			
+
 		if let text = message.textContent, !text.isEmpty {
-				
+
 				// extract reasoning between think tags
 				let (reasoning, contentText) = text.extractReasoning()
-				
+
 				if let reasoning, !reasoning.isEmpty {
 					let reasoningOutput = OutputItem.ReasoningOutput(
 						id: UUID().uuidString,
@@ -38,13 +38,13 @@ extension ChatCompletionResponse {
 					)
 					outputItems.append(.reasoning(reasoningOutput))
 				}
-				
+
 				// Add text content if present
 				if !contentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 					content.append(.outputText(OutputItem.OutputText(text: contentText, annotations: [])))
 				}
 			}
-			
+
 			if !content.isEmpty {
 				let messageItem = OutputItem.message(OutputItem.MessageOutput(
 					id: UUID().uuidString,
@@ -54,7 +54,7 @@ extension ChatCompletionResponse {
 				))
 				outputItems.append(messageItem)
 			}
-			
+
 			// Add tool calls if present
 			if let toolCalls = message.toolCalls {
 				for toolCall in toolCalls {
@@ -68,7 +68,7 @@ extension ChatCompletionResponse {
 				}
 			}
 		}
-		
+
 		// Convert Usage to ResponsesUsage
 		let responsesUsage = usage.map { usage in
 			ResponsesUsage(
@@ -79,7 +79,7 @@ extension ChatCompletionResponse {
 				totalTokens: usage.totalTokens
 			)
 		}
-		
+
 		return Response(
 			id: "__fake_id__",
 			createdAt: created,

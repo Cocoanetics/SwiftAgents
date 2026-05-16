@@ -15,14 +15,14 @@ extension String {
 	var formattedToolName: String {
 		// Replace spaces with underscores
 		let withSpacesReplaced = self.replacingOccurrences(of: " ", with: "_")
-		
+
 		// Replace non-alphanumeric characters with underscores
 		let alphanumericOnly = withSpacesReplaced.replacingOccurrences(
 			of: "[^a-zA-Z0-9]",
 			with: "_",
 			options: .regularExpression
 		)
-		
+
 		// Convert to lowercase
 		return alphanumericOnly.lowercased()
 	}

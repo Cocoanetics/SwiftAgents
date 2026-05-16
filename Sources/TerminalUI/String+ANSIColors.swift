@@ -106,7 +106,7 @@ public extension String {
 	var brightWhite: String {
 		(ANSIColors.brightWhite + self).resetIfNeeded
 	}
-	
+
 	func removingANSISequences() -> String {
 		let regex = #"(\u001B\[[0-9;]*m)"#
 		return self.replacingOccurrences(of: regex, with: "", options: .regularExpression)

@@ -5,7 +5,7 @@ import Testing
 
 struct GoogleImageGenerationTests {
 	private let model = "gemini-3-pro-image-preview"
-	
+
 	@Test("Gemini 3 Pro preview generates inline image", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
 	func generatesImageAndSavesToTmp() async throws {
 		do {
@@ -17,10 +17,10 @@ struct GoogleImageGenerationTests {
 				model: model,
 				messages: [.init(role: .user, content: .text(prompt))]
 			)
-			
+
 			let choice = try #require(response.choices.first, "Response contained no choices")
 			let parts = try #require(choice.message.contentParts, "Response missing content parts")
-			
+
 			let imagePart = try #require(
 				parts.last(where: { part in
 					part.type == .imageURL && (part.imageURL?.url.hasPrefix("data:") ?? false)
@@ -28,11 +28,11 @@ struct GoogleImageGenerationTests {
 				"Expected an inline image data URL in the response (non-thought content)"
 			)
 			let decoded = try #require(imagePart.decodedImageData(), "Unable to decode inline image data")
-			
+
 			let filename = "gemini-preview-\(UUID().uuidString.prefix(8)).png"
 			let fileURL = URL(fileURLWithPath: "/tmp").appendingPathComponent(filename)
 			try decoded.data.write(to: fileURL)
-			
+
 			let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
 			let byteCount = (attributes[.size] as? NSNumber)?.intValue ?? 0
 			#expect(decoded.mimeType.starts(with: "image/"))
@@ -65,7 +65,7 @@ struct GoogleImageGenerationTests {
 
 		try assertImageHasAspect(from: response, expectedRatio: 1.0)
 	}
-	
+
 	private func debugDescription(for part: ChatMessage.ContentPart) -> String {
 		switch part.type {
 			case .text:

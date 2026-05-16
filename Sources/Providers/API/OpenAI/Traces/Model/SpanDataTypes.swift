@@ -10,16 +10,16 @@ public struct AgentSpanData: SpanData {
 	public let handoffs: [String]?
 	public let tools: [String]?
 	public let outputType: String?
-	
+
 	public init(name: String, handoffs: [String]? = nil, tools: [String]? = nil, outputType: String? = nil) {
 		self.name = name
 		self.handoffs = handoffs
 		self.tools = tools
 		self.outputType = outputType
 	}
-	
+
 	public var type: String { "agent" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -38,16 +38,16 @@ public struct FunctionSpanData: SpanData {
 	public let input: String?
 	public let output: JSONValue?
 	public let mcpData: [String: JSONValue]?
-	
+
 	public init(name: String, input: String? = nil, output: JSONValue? = nil, mcpData: [String: JSONValue]? = nil) {
 		self.name = name
 		self.input = input
 		self.output = output
 		self.mcpData = mcpData
 	}
-	
+
 	public var type: String { "function" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -67,7 +67,7 @@ public struct GenerationSpanData: SpanData {
 	public let model: String?
 	public let modelConfig: [String: JSONValue]?
 	public let usage: [String: JSONValue]?
-	
+
 	public init(input: [[String: JSONValue]]? = nil, output: [[String: JSONValue]]? = nil, model: String? = nil,
 				modelConfig: [String: JSONValue]? = nil, usage: [String: JSONValue]? = nil) {
 		self.input = input
@@ -76,9 +76,9 @@ public struct GenerationSpanData: SpanData {
 		self.modelConfig = modelConfig
 		self.usage = usage
 	}
-	
+
 	public var type: String { "generation" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -96,14 +96,14 @@ public struct GenerationSpanData: SpanData {
 public struct ResponseSpanData: SpanData {
 	public let response: Response?
 	public let input: Response.Input?
-	
+
 	public init(response: Response? = nil, input: Response.Input? = nil) {
 		self.response = response
 		self.input = input
 	}
-	
+
 	public var type: String { "response" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -117,14 +117,14 @@ public struct ResponseSpanData: SpanData {
 public struct HandoffSpanData: SpanData {
 	public let fromAgent: String?
 	public let toAgent: String?
-	
+
 	public init(fromAgent: String? = nil, toAgent: String? = nil) {
 		self.fromAgent = fromAgent
 		self.toAgent = toAgent
 	}
-	
+
 	public var type: String { "handoff" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -139,14 +139,14 @@ public struct HandoffSpanData: SpanData {
 public struct CustomSpanData: SpanData {
 	public let name: String
 	public let data: [String: JSONValue]
-	
+
 	public init(name: String, data: [String: JSONValue] = [:]) {
 		self.name = name
 		self.data = data
 	}
-	
+
 	public var type: String { "custom" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -161,14 +161,14 @@ public struct CustomSpanData: SpanData {
 public struct GuardrailSpanData: SpanData {
 	public let name: String
 	public let triggered: Bool
-	
+
 	public init(name: String, triggered: Bool = false) {
 		self.name = name
 		self.triggered = triggered
 	}
-	
+
 	public var type: String { "guardrail" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -186,7 +186,7 @@ public struct TranscriptionSpanData: SpanData {
 	public let output: String?
 	public let model: String?
 	public let modelConfig: [String: JSONValue]?
-	
+
 	public init(input: String? = nil, inputFormat: String? = "pcm", output: String? = nil,
 				model: String? = nil, modelConfig: [String: JSONValue]? = nil) {
 		self.input = input
@@ -195,9 +195,9 @@ public struct TranscriptionSpanData: SpanData {
 		self.model = model
 		self.modelConfig = modelConfig
 	}
-	
+
 	public var type: String { "transcription" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -221,7 +221,7 @@ public struct SpeechSpanData: SpanData {
 	public let model: String?
 	public let modelConfig: [String: JSONValue]?
 	public let firstContentAt: String?
-	
+
 	public init(input: String? = nil, output: String? = nil, outputFormat: String? = "pcm",
 				model: String? = nil, modelConfig: [String: JSONValue]? = nil, firstContentAt: String? = nil) {
 		self.input = input
@@ -231,9 +231,9 @@ public struct SpeechSpanData: SpanData {
 		self.modelConfig = modelConfig
 		self.firstContentAt = firstContentAt
 	}
-	
+
 	public var type: String { "speech" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -252,13 +252,13 @@ public struct SpeechSpanData: SpanData {
 /// Represents a Speech Group Span in the trace.
 public struct SpeechGroupSpanData: SpanData {
 	public let input: String?
-	
+
 	public init(input: String? = nil) {
 		self.input = input
 	}
-	
+
 	public var type: String { "speech_group" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),
@@ -272,14 +272,14 @@ public struct SpeechGroupSpanData: SpanData {
 public struct MCPListToolsSpanData: SpanData {
 	public let server: String?
 	public let result: [String]?
-	
+
 	public init(server: String? = nil, result: [String]? = nil) {
 		self.server = server
 		self.result = result
 	}
-	
+
 	public var type: String { "mcp_tools" }
-	
+
 	public func export() -> [String: JSONValue] {
 		return [
 			"type": JSONValue(type),

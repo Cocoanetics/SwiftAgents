@@ -26,27 +26,27 @@ public func withSpan<T>(
 	spanData: SpanData? = nil,
 	operation: (TraceSpan) async throws -> T
 ) async throws -> T {
-	
+
 	// 1. Determine Trace ID
 	let effectiveTraceID: String = try {
 		if let providedTraceID = traceID { return providedTraceID }
 		if let currentTraceID = TraceContext.currentTrace?.id { return currentTraceID }
 		throw TraceError.missingTraceContext
 	}()
-	
+
 	// 2. Determine Parent ID (respect explicitly passed nil)
 	let effectiveParentID: String? = parentID ?? TraceContext.currentSpan?.id
-	
+
 	// 3. Create the Span
 	let span = TraceSpan(id: id, traceID: effectiveTraceID, parentID: effectiveParentID, startedAt: .timestamp, spanData: spanData)
-	
+
 	// 4. Notify Processors: Span Start
 	await TraceProvider.shared.processorsActor.notifyProcessors { await $0.onSpanStart(span) }
-	
+
 	// 5. Execute Operation within Span Context
 	var operationResult: T?
 	var operationError: Error?
-	
+
 	do {
 		// Set the current span for the duration of the operation
 		if T.self == Void.self {
@@ -61,40 +61,35 @@ public func withSpan<T>(
 			}
 			operationResult = result
 		}
-	}
-	catch let error as RunnerError {
-		
+	} catch let error as RunnerError {
+
 		switch error {
-				
+
 			case .exceededMaxTurns:
 				span.error = SpanError(message: "Exceeded maximum number of turns")
 		}
-		
+
 		operationError = error
-	}
-	catch let error as InputGuardrailTripwireTriggered {
+	} catch let error as InputGuardrailTripwireTriggered {
 		let data: [String: JSONValue] = ["guardrail": JSONValue(error.guardrailName)]
 		span.error = SpanError(message: "Input guardrail tripwire triggered", data: data)
 		operationError = error
-	}
-	catch let error as OutputGuardrailTripwireTriggered
-	{
+	} catch let error as OutputGuardrailTripwireTriggered {
 		let data: [String: JSONValue] = ["guardrail": JSONValue(error.guardrailName)]
 		span.error = SpanError(message: "Output guardrail tripwire triggered", data: data)
 		operationError = error
-	}
-	catch {
+	} catch {
 		// Capture error details in the span
 		span.error = SpanError(message: error.localizedDescription)
 		operationError = error
 	}
-	
+
 	// 6. Mark Span as Ended
 	span.end() // Sets endedAt
-	
+
 	// 7. Notify Processors: Span End
 	await TraceProvider.shared.processorsActor.notifyProcessors { await $0.onSpanEnd(span) }
-	
+
 	// 8. Handle Result/Error
 	if let error = operationError {
 		throw error
@@ -131,10 +126,10 @@ public func withTrace<T>(
 	metadata: [String: String]? = nil,
 	operation: () async throws -> T
 ) async throws -> T {
-	
+
 	let isNewTrace = TraceContext.currentTrace == nil
 	let traceToUse = TraceContext.currentTrace ?? Trace(id: traceID, workflowName: name, groupID: groupID, metadata: metadata)
-	
+
 	if isNewTrace {
 		await TraceProvider.shared.processorsActor.notifyProcessors { await $0.onTraceStart(traceToUse) }
 	}
@@ -149,11 +144,11 @@ public func withTrace<T>(
 	} catch {
 		operationError = error
 	}
-	
+
 	if isNewTrace {
 		await TraceProvider.shared.processorsActor.notifyProcessors { await $0.onTraceEnd(traceToUse) }
 	}
-	
+
 	if let errorToThrow = operationError {
 		throw errorToThrow
 	} else if let result = operationResult {
@@ -163,4 +158,4 @@ public func withTrace<T>(
     } else {
         throw TraceError.unexpectedNilResult
     }
-} 
+}

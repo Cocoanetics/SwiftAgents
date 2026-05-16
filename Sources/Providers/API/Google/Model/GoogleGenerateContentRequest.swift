@@ -5,27 +5,27 @@ import Foundation
 public struct GoogleGenerateContentRequest: Codable, Sendable {
 	public typealias Content = GoogleGenerateContent.Content
 	public typealias Part = GoogleGenerateContent.Part
-	
+
 	public struct Tool: Codable, Sendable {
 		public let functionDeclarations: [FunctionDeclaration]?
-		
+
 		public init(functionDeclarations: [FunctionDeclaration]? = nil) {
 			self.functionDeclarations = functionDeclarations
 		}
 	}
-	
+
 	public struct FunctionDeclaration: Codable, Sendable {
 		public let name: String
 		public let description: String?
 		public let parameters: Parameters?
-		
+
 		public init(name: String, description: String? = nil, parameters: Parameters? = nil) {
 			self.name = name
 			self.description = description
 			self.parameters = parameters
 		}
 	}
-	
+
 	public let contents: [Content]
 	public let systemInstruction: Content?
 	public let tools: [Tool]?
@@ -35,7 +35,7 @@ public struct GoogleGenerateContentRequest: Codable, Sendable {
 		public let imageConfig: ImageConfig?
 		public let responseModalities: [String]?
 		public let temperature: Double?
-		
+
 		public init(thinkingConfig: ThinkingConfig? = nil, imageConfig: ImageConfig? = nil, responseModalities: [String]? = nil, temperature: Double? = nil) {
 			self.thinkingConfig = thinkingConfig
 			self.imageConfig = imageConfig
@@ -63,11 +63,11 @@ public struct GoogleGenerateContentRequest: Codable, Sendable {
 			self.thinkingBudget = config.thinkingBudget
 		}
 	}
-	
+
 	public struct ImageConfig: Codable, Sendable {
 		public let aspectRatio: String?
 		public let imageSize: String?
-		
+
 		public init(aspectRatio: String? = nil, imageSize: String? = nil) {
 			self.aspectRatio = aspectRatio
 			self.imageSize = imageSize

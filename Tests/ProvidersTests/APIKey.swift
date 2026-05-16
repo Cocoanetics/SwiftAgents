@@ -33,12 +33,12 @@ enum APIKey {
 		loadEnvIfNeeded()
 		return ProcessInfo.processInfo.environment["OPENAI_API_KEY"]
 	}
-	
+
 	static var gemini: String? {
 		loadEnvIfNeeded()
 		return ProcessInfo.processInfo.environment["GEMINI_API_KEY"]
 	}
-	
+
 	static var hasOpenAI: Bool { openAI != nil }
 	static var hasGemini: Bool { gemini != nil }
 }

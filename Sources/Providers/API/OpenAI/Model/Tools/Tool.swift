@@ -13,16 +13,16 @@ public enum Tool: Codable, Sendable {
 
 	/// A function tool that can be called by the model.
 	case function(FunctionTool)
-	
+
 	/// A file search tool.
 	case fileSearch(FileSearchTool)
-	
+
 	/// A web search tool.
 	case webSearch(WebSearchTool)
-	
+
 	/// A computer use tool.
 	case computer(ComputerTool)
-	
+
 	/// An MCP tool (Model Context Protocol remote tool server)
 	case mcp(MCPRemoteTool)
 
@@ -45,10 +45,10 @@ public enum Tool: Codable, Sendable {
 		case requireApproval = "require_approval"
 		case allowedTools = "allowed_tools"
 	}
-	
+
 	public func encode(to encoder: Encoder) throws {
 		var container = encoder.container(keyedBy: CodingKeys.self)
-		
+
 		switch self {
 			case .function(let tool):
 				try container.encode("function", forKey: .type)
@@ -83,11 +83,11 @@ public enum Tool: Codable, Sendable {
 				try container.encode("apply_patch", forKey: .type)
 		}
 	}
-	
+
 	public init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)
 		let type = try container.decode(String.self, forKey: .type)
-		
+
 		switch type {
 			case "function":
 				let name = try container.decode(String.self, forKey: .name)

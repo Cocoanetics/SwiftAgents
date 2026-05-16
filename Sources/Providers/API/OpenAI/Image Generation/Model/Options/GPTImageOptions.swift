@@ -8,34 +8,34 @@
 import Foundation
 
 /// Options specific to GPT Image
-public struct GPTImageOptions: ImageGenerationOptions, Codable { 
+public struct GPTImageOptions: ImageGenerationOptions, Codable {
 	// Size, Quality, ImageBackground, ImageModeration, ImageOutputFormat enums defined in extensions
-	
+
 	/// The number of images to generate (1-10)
 	public let count: Int
 	/// The size of the generated images
-	public let size: Size 
+	public let size: Size
 	/// The quality of the image
-	public let quality: Quality 
+	public let quality: Quality
 	/// The background style
-	public let background: ImageBackground 
+	public let background: ImageBackground
 	/// The moderation level
-	public let moderation: ImageModeration 
+	public let moderation: ImageModeration
 	/// The compression level (0-100%)
 	public let outputCompression: Int?
 	/// The output format
-	public let outputFormat: ImageOutputFormat 
+	public let outputFormat: ImageOutputFormat
 	/// A unique identifier representing your end-user
 	public let user: String?
-	
+
 	public init(
 		count: Int = 1,
-		size: Size = .auto, 
-		quality: Quality = .auto, 
-		background: ImageBackground = .auto, 
-		moderation: ImageModeration = .auto, 
+		size: Size = .auto,
+		quality: Quality = .auto,
+		background: ImageBackground = .auto,
+		moderation: ImageModeration = .auto,
 		outputCompression: Int? = nil,
-		outputFormat: ImageOutputFormat = .png, 
+		outputFormat: ImageOutputFormat = .png,
 		user: String? = nil
 	) {
 		self.count = count
@@ -47,4 +47,4 @@ public struct GPTImageOptions: ImageGenerationOptions, Codable {
 		self.outputFormat = outputFormat
 		self.user = user
 	}
-} 
+}

@@ -8,8 +8,7 @@
 import Foundation
 
 /// Represents an embedding response from the OpenAI API.
-public struct OllamaEmbeddingResponse: Codable
-{
+public struct OllamaEmbeddingResponse: Codable {
 	/// A single vector.
 	public let embedding: Vector
 }

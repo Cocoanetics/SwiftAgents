@@ -17,4 +17,4 @@ extension Dalle3Options {
 		/// 1024x1792 pixels
 		case portrait = "1024x1792"
 	}
-} 
+}

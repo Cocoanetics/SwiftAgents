@@ -7,11 +7,10 @@
 
 import Foundation
 
-struct ImageGenerationResponse: Codable
-{
+struct ImageGenerationResponse: Codable {
 	let created: Date
 	let images: [ImageData]
-	
+
 	enum CodingKeys: String, CodingKey {
 		case created
 		case images = "data"

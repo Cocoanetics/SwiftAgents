@@ -6,7 +6,7 @@ struct VisionImageTests {
 	private let remoteVisionImageURL = "https://i0.wp.com/www.cocoanetics.com/files/iWoman.png?w=150&ssl=1"
 	private let googleModel = "gemini-2.5-flash"
 	private let openAIModel = "gpt-4.1-mini"
-	
+
 	@Test("Google inline vision", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
 	func googleInlineImageUnderstanding() async throws {
 		let google = GoogleAPI(apiKey: APIKey.gemini!)
@@ -15,10 +15,10 @@ struct VisionImageTests {
 		let response = try await google.createChatCompletion(model: googleModel, messages: [system, user])
 		let choice = try #require(response.choices.first, "Response contained no choices")
 		let content = text(from: choice.message)
-		//print("[Google Vision Response] \(content)")
+		// print("[Google Vision Response] \(content)")
 		#expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 	}
-	
+
 	@Test("Google remote vision", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
 	func googleRemoteImageUnderstanding() async throws {
 		let google = GoogleAPI(apiKey: APIKey.gemini!)
@@ -31,10 +31,10 @@ struct VisionImageTests {
 		let response = try await google.createChatCompletion(model: googleModel, messages: [system, user])
 		let choice = try #require(response.choices.first, "Response contained no choices")
 		let content = text(from: choice.message)
-		//print("[Google Vision Remote Response] \(content)")
+		// print("[Google Vision Remote Response] \(content)")
 		#expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 	}
-	
+
 	@Test("OpenAI inline vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
 	func openAIInlineImageUnderstanding() async throws {
 		let client = OpenAI(apiKey: APIKey.openAI!)
@@ -43,10 +43,10 @@ struct VisionImageTests {
 		let response = try await client.createChatCompletion(model: openAIModel, messages: [system, user], store: true)
 		let choice = try #require(response.choices.first, "Response contained no choices")
 		let content = text(from: choice.message)
-		//print("[OpenAI Vision Response] \(content)")
+		// print("[OpenAI Vision Response] \(content)")
 		#expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 	}
-	
+
 	@Test("OpenAI remote vision", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
 	func openAIRemoteImageUnderstanding() async throws {
 		let client = OpenAI(apiKey: APIKey.openAI!)
@@ -55,12 +55,12 @@ struct VisionImageTests {
 		let response = try await client.createChatCompletion(model: openAIModel, messages: [system, user], store: true)
 		let choice = try #require(response.choices.first, "Response contained no choices")
 		let content = text(from: choice.message)
-		//print("[OpenAI Vision Remote Response] \(content)")
+		// print("[OpenAI Vision Remote Response] \(content)")
 		#expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 	}
 
 	// MARK: - Helpers
-	
+
 	private func imageOnlyMessage() throws -> ChatMessage {
 		let url = try #require(Bundle.module.url(forResource: "vision-test", withExtension: "png"), "vision-test fixture is required")
 		let data = try Data(contentsOf: url)
@@ -68,13 +68,13 @@ struct VisionImageTests {
 		let imagePart = ChatMessage.ContentPart.imageDataPart(mimeType: "image/png", data: data)
 		return ChatMessage(role: .user, content: .parts([textPart, imagePart]))
 	}
-	
+
 	private func remoteImageMessage(url: String, mimeType: String? = nil) -> ChatMessage {
 		let textPart = ChatMessage.ContentPart(text: "What is shown in this online image?")
 		let remotePart = ChatMessage.ContentPart(imageURL: url, mimeType: mimeType)
 		return ChatMessage(role: .user, content: .parts([textPart, remotePart]))
 	}
-	
+
 	private func text(from message: ChatMessage) -> String {
 		if let text = message.textContent?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
 			return text

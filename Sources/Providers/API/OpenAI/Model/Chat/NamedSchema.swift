@@ -19,17 +19,17 @@ public struct SchemaDescription: Codable, Sendable {
      The name of the schema 
      */
     public let name: String
-    
+
     /** 
      An optional description of the schema's purpose and usage 
      */
     public let description: String?
-    
+
     /** 
      The JSON schema definition that describes the structure and validation rules 
      */
     public let schema: JSONSchema
-    
+
     /** 
      A flag indicating whether the schema should be enforced strictly 
      */

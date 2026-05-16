@@ -8,23 +8,22 @@
 import Foundation
 
 // A struct that holds rate limit information from an API response.
-public struct RateLimit
-{
+public struct RateLimit {
 	/// The maximum number of requests allowed before the rate limit is exhausted.
 	public let requestLimit: Int
-	
+
 	/// The maximum number of tokens allowed before the rate limit is exhausted.
 	public let tokenLimit: Int
-	
+
 	/// The remaining number of requests allowed before the rate limit is exhausted.
 	public let remainingRequests: Int
-	
+
 	/// The remaining number of tokens allowed before the rate limit is exhausted.
 	public let remainingTokens: Int
-	
+
 	/// The date when the request-based rate limit will reset.
 	public let requestsResetDate: Date
-	
+
 	/// The date when the token-based rate limit will reset.
 	public let tokensResetDate: Date
 
@@ -32,8 +31,7 @@ public struct RateLimit
 	///
 	/// - Parameter response: The HTTPURLResponse object containing rate limit headers.
 	/// - Returns: An optional `RateLimit` instance if parsing was successful, otherwise `nil`.
-	public init?(response: HTTPURLResponse)
-	{
+	public init?(response: HTTPURLResponse) {
 		guard let requestLimitStr = response.value(forHTTPHeaderField: "X-Ratelimit-Limit-Requests"),
 			  let requestLimit = Int(requestLimitStr),
 			  let tokenLimitStr = response.value(forHTTPHeaderField: "X-Ratelimit-Limit-Tokens"),
@@ -90,8 +88,7 @@ public struct RateLimit
 	}
 
 	/// Waits until the furthest reset date if any rate limit has been reached.
-	public func waitForRateLimitReset() async
-	{
+	public func waitForRateLimitReset() async {
 		if isRateLimited {
 			let waitTime = furthestResetDate.timeIntervalSinceNow
 			print("Rate limit exceeded. Waiting for \(waitTime) seconds...")

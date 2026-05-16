@@ -4,12 +4,12 @@ import Foundation
 public struct GoogleModelListResponse: Codable {
     /// The array of models
     public let models: [GoogleModel]
-    
+
     /// Token for retrieving the next page of results
     public let nextPageToken: String?
 }
 
-//extension GoogleModelListResponse: ModelListResponse {
+// extension GoogleModelListResponse: ModelListResponse {
 //    public var object: String {
 //        "list"
 //    }
@@ -17,4 +17,4 @@ public struct GoogleModelListResponse: Codable {
 //    public var data: [Model] {
 //        models
 //    }
-//} 
+// } 

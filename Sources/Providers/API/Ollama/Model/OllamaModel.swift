@@ -15,7 +15,7 @@ public struct OllamaModel: Decodable {
 	let size: Int
 	let digest: String
 	let details: Details
-	
+
 	struct Details: Decodable {
 		let parentModel: String
 		let format: String

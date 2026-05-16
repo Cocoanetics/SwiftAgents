@@ -10,7 +10,7 @@ public enum TraceError: Error, LocalizedError {
 	case missingTraceContext
 	/* Indicates that an operation completed but returned an unexpected nil result */
 	case unexpectedNilResult
-	
+
 	/*
 	 Returns a localized description of the error.
 	 
@@ -24,4 +24,4 @@ public enum TraceError: Error, LocalizedError {
 				return "Span operation completed successfully but returned an unexpected nil result."
 		}
 	}
-} 
+}

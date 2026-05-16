@@ -14,4 +14,4 @@ public protocol TracingExporter {
      - Parameter items: A collection of serialized trace and span data to export
      */
     func export(_ items: [[String: JSONValue]]) async
-} 
+}

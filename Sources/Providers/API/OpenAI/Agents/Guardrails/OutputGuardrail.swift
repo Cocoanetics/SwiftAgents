@@ -50,7 +50,7 @@ public protocol OutputGuardrail: Sendable {
     ///   - output: The value the agent intends to return as its final output.
     ///   - agent: The agent that produced the output.
     func evaluate(_ output: any Sendable, agent: any Agent) async throws -> OutputGuardrailFunctionOutput
-} 
+}
 
 public struct OutputGuardrailFunctionOutput: Sendable {
 	public let metadata: [String: JSONValue]?

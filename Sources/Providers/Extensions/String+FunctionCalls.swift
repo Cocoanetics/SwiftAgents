@@ -18,19 +18,19 @@ extension String {
 	/// - Throws: This method can throw errors related to regular expression failures or JSON parsing issues, which are caught internally and logged.
 	func extractFunctionCalls() -> [FunctionCall]? {
 		let functionCalls: [FunctionCall] = self.containedJsonStrings().compactMap { string in
-			
+
 			guard let jsonData = string.data(using: .utf8),
 				  let jsonObject = try? JSONSerialization.jsonObject(with: jsonData, options: []) else {
 				return nil
 			}
-			
+
 			var function: String?
 			var arguments = [String: Any]()
-			
+
 			if let dict = jsonObject as? [String: Any] {
 				for key in dict.keys {
 					let value = dict[key]
-					
+
 					if let string = value as? String {
 						if ["tool", "function"].contains(key) {
 							// that's the function name
@@ -66,12 +66,12 @@ extension String {
 						}
 						continue
 					}
-					
+
 					// treat as argument value
 					arguments[key] = value
 				}
 			}
-			
+
 			if let function = function {
 				guard let argumentsData = try? JSONSerialization.data(withJSONObject: arguments, options: []),
 					  let argumentsString = String(data: argumentsData, encoding: .utf8) else {
@@ -79,18 +79,17 @@ extension String {
 				}
 				return FunctionCall(name: function, arguments: argumentsString)
 			}
-			
+
 			return nil
 		}
-		
+
 		guard !functionCalls.isEmpty else {
 			return nil
 		}
-		
+
 		return functionCalls
 	}
 
-	
 	/*
 	 
 	 let jsonData = string.data(using: .utf8)!
@@ -217,17 +216,15 @@ extension String {
 	 return nil
 	 
 	 */
-	
-	public func containedJsonStrings() -> [String]
-	{
+
+	public func containedJsonStrings() -> [String] {
 		var jsonObjects = [String]()
 		var depth = 0
 		var inString = false
 		var escape = false
 		var startIndex: String.Index?
 
-		for (index, char) in self.enumerated()
-		{
+		for (index, char) in self.enumerated() {
 			switch char {
 			case "\"":
 				if !escape {
@@ -243,8 +240,7 @@ extension String {
 			case "}":
 				if !inString {
 					depth -= 1
-					if depth == 0, let start = startIndex 
-					{
+					if depth == 0, let start = startIndex {
 						let endIndex = self.index(self.startIndex, offsetBy: index + 1)
 						let jsonString = String(self[start..<endIndex])
 						jsonObjects.append(jsonString)
@@ -254,11 +250,11 @@ extension String {
 			default:
 				break
 			}
-			
+
 			// Handle escaping within strings
 			escape = (char == "\\" && !escape && inString)
 		}
-		
+
 		return jsonObjects
 	}
 }

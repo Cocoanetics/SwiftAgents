@@ -1,7 +1,6 @@
 import Foundation
 import SwiftMCP
 
-
 public protocol Agent: AnyObject, Sendable {
 	associatedtype OutputType: Decodable
 
@@ -35,13 +34,13 @@ public extension Agent {
 
 	/// The output type to request from Responses API
 	var outputType: TextFormat {
-		
+
 		// Check if OutputType is an array whose element describes its schema
 		if let arrayType = OutputType.self as? ArrayWithSchemaRepresentableElements.Type {
-			
+
 			// Build the element schema using the provided description
 			let elementSchema = arrayType.schema(description: "\(String(describing: arrayType))")
-			
+
 			// Wrap the array into an object schema with "results" as the key
 			let objectSchema = JSONSchema.object(
 				.init(
@@ -51,14 +50,14 @@ public extension Agent {
 					additionalProperties: false
 				)
 			)
-			
+
 			return .jsonSchema(JSONSchemaFormat(name: "Results", schema: objectSchema))
 		}
-		
+
 		if let type = OutputType.self as? SchemaRepresentable.Type {
 			return .jsonSchema(type.jsonSchema)
 		}
-		
+
 		return .text
 	}
 
@@ -83,7 +82,7 @@ public extension Agent {
 			return "str"
 		}
 	}
-	
+
 	/// Creates a list of tools from the agent's tool providers.
 	/// - Returns: An array of tools that the agent can use.
 	func createTools() -> [Tool] {
@@ -101,25 +100,22 @@ public extension Agent {
 				if case .function(let fn) = $0 { return !["edit", "write"].contains(fn.name) }
 				return true
 			}
-		}
-		else
-		{
+		} else {
 			providedTools = allProviders.tools
 		}
 
 		return self.tools + providedTools + handoffTools
 	}
-	
-	func executeToolCalls(_ functionCalls: [OutputItem.FunctionCall]) async throws -> [Response.Input.Element]
-	{
+
+	func executeToolCalls(_ functionCalls: [OutputItem.FunctionCall]) async throws -> [Response.Input.Element] {
 		guard !functionCalls.isEmpty else {
 			return []
 		}
-		
+
 		var newInputs = [Response.Input.Element]()
-		
+
 		try await withThrowingTaskGroup(of: (String, any Codable).self) { group in
-			
+
 			// Build provider list including self if it conforms to MCPToolProviding
 			var allProviders = self.toolProviders
 			if let selfProvider = self as? MCPToolProviding {
@@ -130,56 +126,49 @@ public extension Agent {
 			for call in functionCalls {
 
 				if let toolProvider = allProviders.first(where: { $0.mcpToolMetadata.contains(where: { $0.name == call.name }) }) {
-					
+
 					group.addTask {
 						try await withSpan { functionSpan in
 
 							let result: Encodable
-							
+
 							do {
 								result = try await toolProvider.callTool(call.name, arguments: call.argumentsDictionary())
-							}
-							catch let error
-							{
+							} catch let error {
 								if ProcessInfo.processInfo.environment["DEBUG_RESPONSES"] != nil {
 									NSLog("[DEBUG] Tool '%@' error: %@", call.name, String(describing: error))
 								}
 								result = "Error: \(error.localizedDescription)"
 							}
-							
+
 							// Create span data for this function call
 							functionSpan.spanData = FunctionSpanData(
 								name: call.name,
 								input: call.arguments,
 								output: JSONValue(result)
 							)
-							
+
 							return (call.callId, result as! any Codable)
 						}
 					}
-				}
-				else
-				{
+				} else {
 					for mcpServer in mcpServers {
 						let toolDescriptions = try await mcpServer.listTools()
 						let endpointURL = await mcpServer.endpointURL?.absoluteString ?? ""
 						let serverName = await mcpServer.serverName ?? endpointURL
 
-						if toolDescriptions.contains(where: { $0.name == call.name })
-						{
+						if toolDescriptions.contains(where: { $0.name == call.name }) {
 							group.addTask {
 								try await withSpan { functionSpan in
 
 									let result: Encodable
-									
+
 									do {
 										result = try await mcpServer.callTool(call.name, arguments: call.argumentsDictionary())
-									}
-									catch let error
-									{
+									} catch let error {
 										result = error.localizedDescription
 									}
-									
+
 									// Create span data for this function call
 									functionSpan.spanData = FunctionSpanData(
 										name: call.name,
@@ -187,20 +176,19 @@ public extension Agent {
 										output: JSONValue(result),
 										mcpData: ["server": .string(serverName)]
 									)
-									
+
 									return (call.callId, result as! any Codable)
 								}
 							}
-							
+
 							break
 						}
 					}
 				}
 			}
-			
+
 			// Process results as they complete
-			while let (callId, result) = try await group.next()
-			{
+			while let (callId, result) = try await group.next() {
 				// Convert result to string, handling strings directly to avoid extra quotes
 				let output: String
 				if let str = result as? String {
@@ -212,43 +200,43 @@ public extension Agent {
 					let jsonData = try encoder.encode(result)
 					output = String(data: jsonData, encoding: .utf8)!
 				}
-				
+
 				// Add to inputs for next round
 				let inputElement = Response.Input.Element.functionCallOutput(.init(callId: callId, output: output))
 				newInputs.append(inputElement)
 			}
-			
+
 		}
-		
+
 		return newInputs
 	}
-	
+
 	// MARK: - Helpers
-	
+
 	var defaultHandoffDescription: String {
 		var string = "Handoff to the \(name) agent to handle the request."
-		
+
 		if let handoffDescription = handoffDescription {
 			string += " \(handoffDescription)"
 		}
-		
+
 		return string
 	}
-	
+
 	fileprivate var handoffTools: [Tool] {
 		handoffs.map { handoff in
 
 			let parameters: Parameters
-			
+
 			if let schemaType = handoff.inputType.self as? SchemaRepresentable.Type {
-				
+
 				let (props, required): ([String: JSONSchema], [String]) = schemaType.schemaMetadata.parameters.reduce(into: ([:], [])) { result, property in
 					result.0[property.name] = property.schema
 					if property.isRequired {
 						result.1.append(property.name)
 					}
 				}
-				
+
 				parameters = Parameters(
 					properties: props,
 					required: required
@@ -259,10 +247,10 @@ public extension Agent {
 
 			return Tool.function(
 				FunctionTool(
-					name:        handoff.toolName,
+					name: handoff.toolName,
 					description: handoff.toolDescription,
-					parameters:  parameters,
-					strict:      true
+					parameters: parameters,
+					strict: true
 				)
 			)
 		}

@@ -363,7 +363,7 @@ struct ResponseTests {
 	func responseStream() async throws {
 		let openAI = try TestClients.openAI()
 		let stream = try await openAI.createResponseStream(input: .text("Tell me a short joke"), model: "gpt-4.1-mini")
-		
+
 		var finalResponse: Response?
 		var events = [ResponsesStreamEvent]()
 		for try await event in stream {
@@ -372,39 +372,39 @@ struct ResponseTests {
 				finalResponse = response
 			}
 		}
-		
+
 		#expect(!events.isEmpty)
 		let response = try #require(finalResponse)
 		#expect(response.status == .completed)
 		#expect(!response.output.isEmpty)
 	}
-	
+
 	@Test("Response with tool choice", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
 	func responseWithTool() async throws {
 		let openAI = try TestClients.openAI()
 		let tools = calculatorTools()
-		
+
 		let response = try await openAI.createResponse(
 			input: .text("What is 42 + 58?"),
 			model: "gpt-4.1-mini",
 			toolChoice: .auto,
 			tools: tools
 		)
-		
+
 		let functionCallOutput = try #require(response.output.first { output in
 			if case .functionCall = output { return true }
 			return false
 		})
-		
+
 		guard case let .functionCall(call) = functionCallOutput else {
 			Issue.record("Expected function call output")
 			return
 		}
-		
+
 		let data = Data(call.arguments.utf8)
 		let args = try #require(JSONSerialization.jsonObject(with: data) as? [String: Double])
 		let result = Calculator().add(number1: Int(args["number1"] ?? 0), number2: Int(args["number2"] ?? 0))
-		
+
 		let functionCallOutputResult = FunctionCallOutput(callId: call.callId, output: String(result))
 		let followUp = try await openAI.createResponse(
 			input: .array([.functionCallOutput(functionCallOutputResult)]),
@@ -413,33 +413,33 @@ struct ResponseTests {
 			toolChoice: .auto,
 			tools: tools
 		)
-		
+
 		let messageOutput = try #require(followUp.output.first {
 			if case .message = $0 { return true }
 			return false
 		})
-		
+
 		guard case let .message(message) = messageOutput else {
 			Issue.record("Expected message output")
 			return
 		}
-		
+
 		let textContent = try #require(message.content.first {
 			if case .outputText = $0 { return true }
 			return false
 		})
-		
+
 		if case let .outputText(content) = textContent {
 			#expect(content.text.contains("100"))
 		}
 	}
-	
+
 	@Test("Image input response", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
 	func responseWithImageInput() async throws {
 		let openAI = try TestClients.openAI()
 		let data = try VisionImageTestHelpers.visionFixtureData()
 		let dataURL = VisionImageTestHelpers.responseDataURL(for: data, mimeType: "image/png")
-		
+
 		let response = try await openAI.createResponse(
 			input: .array([
 				.message(.init(
@@ -452,27 +452,27 @@ struct ResponseTests {
 			]),
 			model: "gpt-4.1"
 		)
-		
+
 		#expect(response.status == .completed)
 		let messageOutput = try #require(response.output.first {
 			if case .message = $0 { return true }
 			return false
 		})
-		
+
 		if case let .message(message) = messageOutput {
 			let textContent = try #require(message.content.first {
 				if case .outputText = $0 { return true }
 				return false
 			})
-			
+
 			if case let .outputText(content) = textContent {
 				#expect(!content.text.isEmpty)
 			}
 		}
 	}
-	
+
 	// MARK: - Helpers
-	
+
 	private func calculatorTools() -> [Tool] {
 		Calculator().toolDescriptions.compactMap { description in
 			guard let function = description.function else { return nil }

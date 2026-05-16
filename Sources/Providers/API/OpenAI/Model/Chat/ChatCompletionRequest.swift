@@ -12,59 +12,59 @@ import SwiftMCP
 public struct ChatCompletionRequest: Codable, Sendable {
 	/// The ID of the model to use for generating the response.
 	public let model: String
-	
+
 	/// A list of messages describing the conversation so far.
 	public let messages: [ChatMessage]
-	
+
 	/// The local functions GPT can call.
 	public var tools: [ToolDescription]?
-	
+
 	/// Tool selection configuration
 	public let toolChoice: ToolChoice?
-	
+
 	/// The number of chat completion choices to generate for each input message. (Optional, defaults to 1)
 	public let n: Int?
-	
+
 	/// If set, partial message deltas will be sent, like in ChatGPT. (Optional, defaults to false)
 	public let stream: Bool?
-	
+
 	/// Options for streaming response. Only set this when you set stream: true. (Optional)
 	public var streamOptions: StreamOptions?
-	
+
 	/// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. (Optional, defaults to 1)
 	public let temperature: Double?
-	
+
 	/// Up to 4 sequences where the API will stop generating further tokens. (Optional)
 	public let stop: [String]?
-	
+
 	/// Whether or not to store the output of this chat completion request for use in our model distillation or evals products.
 	public let store: Bool?
-	
+
 	/// The maximum number of tokens to generate in the chat completion. (Optional)
 	public let maxCompletionTokens: Int?
-	
+
 	/// Optional metadata to store in the request
 	public var metadata: [String: String]?
-	
+
 	public let parallelToolCalls: Bool?
-	
+
 	/// Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far. (Optional, defaults to 0)
 	public let presencePenalty: Double?
-	
+
 	/// The format that the model must output. (Optional, defaults to .text)
 	public var responseFormat: ResponseFormat?
-	
+
 	/// Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far. (Optional, defaults to 0)
 	public let frequencyPenalty: Double?
-	
+
 	/// Modify the likelihood of specified tokens appearing in the completion. (Optional)
 	public let logitBias: [String: Int]?
-	
+
 	/// A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse. (Optional)
 	public let user: String?
-	
+
 	// MARK: - Enums
-	
+
 	/// Enum representing the response format.
 	public enum ResponseFormat: Codable, Sendable {
 		case text
@@ -88,7 +88,7 @@ public struct ChatCompletionRequest: Codable, Sendable {
 					try container.encode(schemaFormat, forKey: .jsonSchema)
 			}
 		}
-		
+
 		public init(from decoder: Decoder) throws {
 			let container = try decoder.container(keyedBy: CodingKeys.self)
 			let type = try container.decode(String.self, forKey: .type)
@@ -105,15 +105,15 @@ public struct ChatCompletionRequest: Codable, Sendable {
 			}
 		}
 	}
-	
+
 	/// Enum representing the streaming options.
 	public enum StreamOptions: Codable, Sendable {
 		case includeUsage(Bool)
-		
+
 		enum CodingKeys: String, CodingKey {
 			case includeUsage = "include_usage"
 		}
-		
+
 		public func encode(to encoder: Encoder) throws {
 			var container = encoder.container(keyedBy: CodingKeys.self)
 			switch self {
@@ -121,7 +121,7 @@ public struct ChatCompletionRequest: Codable, Sendable {
 				try container.encode(value, forKey: .includeUsage)
 			}
 		}
-		
+
 		public init(from decoder: Decoder) throws {
 			let container = try decoder.container(keyedBy: CodingKeys.self)
 			if let includeUsage = try container.decodeIfPresent(Bool.self, forKey: .includeUsage) {

@@ -17,4 +17,4 @@ extension GPTImageOptions {
 		/// Auto background
 		case auto = "auto"
 	}
-} 
+}

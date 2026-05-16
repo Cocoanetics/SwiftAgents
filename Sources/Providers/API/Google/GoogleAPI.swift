@@ -12,55 +12,51 @@ import SwiftMCP
 public struct GoogleImageConfig: Sendable {
 	public let aspectRatio: String?
 	public let imageSize: String?
-	
+
 	public init(aspectRatio: String? = nil, imageSize: String? = nil) {
 		self.aspectRatio = aspectRatio
 		self.imageSize = imageSize
 	}
 }
 
-public class GoogleAPI: API, @unchecked Sendable
-{
+public class GoogleAPI: API, @unchecked Sendable {
 	/// Default thinking configuration to apply to requests if none is provided.
 	public var defaultThinkingConfig: GoogleThinkingConfig?
 
 	// MARK: - Initialization
-	public override init(apiKey: String? = nil, endpointURL: URL = .googleAI, versionPath: String = "v1beta")
-	{
+	public override init(apiKey: String? = nil, endpointURL: URL = .googleAI, versionPath: String = "v1beta") {
 		super.init(apiKey: apiKey ?? ProcessInfo.processInfo.environment["GEMINI_API_KEY"], endpointURL: endpointURL, versionPath: versionPath)
 		self.defaultThinkingConfig = GoogleThinkingConfig(includeThoughts: true)
 	}
-	
-	
-	public override func models() async throws -> [Model]
-	{
+
+	public override func models() async throws -> [Model] {
 		var components = URLComponents(url: endpointURL.appendingPathComponent("v1beta/models"), resolvingAgainstBaseURL: false)!
 		components.queryItems = [
 			URLQueryItem(name: "key", value: apiKey)
 		]
-		
+
 		let request = URLRequest(url: components.url!)
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		guard let httpResponse = response as? HTTPURLResponse else {
 			throw APIError.invalidResponse
 		}
-		
+
 		guard httpResponse.statusCode == 200 else {
 			throw APIError.otherError("other", "Not implemented")
 		}
-		
+
 		let decoder = JSONDecoder()
 
 		let modelList = try decoder.decode(GoogleModelListResponse.self, from: data)
-		
+
 		return modelList.models.filter { googleModel in
 			googleModel.supportedGenerationMethods.contains("generateContent")
 		}.map { googleModel in
-			
+
 			let id = String(googleModel.name.split(separator: "/").last ?? "")
-			
-			return Model(id: id, object: "model", created: nil, ownedBy: nil, permission: nil, root:nil, parent: nil)
+
+			return Model(id: id, object: "model", created: nil, ownedBy: nil, permission: nil, root: nil, parent: nil)
 		}
 	}
 
@@ -79,8 +75,7 @@ public class GoogleAPI: API, @unchecked Sendable
 											  responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
 											  frequencyPenalty: Double? = nil,
 											  logitBias: [String: Int]? = nil,
-											  user: String? = nil) async throws -> ChatCompletionResponse
-	{
+											  user: String? = nil) async throws -> ChatCompletionResponse {
 		return try await createChatCompletion(
 			model: model,
 			messages: messages,
@@ -120,8 +115,7 @@ public class GoogleAPI: API, @unchecked Sendable
 									 logitBias: [String: Int]? = nil,
 									 user: String? = nil,
 									 thinkingConfig: GoogleThinkingConfig? = nil,
-									 imageConfig: GoogleImageConfig? = nil) async throws -> ChatCompletionResponse
-	{
+									 imageConfig: GoogleImageConfig? = nil) async throws -> ChatCompletionResponse {
 		let thinking = thinkingConfig ?? defaultThinkingConfig
 		let requestPayload = buildGenerateContentRequest(
 			from: messages,
@@ -133,11 +127,11 @@ public class GoogleAPI: API, @unchecked Sendable
 		let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: requestPayload)
 		// logHttpRequest(request)
 		let (data, response) = try await session.data(for: request)
-		
+
         let string = String(data: data, encoding: .utf8)!
         let url = URL(fileURLWithPath: "/tmp/request.json")
         try string.write(to: url, atomically: true, encoding: .utf8)
-        
+
 		return try makeChatCompletionResponse(model: model, data: data, response: response)
 	}
 
@@ -145,7 +139,7 @@ public class GoogleAPI: API, @unchecked Sendable
 	public func generateContent(model: String, request: GoogleGenerateContentRequest) async throws -> GoogleGenerateContentResponse {
 		let endpoint = "v1beta/models/\(model):generateContent"
 		let urlRequest = try createUrlRequest(httpMethod: "POST", path: endpoint, body: request)
-		
+
 		// Save request JSON with timestamp
 		let timestamp = Int(Date().timeIntervalSince1970)
 		let encoder = JSONEncoder()
@@ -155,35 +149,35 @@ public class GoogleAPI: API, @unchecked Sendable
 			let requestURL = URL(fileURLWithPath: "/tmp/google_request_\(timestamp).json")
 			try? requestString.write(to: requestURL, atomically: true, encoding: .utf8)
 		}
-		
+
 		let (data, response) = try await session.data(for: urlRequest)
-		
+
 		guard let httpResponse = response as? HTTPURLResponse else {
 			throw APIError.invalidResponse
 		}
-		
+
 		guard httpResponse.statusCode == 200 else {
 			if let errorResponse = try? decoder.decode(GoogleErrorResponse.self, from: data) {
 				let type = errorResponse.error.status ?? "\(errorResponse.error.code)"
 				throw APIError.otherError(type, errorResponse.error.message)
 			}
-			
+
 			let message = String(data: data, encoding: .utf8) ?? "Unknown error"
 			throw APIError.otherError("\(httpResponse.statusCode)", message)
 		}
-		
+
 		// Save response JSON with same timestamp
 		if let responseString = String(data: data, encoding: .utf8) {
 			let responseURL = URL(fileURLWithPath: "/tmp/google_response_\(timestamp).json")
 			try? responseString.write(to: responseURL, atomically: true, encoding: .utf8)
 		}
-		
+
 		let responsePayload = try decoder.decode(GoogleGenerateContentResponse.self, from: data)
-		
+
 		// Extract and save images from response
 		for (index, candidate) in responsePayload.candidates.enumerated() {
 			guard let content = candidate.content else { continue }
-			
+
 			for (partIndex, part) in content.parts.enumerated() {
 				if let inlineData = part.inlineData {
 					// Decode base64 image data
@@ -202,7 +196,7 @@ public class GoogleAPI: API, @unchecked Sendable
 						default:
 							fileExtension = "png" // default
 						}
-						
+
 						// Save image file with timestamp and indices
 						let imageURL = URL(fileURLWithPath: "/tmp/google_response_\(timestamp)_candidate\(index)_part\(partIndex).\(fileExtension)")
 						try? imageData.write(to: imageURL)
@@ -210,7 +204,7 @@ public class GoogleAPI: API, @unchecked Sendable
 				}
 			}
 		}
-		
+
 		return responsePayload
 	}
 
@@ -230,56 +224,54 @@ public class GoogleAPI: API, @unchecked Sendable
 													responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
 													frequencyPenalty: Double = 0.0,
 													logitBias: [String: Int]? = nil,
-													user: String? = nil) async throws -> AsyncThrowingStream<Chunk, Error>
-	{
+													user: String? = nil) async throws -> AsyncThrowingStream<Chunk, Error> {
 		throw APIError.otherError("unsupported", "Streaming is not supported for Google models yet")
 	}
-	
+
 	// MARK: - Helpers
-	
+
 	internal override func createUrlRequest(httpMethod: String = "GET",
 								   path: String,
 								   body: Codable? = nil,
-								   queryItems: [URLQueryItem]? = nil) throws -> URLRequest
-	{
+								   queryItems: [URLQueryItem]? = nil) throws -> URLRequest {
 		// Create the URL from the base endpoint and the specific path.
 		guard var urlComponents = URLComponents(url: endpointURL.appending(path: path), resolvingAgainstBaseURL: true) else {
 			throw URLError(.badURL)
 		}
-		
+
 		var myQueryItems: [URLQueryItem] = []
 		myQueryItems.append(URLQueryItem(name: "key", value: apiKey))
-		
+
 		// If there are query items, add them to the URL.
 		if let queryItems = queryItems, !queryItems.isEmpty {
 			myQueryItems.append(contentsOf: queryItems)
 		}
-		
+
 		urlComponents.queryItems = myQueryItems
-		
+
 		guard let url = urlComponents.url else {
 			throw URLError(.badURL)
 		}
-		
+
 		var request = URLRequest(url: url)
 		request.httpMethod = httpMethod
-		
+
 		if let apiKey {
 			request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 		}
-		
+
 		// If there is a body to encode and the HTTP method supports a body, encode it as JSON.
 		if let body = body, ["POST", "PUT", "PATCH"].contains(httpMethod) {
-			
+
 			request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 			request.httpBody = try encoder.encode(body)
 		}
-		
+
 		return request
 	}
-	
+
 	// MARK: - Private Helpers
-	
+
 	private func buildGenerateContentRequest(from messages: [ChatMessage],
 											 tools: [ToolDescription]?,
 											 thinkingConfig: GoogleThinkingConfig?,
@@ -287,7 +279,7 @@ public class GoogleAPI: API, @unchecked Sendable
 		var systemParts: [GoogleGenerateContent.Part] = []
 		var contents: [GoogleGenerateContent.Content] = []
 		var toolNamesById: [String: String] = [:]
-		
+
 		for message in messages {
 			switch message.role {
 				case .system, .developer:
@@ -295,16 +287,16 @@ public class GoogleAPI: API, @unchecked Sendable
 					if !parts.isEmpty {
 						systemParts.append(contentsOf: parts)
 					}
-					
+
 				case .user:
 					let parts = googleParts(from: message)
 					if !parts.isEmpty {
 						contents.append(.init(role: "user", parts: parts))
 					}
-					
+
 				case .assistant:
 					var parts: [GoogleGenerateContent.Part] = []
-					
+
 					if let toolCalls = message.toolCalls {
 						for call in toolCalls {
 							if let function = call.function {
@@ -324,19 +316,19 @@ public class GoogleAPI: API, @unchecked Sendable
 							}
 						}
 					}
-					
+
 					parts.append(contentsOf: googleParts(from: message))
-					
+
 					if !parts.isEmpty {
 						contents.append(.init(role: "model", parts: parts))
 					}
-					
+
 				case .tool:
 					guard let toolCallID = message.toolCallID,
 						  let functionName = toolNamesById[toolCallID] else {
 						continue
 					}
-					
+
 					var parts: [GoogleGenerateContent.Part] = []
 					let responsePart = GoogleGenerateContent.Part(
 						text: nil,
@@ -353,14 +345,14 @@ public class GoogleAPI: API, @unchecked Sendable
 					parts.append(responsePart)
 					parts.append(contentsOf: googleParts(from: message))
 					contents.append(.init(role: "user", parts: parts))
-					
+
 				case .function:
 					continue
 			}
 		}
-		
+
 		let systemInstruction = systemParts.isEmpty ? nil : GoogleGenerateContent.Content(role: nil, parts: systemParts)
-		
+
 		let requestThinkingConfig = thinkingConfig.map { GoogleGenerateContentRequest.ThinkingConfig(from: $0) }
 		let generationConfig = (requestThinkingConfig != nil || imageConfig != nil)
 			? GoogleGenerateContentRequest.GenerationConfig(
@@ -370,7 +362,7 @@ public class GoogleAPI: API, @unchecked Sendable
 				temperature: 1.0
 			)
 			: nil
-		
+
 		return GoogleGenerateContentRequest(
 			contents: contents,
 			systemInstruction: systemInstruction,
@@ -378,40 +370,40 @@ public class GoogleAPI: API, @unchecked Sendable
 			generationConfig: generationConfig
 		)
 	}
-	
+
 	func makeChatCompletionResponse(model: String, data: Data, response: URLResponse) throws -> ChatCompletionResponse {
 		guard let httpResponse = response as? HTTPURLResponse else {
 			throw APIError.invalidResponse
 		}
-		
+
 		guard httpResponse.statusCode == 200 else {
 			if let errorResponse = try? decoder.decode(GoogleErrorResponse.self, from: data) {
 				let type = errorResponse.error.status ?? "\(errorResponse.error.code)"
 				throw APIError.otherError(type, errorResponse.error.message)
 			}
-			
+
 			let message = String(data: data, encoding: .utf8) ?? "Unknown error"
 			throw APIError.otherError("\(httpResponse.statusCode)", message)
 		}
-		
+
 //		#if DEBUG
 //		if let debugString = String(data: data, encoding: .utf8) {
 //			NSLog("Google Response: %@", debugString)
 //		}
 //		#endif
 		let responsePayload: GoogleGenerateContentResponse = try decoder.decode(GoogleGenerateContentResponse.self, from: data)
-		
+
 		let choices: [ChatCompletionResponse.Choice] = responsePayload.candidates.enumerated().compactMap { index, candidate in
 			guard let content = candidate.content else {
 				return nil
 			}
-			
+
 			var textSegments: [String] = []
 			var toolCalls: [ToolCall] = []
 			var structuredParts: [ChatMessage.ContentPart] = []
 			var finishReason = mapFinishReason(candidate.finishReason)
 			var reasoningSegments: [String] = []
-			
+
 			for part in content.parts {
 				if part.thought == true {
 					if let text = part.text, !text.isEmpty {
@@ -419,7 +411,7 @@ public class GoogleAPI: API, @unchecked Sendable
 					}
 					continue
 				}
-				
+
 				if let text = part.text, !text.isEmpty {
 					textSegments.append(text)
 					structuredParts.append(ChatMessage.ContentPart(text: text))
@@ -438,14 +430,14 @@ public class GoogleAPI: API, @unchecked Sendable
 					} else {
 						argsString = "{}"
 					}
-					
+
 					let function = FunctionCall(name: functionCall.name, arguments: argsString)
 					let toolCall = ToolCall(id: UUID().uuidString, type: "function", function: function)
 					toolCalls.append(toolCall)
 					finishReason = .toolCalls
 				}
 			}
-			
+
 			let combinedText = textSegments.joined(separator: "\n")
 			let richContent: ChatMessage.Content?
 			if !structuredParts.isEmpty {
@@ -463,18 +455,18 @@ public class GoogleAPI: API, @unchecked Sendable
 				richContent = nil
 			}
 			var message = ChatMessage(role: .assistant, content: richContent)
-			
+
 			if !toolCalls.isEmpty {
 				message.toolCalls = toolCalls
 			}
-			
+
 			if !reasoningSegments.isEmpty {
 				message.reasoningContent = reasoningSegments.joined(separator: "\n")
 			}
-			
+
 			return ChatCompletionResponse.Choice(message: message, finishReason: finishReason, index: index)
 		}
-		
+
 		return ChatCompletionResponse(
 			id: UUID().uuidString,
 			object: "chat.completion",
@@ -484,7 +476,7 @@ public class GoogleAPI: API, @unchecked Sendable
 			choices: choices.isEmpty ? [ChatCompletionResponse.Choice(message: ChatMessage(role: .assistant, content: nil), finishReason: .stop, index: 0)] : choices
 		)
 	}
-	
+
 	/// Maps Gemini finish reasons (see https://ai.google.dev/api/rest/v1/GenerateContentResponse#FinishReason.FinishReason)
 	/// to OpenAI-style finish reasons used throughout the app.
 	/// The Google API may return STOP, MAX_TOKENS, SAFETY, RECITATION, OTHER, BLOCKLIST, PROHIBITED_CONTENT, SPII,
@@ -493,7 +485,7 @@ public class GoogleAPI: API, @unchecked Sendable
 		guard let reason = reason?.lowercased() else {
 			return .stop
 		}
-		
+
 		switch reason {
 			case "stop":
 				return .stop
@@ -523,12 +515,12 @@ public class GoogleAPI: API, @unchecked Sendable
 				return .stop
 		}
 	}
-	
+
 	private func makeGoogleTools(from tools: [ToolDescription]?) -> [GoogleGenerateContentRequest.Tool]? {
 		guard let tools = tools else {
 			return nil
 		}
-		
+
 		let declarations = tools.compactMap { tool -> GoogleGenerateContentRequest.FunctionDeclaration? in
 			guard let function = tool.function else {
 				return nil
@@ -539,14 +531,14 @@ public class GoogleAPI: API, @unchecked Sendable
 				parameters: function.parameters
 			)
 		}
-		
+
 		guard !declarations.isEmpty else {
 			return nil
 		}
-		
+
 		return [GoogleGenerateContentRequest.Tool(functionDeclarations: declarations)]
 	}
-	
+
 	private func googleParts(from message: ChatMessage) -> [GoogleGenerateContent.Part] {
 		if let parts = message.contentParts, !parts.isEmpty {
 			return convertContentParts(parts)
@@ -585,7 +577,7 @@ public class GoogleAPI: API, @unchecked Sendable
 		let inline = GoogleGenerateContent.Part.InlineData(mimeType: decoded.mimeType, data: decoded.data.base64EncodedString())
 		return GoogleGenerateContent.Part(text: nil, inlineData: inline, fileData: nil, functionCall: nil, functionResponse: nil, thought: nil, thoughtSignature: nil)
 	}
-	
+
 	private func wrapAsJSONValue(_ dictionary: [String: Any]) -> [String: JSONValue]? {
 		let wrapped = [String: JSONValue](jsonObject: dictionary)
 		return wrapped.isEmpty ? nil : wrapped

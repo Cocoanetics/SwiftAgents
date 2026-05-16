@@ -15,4 +15,4 @@ extension Dalle3Options {
 		/// Natural style - more natural, less hyper-real looking images.
 		case natural = "natural"
 	}
-} 
+}

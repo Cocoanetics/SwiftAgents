@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension OpenAI
-{
+extension OpenAI {
 	/// Creates a file batch in a specific vector store.
 	///
 	/// - Parameters:
@@ -17,15 +16,14 @@ extension OpenAI
 	/// - Returns: A `VectorStoreFilesBatch` representing the newly created file batch.
 	/// - Throws: An error if the API call fails.
 	///
-	func createVectorStoreFilesBatch(vectorStoreId: String, fileIds: [String]) async throws -> VectorStoreFilesBatch 
-	{
+	func createVectorStoreFilesBatch(vectorStoreId: String, fileIds: [String]) async throws -> VectorStoreFilesBatch {
 		let endpoint = "/v1/vector_stores/\(vectorStoreId)/file_batches"
 		let requestBody = ["file_ids": fileIds]
 		let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: requestBody)
 		let (data, response) = try await session.data(for: request)
 		return try process(data: data, response: response)
 	}
-	
+
 	/// Retrieves a specific file batch from a vector store.
 	   ///
 	   /// - Parameters:
@@ -34,14 +32,13 @@ extension OpenAI
 	   /// - Returns: A `VectorStoreFilesBatch` object representing the file batch.
 	   /// - Throws: An error if the API call fails.
 	///
-	   func retrieveVectorStoreFilesBatch(vectorStoreId: String, batchId: String) async throws -> VectorStoreFilesBatch 
-	{
+	   func retrieveVectorStoreFilesBatch(vectorStoreId: String, batchId: String) async throws -> VectorStoreFilesBatch {
 		   let endpoint = "/v1/vector_stores/\(vectorStoreId)/file_batches/\(batchId)"
 		   let request = try createUrlRequest(path: endpoint)
 		   let (data, response) = try await session.data(for: request)
 		   return try process(data: data, response: response)
 	   }
-	
+
 	/// Lists all file batches in a vector store with optional pagination and filtering.
 	///
 	/// - Parameters:
@@ -53,32 +50,31 @@ extension OpenAI
 	///   - filter: Optional filter for batch status.
 	/// - Returns: A `ListPagedResponse<VectorStoreFilesBatch>` containing the list of batches.
 	/// - Throws: An error if the API call fails.
-	func listVectorStoreFilesBatches(vectorStoreId: String, limit: Int = 20, order: SortOrder = .descending, after: String? = nil, before: String? = nil, filter: FileStatus? = nil) async throws -> ListPagedResponse<VectorStoreFilesBatch> 
-	{
+	func listVectorStoreFilesBatches(vectorStoreId: String, limit: Int = 20, order: SortOrder = .descending, after: String? = nil, before: String? = nil, filter: FileStatus? = nil) async throws -> ListPagedResponse<VectorStoreFilesBatch> {
 		var queryItems: [URLQueryItem] = [
 			URLQueryItem(name: "limit", value: String(limit)),
 			URLQueryItem(name: "order", value: order.rawValue)
 		]
-		
+
 		if let after = after {
 			queryItems.append(URLQueryItem(name: "after", value: after))
 		}
-		
+
 		if let before = before {
 			queryItems.append(URLQueryItem(name: "before", value: before))
 		}
-		
+
 		if let filter = filter {
 			queryItems.append(URLQueryItem(name: "filter", value: filter.rawValue))
 		}
-		
+
 		let endpoint = "/v1/vector_stores/\(vectorStoreId)/file_batches"
 		let request = try createUrlRequest(path: endpoint, queryItems: queryItems)
-		
+
 		let (data, response) = try await session.data(for: request)
 		return try process(data: data, response: response)
 	}
-	
+
 	/// Cancels a file batch in a specific vector store.
 	///
 	/// This function sends a POST request to the OpenAI API endpoint that handles the cancellation of file batches.
@@ -90,14 +86,13 @@ extension OpenAI
 	/// - Returns: A `VectorStoreFilesBatch` object representing the batch after the cancellation attempt.
 	/// - Throws: An error if the API call fails, such as network errors, invalid parameters, or server issues.
 	///
-	func cancelVectorStoreFilesBatch(vectorStoreId: String, batchId: String) async throws -> VectorStoreFilesBatch 
-	{
+	func cancelVectorStoreFilesBatch(vectorStoreId: String, batchId: String) async throws -> VectorStoreFilesBatch {
 		let endpoint = "/v1/vector_stores/\(vectorStoreId)/file_batches/\(batchId)/cancel"
 		let request = try createUrlRequest(httpMethod: "POST", path: endpoint)
 		let (data, response) = try await session.data(for: request)
 		return try process(data: data, response: response)
 	}
-	
+
 	/// Waits until a vector store files batch is ready, i.e., not in progress.
 	///
 	/// - Parameters:
@@ -111,11 +106,11 @@ extension OpenAI
 		while true {
 			// Retrieve the current status of the batch
 			let polledBatch = try await retrieveVectorStoreFilesBatch(vectorStoreId: vectorStoreId, batchId: batchId)
-			
+
 			if polledBatch.status != .inProgress {
 				return polledBatch
 			}
-			
+
 			// Sleep for a few seconds before polling again
 			try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
 		}

@@ -6,13 +6,13 @@ extension OutputItem {
     public struct FileSearchOutput: Codable, Sendable {
         /// The unique ID of the file search tool call.
         public let id: String
-        
+
         /// The queries used to search for files.
         public let queries: [String]
-        
+
         /// The status of the file search tool call.
         public let status: Response.ToolCallStatus?
-        
+
         /// The results of the file search tool call.
         public let results: [FileSearchResult]?
     }
@@ -24,4 +24,4 @@ extension OutputItem {
 		public let score: Double?
 		public let text: String?
 	}
-} 
+}

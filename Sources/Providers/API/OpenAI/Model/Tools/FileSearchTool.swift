@@ -6,4 +6,4 @@ public struct FileSearchTool: Codable, Sendable {
     public init(vectorStoreIds: [String]) {
         self.vectorStoreIds = vectorStoreIds
     }
-} 
+}

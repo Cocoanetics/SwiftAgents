@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension Array where Element == FunctionDescription
-{
+extension Array where Element == FunctionDescription {
 	// creates a JSON representation for use when injecting it into the system prompt
 	public func asJSON() -> String {
 		let encoder = JSONEncoder()

@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension String
-{
+extension String {
 	func extractReasoning() -> (reasoning: String?, content: String) {
 		let pattern = "<think>([\\s\\S]*?)<\\/think>\\s*"
 		if let regex = try? NSRegularExpression(pattern: pattern, options: []) {

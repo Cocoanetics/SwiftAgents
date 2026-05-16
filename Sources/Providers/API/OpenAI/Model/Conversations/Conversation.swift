@@ -10,8 +10,7 @@ import Foundation
 /// Represents a conversation object from the OpenAI Conversations API.
 /// Conversations persist state as a long-running object with its own durable identifier,
 /// and can be used across sessions, devices, or jobs.
-public struct Conversation: Codable, Sendable
-{
+public struct Conversation: Codable, Sendable {
 	/// The unique ID of the conversation.
 	public var id: String
 
@@ -27,8 +26,7 @@ public struct Conversation: Codable, Sendable
 }
 
 /// Represents the parameters for creating or updating a conversation.
-struct ConversationOptionals: Codable
-{
+struct ConversationOptionals: Codable {
 	/// Optional items to include in the conversation context (up to 20 items at a time).
 	var items: [Response.Input.Element]?
 
@@ -37,8 +35,7 @@ struct ConversationOptionals: Codable
 }
 
 /// Status returned from deleting a conversation.
-public struct ConversationDeletedResource: Codable, Sendable
-{
+public struct ConversationDeletedResource: Codable, Sendable {
 	/// The unique ID of the deleted conversation.
 	public let id: String
 
@@ -50,8 +47,7 @@ public struct ConversationDeletedResource: Codable, Sendable
 }
 
 /// Represents a list of conversation items returned from the API.
-public struct ConversationItemList: Codable
-{
+public struct ConversationItemList: Codable {
 	/// The type of object returned, always "list".
 	public let object: String
 
@@ -70,8 +66,7 @@ public struct ConversationItemList: Codable
 
 /// Represents an item within a conversation.
 /// Items can be messages, function calls, function call outputs, and other types.
-public struct ConversationItem: Codable, Sendable
-{
+public struct ConversationItem: Codable, Sendable {
 	/// The unique ID of the item.
 	public var id: String
 
@@ -89,8 +84,7 @@ public struct ConversationItem: Codable, Sendable
 }
 
 /// Represents a content element within a conversation item.
-public struct ConversationItemContent: Codable, Sendable
-{
+public struct ConversationItemContent: Codable, Sendable {
 	/// The type of content (e.g., "input_text", "output_text", "refusal", "input_image", "input_audio").
 	public var type: String
 
@@ -102,8 +96,7 @@ public struct ConversationItemContent: Codable, Sendable
 }
 
 /// Represents an annotation on conversation item content.
-public struct ConversationItemAnnotation: Codable, Sendable
-{
+public struct ConversationItemAnnotation: Codable, Sendable {
 	/// The type of annotation.
 	public var type: String
 

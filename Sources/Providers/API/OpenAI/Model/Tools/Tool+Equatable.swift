@@ -5,9 +5,8 @@
 //  Created by Oliver Drobnik on 08.04.26.
 //
 
-
 extension Tool: Equatable {
-    
+
     public static func == (lhs: Tool, rhs: Tool) -> Bool {
         switch (lhs, rhs) {
             case (.function(let a), .function(let b)): a.name == b.name

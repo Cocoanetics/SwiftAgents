@@ -15,11 +15,11 @@ public class TerminalHandler {
 	public init() {
 		// Determine ANSI support first
 		self.supportsANSI = TerminalHandler.supportsANSICodes()
-		
+
 		// Initialize prompt and placeholder using the supportsANSI
 		self.prompt = supportsANSI ? ">>> ".bold : ">>> "
 		self.placeholder = supportsANSI ? "Send a message (/? for help)".dim : ""
-		
+
 		setupTerminal()
 	}
 
@@ -64,23 +64,19 @@ public class TerminalHandler {
 		}
 	}
 
-	public func output(_ string: String, addLineFeed: Bool = true)
-	{
+	public func output(_ string: String, addLineFeed: Bool = true) {
 		let terminator = addLineFeed ? "\n" : ""
 
-		if supportsANSI
-		{
+		if supportsANSI {
 			print(string, terminator: terminator)
-		}
-		else
-		{
+		} else {
 			print(string.removingANSISequences(), terminator: terminator)
 		}
 
 		fflush(stdout)
 		previousVisualLines = 1
 	}
-	
+
 	private var terminalWidth: Int {
 		var ws = winsize()
 		if ioctl(STDOUT_FILENO, UInt(TIOCGWINSZ), &ws) == 0, ws.ws_col > 0 {
@@ -133,7 +129,6 @@ public class TerminalHandler {
 		}
 	}
 
-
 	public func run() async {
 		updateDisplay()
 		var escapeSequenceActive = false  // Flag for tracking escape sequences
@@ -184,33 +179,25 @@ public class TerminalHandler {
 				return
 			}
 
-			if supportsANSI
-			{
+			if supportsANSI {
 				print("\n")
-			}
-			else
-			{
+			} else {
 				print("")
 			}
 
-			if inputBuffer.hasPrefix("/")
-			{
+			if inputBuffer.hasPrefix("/") {
 				let afterSlash = inputBuffer[inputBuffer.index(inputBuffer.startIndex, offsetBy: 1)...]
 				let slashCommand = afterSlash.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-				
+
 				do {
 					try await slashCommandHandler.execute(slashCommand: slashCommand)
-				}
-				catch let error
-				{
+				} catch let error {
 					output(error.localizedDescription.red.blink + "\n")
 				}
-			}
-			else
-			{
+			} else {
 				handleInput?(inputBuffer)
 			}
-			
+
 			inputBuffer = "" // Clear the buffer after handling the command
 			updateDisplay()
 		} else if ch == 127 { // Backspace character
@@ -226,7 +213,7 @@ public class TerminalHandler {
 			updateDisplay()
 		}
 	}
-	
+
 	// MARK: - Helpers
 
 	/// Delete the last word from the input buffer (Option+Backspace / Ctrl+W).
@@ -240,13 +227,12 @@ public class TerminalHandler {
 
 	// Function to clear the screen
 	public func clearScreen() {
-		
-		guard !supportsANSI else
-		{
+
+		guard !supportsANSI else {
 			print("\u{001B}[2J\u{001B}[H", terminator: "")
 			return
 		}
-		
+
 		#if os(macOS)
 			// Fallback to using the clear command on macOS
 			let task = Process()

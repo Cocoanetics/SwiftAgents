@@ -8,8 +8,7 @@
 import Foundation
 
 /// Represents an assistant object from the API, detailing configuration for a conversational model.
-public struct Assistant: Codable 
-{
+public struct Assistant: Codable {
 	/// Unique identifier for the assistant.
 	public var id: String
 
@@ -33,7 +32,7 @@ public struct Assistant: Codable
 
 	/// A list of tools enabled on the assistant, such as code interpreters.
 	public var tools: [ToolDescription] = []
-	
+
 	/// Depending on the tool type those are resources to be used by the tool
 	public var toolResources: ToolResources = ToolResources()
 
@@ -51,8 +50,7 @@ public struct Assistant: Codable
 }
 
 /// Represents a temporary Assistent object that has all properties optional for creation or modification
-internal struct AssistantOptionals: Codable
-{
+internal struct AssistantOptionals: Codable {
 	/// Optional name of the assistant.
 	public let name: String?
 
@@ -67,7 +65,7 @@ internal struct AssistantOptionals: Codable
 
 	/// A list of tools enabled on the assistant, such as code interpreters.
 	public var tools: [ToolDescription]?
-	
+
 	/// Depending on the tool type those are resources to be used by the tool
 	public var toolResources: ToolResources?
 

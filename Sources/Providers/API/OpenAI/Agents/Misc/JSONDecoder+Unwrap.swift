@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension JSONDecoder
-{
+extension JSONDecoder {
 	/// Automatically unwraps an array type that is wrapped in ResultsArrayWrapper struct
 	func decodeWithResultsUnwrap<T: Decodable>(_ data: Data, as type: T.Type) -> T? {
 		// Try direct decode

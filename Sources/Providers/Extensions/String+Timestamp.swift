@@ -5,11 +5,9 @@
 //  Created by Oliver Drobnik on 07.05.25.
 //
 
-
 import Foundation
 
-extension String
-{
+extension String {
 	public static var timestamp: String {
 		var ts = timespec()
 		clock_gettime(CLOCK_REALTIME, &ts)

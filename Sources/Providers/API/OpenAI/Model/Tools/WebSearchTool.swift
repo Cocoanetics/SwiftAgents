@@ -12,4 +12,4 @@ public struct WebSearchTool: Codable, Sendable {
         self.searchContextSize = searchContextSize
         self.userLocation = userLocation
     }
-} 
+}

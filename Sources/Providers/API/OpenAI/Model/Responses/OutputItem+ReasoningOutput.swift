@@ -44,4 +44,4 @@ extension OutputItem.ReasoningOutput: Codable {
         try container.encodeIfPresent(status, forKey: .status)
         try container.encode(summary, forKey: .summary)
     }
-} 
+}

@@ -1,0 +1,8 @@
+included:
+  - Sources
+  - Tests
+
+excluded:
+  # Test fixtures (JSON / PNG / text payloads bundled as test resources).
+  - Tests/ProvidersTests/Resources
+  - "**/.build"

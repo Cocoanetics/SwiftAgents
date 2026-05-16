@@ -17,4 +17,4 @@ extension GPTImageOptions {
 		/// Auto size
 		case auto = "auto"
 	}
-} 
+}

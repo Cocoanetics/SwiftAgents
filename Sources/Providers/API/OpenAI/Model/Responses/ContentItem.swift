@@ -8,11 +8,10 @@
 import Foundation
 
 /// Represents a content item in a message output.
-public enum ContentItem: Codable, Sendable
-{
+public enum ContentItem: Codable, Sendable {
     /// A text output from the model.
     case outputText(OutputText)
-    
+
     /// A refusal from the model.
     case refusal(Refusal)
 
@@ -78,4 +77,4 @@ public enum ContentItem: Codable, Sendable
 			self.encryptedContent = encryptedContent
 		}
     }
-} 
+}

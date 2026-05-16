@@ -9,7 +9,7 @@ import SwiftMCP
 public struct SpanError: Codable {
 	/* The error message describing what went wrong */
 	public let message: String
-	
+
 	public let data: [String: JSONValue]?
 	/*
 	 Creates a new span error.
@@ -20,4 +20,4 @@ public struct SpanError: Codable {
 		self.message = message
 		self.data = data
 	}
-} 
+}

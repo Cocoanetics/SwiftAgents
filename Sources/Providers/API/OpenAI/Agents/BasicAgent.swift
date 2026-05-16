@@ -10,43 +10,42 @@ import SwiftMCP
 
 /// An agent that can perform tasks using natural language instructions.
 public final class BasicAgent: Agent, @unchecked Sendable {
-	
+
 	public typealias OutputType = String
-	
+
 	/// The name of the agent.
 	public let name: String
-	
+
 	/// The instructions that define the agent's behavior.
 	public let instructions: String
-	
+
 	/// A description of the agent. This is used when the agent is used as a handoff, so that an LLM knows what it does and when to invoke it.
 	public let handoffDescription: String?
-	
+
 	/// The tools available to the agent.
 	public let toolProviders: [MCPToolProviding]
-	
+
 	/// Tool descriptions available
 	public let tools: [Tool]
-	
+
 	/// MCP Servers to include as tools
 	public let mcpServers: [MCPServerProxy]
-	
+
 	/// Handoffs that are available to the agent
 	public let handoffs: [any Handoff]
-	
+
 	/// An override to specify the model to be used
 	public let model: String?
-	
+
 	/// Model settings to apply
 	public let modelSettings: ModelSettings
-	
+
 	/// Guardrails evaluated on the very first input before the agent loop
 	public let inputGuardrails: [any InputGuardrail]
-	
+
 	/// Guardrails evaluated on the final output before returning from Runner.run.
 	public let outputGuardrails: [any OutputGuardrail]
-	
-	
+
 	/// Creates a new agent with the specified configuration.
 	/// - Parameters:
 	///   - name: The name of the agent

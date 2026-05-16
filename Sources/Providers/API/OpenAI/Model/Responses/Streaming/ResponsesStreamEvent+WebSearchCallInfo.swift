@@ -7,14 +7,12 @@
 
 import Foundation
 
-extension ResponsesStreamEvent
-{
+extension ResponsesStreamEvent {
 	/// Represents information about a web search call.
-	public struct WebSearchCallInfo: Codable, Sendable
-	{
+	public struct WebSearchCallInfo: Codable, Sendable {
 		/// The ID of the output item for the web search call.
 		public let itemId: String
-		
+
 		/// The index of the output item for the web search call.
 		public let outputIndex: Int
 	}

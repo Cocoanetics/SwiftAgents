@@ -8,7 +8,7 @@ extension OutputItem {
 
 		/// The specific web action the model performed.
 		public let action: Action?
-        
+
         /// The status of the web search tool call.
         public let status: Response.ToolCallStatus?
     }
@@ -98,4 +98,4 @@ extension OutputItem {
 			self.url = url
 		}
 	}
-} 
+}

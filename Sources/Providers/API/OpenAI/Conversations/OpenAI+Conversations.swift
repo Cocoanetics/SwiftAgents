@@ -19,8 +19,7 @@ extension OpenAI {
 	///
 	/// - SeeAlso: [Create Conversation API](https://platform.openai.com/docs/api-reference/conversations/create)
 	public func createConversation(items: [Response.Input.Element]? = nil,
-								   metadata: [String: String]? = nil) async throws -> Conversation
-	{
+								   metadata: [String: String]? = nil) async throws -> Conversation {
 		let details = ConversationOptionals(items: items, metadata: metadata)
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/conversations", body: details)
 
@@ -36,8 +35,7 @@ extension OpenAI {
 	/// - Returns: Returns a `Conversation` object containing the details of the retrieved conversation.
 	///
 	/// - SeeAlso: [Retrieve Conversation API](https://platform.openai.com/docs/api-reference/conversations/retrieve)
-	public func retrieveConversation(id: String) async throws -> Conversation
-	{
+	public func retrieveConversation(id: String) async throws -> Conversation {
 		let request = try self.createUrlRequest(path: "/v1/conversations/" + id)
 
 		let (data, response) = try await URLSession.shared.data(for: request)
@@ -56,8 +54,7 @@ extension OpenAI {
 	///
 	/// - SeeAlso: [Update Conversation API](https://platform.openai.com/docs/api-reference/conversations/update)
 	public func updateConversation(id: String,
-								   metadata: [String: String]? = nil) async throws -> Conversation
-	{
+								   metadata: [String: String]? = nil) async throws -> Conversation {
 		let details = ConversationOptionals(metadata: metadata)
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/conversations/" + id, body: details)
 
@@ -75,8 +72,7 @@ extension OpenAI {
 	///
 	/// - SeeAlso: [Delete Conversation API](https://platform.openai.com/docs/api-reference/conversations/delete)
 	@discardableResult
-	public func deleteConversation(id: String) async throws -> Bool
-	{
+	public func deleteConversation(id: String) async throws -> Bool {
 		let request = try self.createUrlRequest(httpMethod: "DELETE", path: "/v1/conversations/" + id)
 
 		let (data, response) = try await URLSession.shared.data(for: request)

@@ -33,7 +33,7 @@ extension OpenAI {
 		guard prompt.count <= maxPromptLength else {
 			throw ImageGenerationError.invalidParameter("Prompt exceeds maximum length of \(maxPromptLength) characters for \(model.identifier)")
 		}
-		
+
 		// Create the request based on model type
 		let request: ImageGenerationRequest
 		switch model {
@@ -50,7 +50,7 @@ extension OpenAI {
 					responseFormat: options.responseFormat.rawValue,
 					user: options.user
 				)
-				
+
 			case .dalle3(let options):
 				// DALL-E 3 specific checks (count=1 is enforced by Dalle3Options)
 				request = ImageGenerationRequest(
@@ -63,7 +63,7 @@ extension OpenAI {
 					style: options.style.rawValue,
 					user: options.user
 				)
-				
+
 			case .gptImage(let options):
 				// GPT Image specific checks
 				guard options.count >= 1 && options.count <= 10 else {
@@ -87,17 +87,17 @@ extension OpenAI {
 					user: options.user
 				)
 		}
-		
+
 		// Create the request using the helper function from API
 		let urlRequest = try createUrlRequest(httpMethod: "POST", path: "/v1/images/generations", body: request)
-		
+
 		// Perform the network request
 		do {
 			let (data, response) = try await session.data(for: urlRequest)
-			
+
 			// Process the response
 			let imageResponse: ImageGenerationResponse = try process(data: data, response: response)
-			
+
 			return imageResponse.images
 		} catch let error as ImageGenerationError {
 			throw error

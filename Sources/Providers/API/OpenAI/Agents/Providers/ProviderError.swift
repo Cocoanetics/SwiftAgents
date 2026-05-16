@@ -11,7 +11,7 @@ import Foundation
 public enum ProviderError: Error, LocalizedError {
 	case unknownProvider(String)
 	case missingAPIKey(String)
-	
+
 	public var errorDescription: String? {
 		switch self {
 			case .unknownProvider(let name):

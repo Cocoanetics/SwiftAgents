@@ -21,8 +21,7 @@ extension OpenAI {
 	/// - SeeAlso: [Create Conversation Items API](https://platform.openai.com/docs/api-reference/conversations/create-items)
 	public func createConversationItems(conversationId: String,
 										items: [Response.Input.Element],
-										include: [Include]? = nil) async throws -> ConversationItemList
-	{
+										include: [Include]? = nil) async throws -> ConversationItemList {
 		let body = ConversationItemsCreation(items: items, include: include)
 		let request = try self.createUrlRequest(httpMethod: "POST",
 												path: "/v1/conversations/\(conversationId)/items",
@@ -49,8 +48,7 @@ extension OpenAI {
 									  limit: Int = 20,
 									  order: SortOrder = .descending,
 									  after: String? = nil,
-									  include: [Include]? = nil) async throws -> ConversationItemList
-	{
+									  include: [Include]? = nil) async throws -> ConversationItemList {
 		var queryItems: [URLQueryItem] = [
 			URLQueryItem(name: "limit", value: String(limit)),
 			URLQueryItem(name: "order", value: order.rawValue)
@@ -86,8 +84,7 @@ extension OpenAI {
 	/// - SeeAlso: [Retrieve Conversation Item API](https://platform.openai.com/docs/api-reference/conversations/get-item)
 	public func retrieveConversationItem(conversationId: String,
 										 itemId: String,
-										 include: [Include]? = nil) async throws -> ConversationItem
-	{
+										 include: [Include]? = nil) async throws -> ConversationItem {
 		var queryItems: [URLQueryItem] = []
 
 		if let include = include {
@@ -115,8 +112,7 @@ extension OpenAI {
 	/// - SeeAlso: [Delete Conversation Item API](https://platform.openai.com/docs/api-reference/conversations/delete-item)
 	@discardableResult
 	public func deleteConversationItem(conversationId: String,
-									   itemId: String) async throws -> Conversation
-	{
+									   itemId: String) async throws -> Conversation {
 		let request = try self.createUrlRequest(httpMethod: "DELETE",
 												path: "/v1/conversations/\(conversationId)/items/\(itemId)")
 
@@ -127,8 +123,7 @@ extension OpenAI {
 }
 
 /// Represents the body for creating items in a conversation.
-struct ConversationItemsCreation: Codable
-{
+struct ConversationItemsCreation: Codable {
 	/// The items to add to the conversation (up to 20 at a time).
 	var items: [Response.Input.Element]
 

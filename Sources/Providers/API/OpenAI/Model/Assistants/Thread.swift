@@ -10,8 +10,7 @@ import Foundation
 /**
  Represents a thread object from the API, containing messages within a conversational context.
  */
-public struct Thread: Codable
-{
+public struct Thread: Codable {
 	/// Unique identifier for the thread.
 	public var id: String
 
@@ -28,16 +27,14 @@ public struct Thread: Codable
 	public var metadata: [String: String] = [:]
 }
 
-
 /// Represents the details necessary for creating or modifying a thread on the OpenAI platform.
-struct ThreadOptionals: Codable
-{
+struct ThreadOptionals: Codable {
 	/// An array of messages that are included when starting the thread.
 	var messages: [MessageCreation]?
-	
+
 	/// Tool-specific resources that are made available to the assistant's tools in this thread.
 	var toolResources: ToolResources?
-	
+
 	/// Metadata providing additional structured information about the thread.
 	var metadata: [String: String]?
 }

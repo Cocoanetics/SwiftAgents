@@ -15,4 +15,4 @@ extension Dalle3Options {
 		/// HD quality
 		case hd = "hd"
 	}
-} 
+}

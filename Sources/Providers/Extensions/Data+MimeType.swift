@@ -7,13 +7,11 @@
 
 import Foundation
 
-extension Data 
-{
-	public func imageMimeType() -> String
-	{
+extension Data {
+	public func imageMimeType() -> String {
 		var bytes = [UInt8](repeating: 0, count: 12)
 		self.copyBytes(to: &bytes, count: 12)
-		
+
 		let bmp: [UInt8] = [0x42, 0x4D]
 		let gif: [UInt8] = [0x47, 0x49, 0x46]
 //		let swf: [UInt8] = [0x46, 0x57, 0x53]
@@ -27,7 +25,7 @@ extension Data
 		let tifMM: [UInt8] = [0x4D, 0x4D, 0x00, 0x2A]
 		let png: [UInt8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
 		let jp2: [UInt8] = [0x00, 0x00, 0x00, 0x0C, 0x6A, 0x50, 0x20, 0x20, 0x0D, 0x0A, 0x87, 0x0A]
-		
+
 		if bytes.starts(with: bmp) {
 			return "image/x-ms-bmp"
 		} else if bytes.starts(with: gif) {
@@ -49,7 +47,7 @@ extension Data
 		} else if bytes.starts(with: jp2) {
 			return "image/jp2"
 		}
-		
+
 		return "application/octet-stream" // default type
 	}
 }

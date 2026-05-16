@@ -12,11 +12,11 @@ public enum ResponseFormat: Codable {
 	/// Automatically determines the response format.
 	/// This is typically used when the model decides the best output format based on the input or context.
 	case auto
-	
+
 	/// Specifies that the response must be in plain text format.
 	/// This format is straightforward and typically used for text-based outputs.
 	case text
-	
+
 	/// Specifies that the response must be a JSON object.
 	/// This format is used to ensure the output is structured as valid JSON, making it ideal for API responses.
 	/// Note: This format should only be used if all tools are of the type 'function'.

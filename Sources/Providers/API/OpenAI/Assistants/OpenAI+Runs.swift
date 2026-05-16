@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension OpenAI 
-{
+extension OpenAI {
 	/**
 	 Creates a new run on the OpenAI platform.
 	 
@@ -50,8 +49,7 @@ extension OpenAI
 				   maxCompletionTokens: Int? = nil,
 				   truncationStrategy: TruncationStrategy? = nil,
 				   toolChoice: ToolChoice? = nil,
-				   responseFormat: ResponseFormat? = nil) async throws -> Run
-	{
+				   responseFormat: ResponseFormat? = nil) async throws -> Run {
 		let runCreation = RunCreation(assistantId: assistantId,
 									  model: model,
 									  instructions: instructions,
@@ -67,15 +65,15 @@ extension OpenAI
 									  truncationStrategy: truncationStrategy,
 									  toolChoice: toolChoice,
 									  responseFormat: responseFormat)
-		
+
 		let endpoint = "/v1/threads/\(threadId)/runs"
-		
+
 		let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: runCreation)
 
 		let (data, response) = try await session.data(for: request)
 		return try process(data: data, response: response)
 	}
-	
+
 	func createRunStream(threadId: String,
 				   assistantId: String,
 				   model: String? = nil,
@@ -91,8 +89,7 @@ extension OpenAI
 				   maxCompletionTokens: Int? = nil,
 				   truncationStrategy: TruncationStrategy? = nil,
 				   toolChoice: ToolChoice? = nil,
-				   responseFormat: ResponseFormat? = nil) async throws -> AsyncThrowingStream<StreamEvent, Error>
-	{
+				   responseFormat: ResponseFormat? = nil) async throws -> AsyncThrowingStream<StreamEvent, Error> {
 		let runCreation = RunCreation(assistantId: assistantId,
 									  model: model,
 									  instructions: instructions,
@@ -108,15 +105,15 @@ extension OpenAI
 									  truncationStrategy: truncationStrategy,
 									  toolChoice: toolChoice,
 									  responseFormat: responseFormat)
-		
+
 		let endpoint = "/v1/threads/\(threadId)/runs"
-		
+
 		let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: runCreation)
 
 		let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
 		return try await processEventStream(asyncBytes: asyncBytes, response: response)
 	}
-	
+
 	/**
 	 Processes an asynchronous byte stream from a URLSession and returns a `ChatCompletionResponse`.
 
@@ -131,106 +128,83 @@ extension OpenAI
 	 - Note: This function assumes that the API call returns a continuous stream of JSON strings, each representing a `Chunk` object. The function aggregates these `Chunk` objects into a single `ChatCompletionResponse`.
 
 	 */
-	internal func processEventStream(asyncBytes: URLSession.AsyncBytes, response: URLResponse) async throws -> AsyncThrowingStream<StreamEvent, Error>
-	{
-		if let response = response as? HTTPURLResponse, response.statusCode != 200
-		{
+	internal func processEventStream(asyncBytes: URLSession.AsyncBytes, response: URLResponse) async throws -> AsyncThrowingStream<StreamEvent, Error> {
+		if let response = response as? HTTPURLResponse, response.statusCode != 200 {
 			// read until end
 			let data = try await asyncBytes.reduce(into: Data()) { partialResult, byte in
 				partialResult.append(byte)
 			}
-			
+
 			throw errorFromResponse(data: data, response: response)
 		}
-		
+
 		return AsyncThrowingStream { continuation in
-			
+
 			Task {
 				var currentEvent: String = ""
-				
-				for try await line in asyncBytes.lines
-				{
+
+				for try await line in asyncBytes.lines {
 					print(line)
-					
-					if let range = line.range(of: "event: ")
-					{
+
+					if let range = line.range(of: "event: ") {
 						currentEvent = String(line[range.upperBound...])
 						continue
 					}
-					
-					guard let range = line.range(of: "data: ") else
-					{
+
+					guard let range = line.range(of: "data: ") else {
 						throw APIError.apiError("Didn't get data at beginning of line")
 					}
-					
+
 					let jsonString = line[range.upperBound...]
-					
-					if jsonString == "[DONE]"
-					{
+
+					if jsonString == "[DONE]" {
 						continuation.finish()
 						return
 					}
-					
+
 					let jsonData = jsonString.data(using: .utf8)!
-					
+
 					do {
-						
-						if currentEvent.hasPrefix("thread.message.delta")
-						{
+
+						if currentEvent.hasPrefix("thread.message.delta") {
 							let messageDelta = try self.decoder.decode(ThreadMessageDelta.self, from: jsonData)
 							let event = StreamEvent(type: currentEvent, object: .messageDelta(messageDelta))
 							continuation.yield(event)
-						}
-						else if currentEvent.hasPrefix("thread.run.step.delta")
-						{
+						} else if currentEvent.hasPrefix("thread.run.step.delta") {
 							let runStepDelta = try self.decoder.decode(RunStepDelta.self, from: jsonData)
 							let event = StreamEvent(type: currentEvent, object: .runStepDelta(runStepDelta))
 							continuation.yield(event)
-						}
-						else if currentEvent.hasPrefix("thread.run.step")
-						{
+						} else if currentEvent.hasPrefix("thread.run.step") {
 							let runStep = try self.decoder.decode(RunStep.self, from: jsonData)
 							let event = StreamEvent(type: currentEvent, object: .runStep(runStep))
 							continuation.yield(event)
-						}
-						else if currentEvent.hasPrefix("thread.run")
-						{
+						} else if currentEvent.hasPrefix("thread.run") {
 							let run = try self.decoder.decode(Run.self, from: jsonData)
 							let event = StreamEvent(type: currentEvent, object: .run(run))
 							continuation.yield(event)
-						}
-						else if currentEvent.hasPrefix("thread.message")
-						{
+						} else if currentEvent.hasPrefix("thread.message") {
 							let message = try self.decoder.decode(Message.self, from: jsonData)
 							let event = StreamEvent(type: currentEvent, object: .message(message))
 							continuation.yield(event)
-						}
-						else if currentEvent.hasPrefix("thread")
-						{
+						} else if currentEvent.hasPrefix("thread") {
 							let thread = try self.decoder.decode(Thread.self, from: jsonData)
 							let event = StreamEvent(type: currentEvent, object: .thread(thread))
 							continuation.yield(event)
-						}
-						else if currentEvent.hasPrefix("error")
-						{
+						} else if currentEvent.hasPrefix("error") {
 							let error = try self.decoder.decode(ErrorDetail.self, from: jsonData)
 							let event = StreamEvent(type: currentEvent, object: .error(error))
 							continuation.yield(event)
-						}
-						else
-						{
+						} else {
 							print("Unknown event type '\(currentEvent)'")
 						}
-					}
-					catch let error
-					{
+					} catch let error {
 						continuation.finish(throwing: error)
 					}
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 Retrieves a list of runs belonging to a specific thread on the OpenAI platform.
 	 
@@ -245,30 +219,27 @@ extension OpenAI
 	 
 	 - SeeAlso: [List Runs API](https://platform.openai.com/docs/api-reference/runs/listRuns)
 	 */
-	func listRuns(threadId: String, limit: Int = 20, order: SortOrder = .descending, after: String? = nil, before: String? = nil) async throws -> ListPagedResponse<Run>
-	{
+	func listRuns(threadId: String, limit: Int = 20, order: SortOrder = .descending, after: String? = nil, before: String? = nil) async throws -> ListPagedResponse<Run> {
 		var queryItems: [URLQueryItem] = [
 			URLQueryItem(name: "limit", value: String(limit)),
 			URLQueryItem(name: "order", value: order.rawValue)
 		]
-		
-		if let after = after 
-		{
+
+		if let after = after {
 			queryItems.append(URLQueryItem(name: "after", value: after))
 		}
-		
-		if let before = before 
-		{
+
+		if let before = before {
 			queryItems.append(URLQueryItem(name: "before", value: before))
 		}
-		
+
 		let request = try self.createUrlRequest(path: "/v1/threads/\(threadId)/runs", queryItems: queryItems)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Retrieves a single run from a specific thread on the OpenAI platform.
 	 
@@ -280,15 +251,14 @@ extension OpenAI
 	 
 	 - SeeAlso: [Retrieve Run API](https://platform.openai.com/docs/api-reference/runs/getRun)
 	 */
-	func retrieveRun(threadId: String, runId: String) async throws -> Run
-	{
+	func retrieveRun(threadId: String, runId: String) async throws -> Run {
 		let request = try self.createUrlRequest(path: "/v1/threads/\(threadId)/runs/\(runId)")
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Modifies a run on the OpenAI platform using the thread's unique identifier and the run's unique identifier.
 	 
@@ -303,16 +273,15 @@ extension OpenAI
 	 */
 	func modifyRun(threadId: String,
 				   runId: String,
-				   metadata: [String: String]) async throws -> Run 
-	{
+				   metadata: [String: String]) async throws -> Run {
 		let body = ["metadata": metadata]
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/threads/\(threadId)/runs/\(runId)", body: body)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Cancels a run on the OpenAI platform that is in_progress.
 	 
@@ -324,16 +293,15 @@ extension OpenAI
 	 
 	 - SeeAlso: [Cancel Run API](https://platform.openai.com/docs/api-reference/runs/cancelRun)
 	 */
-	func cancelRun(threadId: String, runId: String) async throws -> Run 
-	{
+	func cancelRun(threadId: String, runId: String) async throws -> Run {
 		let endpoint = "/v1/threads/\(threadId)/runs/\(runId)/cancel"
 		let request = try createUrlRequest(httpMethod: "POST", path: endpoint)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Submits tool outputs to a run on the OpenAI platform.
 	 
@@ -348,41 +316,37 @@ extension OpenAI
 	 - SeeAlso: [Submit Tool Outputs to Run API](https://platform.openai.com/docs/api-reference/runs/submitToolOutputs)
 	 */
 	@discardableResult
-	func submitToolOutputs(toThreadId threadId: String, runId: String, toolOutputs: [ToolOutput]) async throws -> Run
-	{
+	func submitToolOutputs(toThreadId threadId: String, runId: String, toolOutputs: [ToolOutput]) async throws -> Run {
 		let endpoint = "/v1/threads/\(threadId)/runs/\(runId)/submit_tool_outputs"
-		
-		struct ToolOutputsSubmission: Codable
-		{
+
+		struct ToolOutputsSubmission: Codable {
 			let toolOutputs: [ToolOutput]
 			let stream: Bool
 		}
-		
+
 		let submission = ToolOutputsSubmission(toolOutputs: toolOutputs, stream: false)
 		let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: submission)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
-	func submitToolOutputsStream(toThreadId threadId: String, runId: String, toolOutputs: [ToolOutput]) async throws -> AsyncThrowingStream<StreamEvent, Error>
-	{
+
+	func submitToolOutputsStream(toThreadId threadId: String, runId: String, toolOutputs: [ToolOutput]) async throws -> AsyncThrowingStream<StreamEvent, Error> {
 		let endpoint = "/v1/threads/\(threadId)/runs/\(runId)/submit_tool_outputs"
-		
-		struct ToolOutputsSubmission: Codable
-		{
+
+		struct ToolOutputsSubmission: Codable {
 			let toolOutputs: [ToolOutput]
 			let stream: Bool
 		}
-		
+
 		let submission = ToolOutputsSubmission(toolOutputs: toolOutputs, stream: true)
 		let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: submission)
-		
+
 		let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
 		return try await processEventStream(asyncBytes: asyncBytes, response: response)
 	}
-	
+
 	/**
 	 Waits until a run is finished on the OpenAI platform.
 	 
@@ -398,12 +362,11 @@ extension OpenAI
 	 - SeeAlso: [Retrieve Run API](https://platform.openai.com/docs/api-reference/runs/getRun)
 	 */
 	@discardableResult
-	func waitUntilRunIsFinished(threadId: String, runId: String, interval: TimeInterval = 5) async throws -> Run 
-	{
+	func waitUntilRunIsFinished(threadId: String, runId: String, interval: TimeInterval = 5) async throws -> Run {
 		while true {
 			// Retrieve the current status of the run
 			let run = try await retrieveRun(threadId: threadId, runId: runId)
-			
+
 			switch run.status {
 				case .cancelled, .failed, .completed, .expired, .requiresAction:
 					return run
@@ -411,7 +374,7 @@ extension OpenAI
 					// The run is still in progress, continue waiting
 					break
 			}
-			
+
 			// Sleep for a few seconds before polling again to manage API request frequency
 			try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
 		}

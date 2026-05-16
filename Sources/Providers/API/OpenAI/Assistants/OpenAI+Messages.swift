@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension OpenAI
-{
+extension OpenAI {
 	/**
 		 Creates a message in a specified thread on the OpenAI platform.
 		 
@@ -24,16 +23,15 @@ extension OpenAI
 		 - SeeAlso: [Create Message API](https://platform.openai.com/docs/api-reference/messages/createMessage)
 		 */
 	@discardableResult
-	func createMessage(threadId: String, role: Role, content: String, attachments: [Attachment]? = nil, metadata: [String: String]? = nil) async throws -> Message
-	{
+	func createMessage(threadId: String, role: Role, content: String, attachments: [Attachment]? = nil, metadata: [String: String]? = nil) async throws -> Message {
 		let details = MessageCreation(role: role, content: content, attachments: attachments, metadata: metadata)
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/threads/\(threadId)/messages", body: details)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Lists messages of a specific thread on the OpenAI platform, providing pagination control.
 	 
@@ -54,26 +52,26 @@ extension OpenAI
 			URLQueryItem(name: "limit", value: String(limit)),
 			URLQueryItem(name: "order", value: order.rawValue)
 		]
-		
+
 		if let after = after {
 			queryItems.append(URLQueryItem(name: "after", value: after))
 		}
-		
+
 		if let before = before {
 			queryItems.append(URLQueryItem(name: "before", value: before))
 		}
-		
+
 		if let runId = runId {
 			queryItems.append(URLQueryItem(name: "run_id", value: runId))
 		}
-		
+
 		let request = try self.createUrlRequest(path: "/v1/threads/\(threadId)/messages", queryItems: queryItems)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Retrieves a message from the OpenAI platform using the thread's unique identifier and the message's unique identifier.
 	 
@@ -85,15 +83,14 @@ extension OpenAI
 	 
 	 - SeeAlso: [Retrieve Message API](https://platform.openai.com/docs/api-reference/messages/getMessage)
 	 */
-	func retrieveMessage(threadId: String, messageId: String) async throws -> Message 
-	{
+	func retrieveMessage(threadId: String, messageId: String) async throws -> Message {
 		let request = try self.createUrlRequest(path: "/v1/threads/\(threadId)/messages/\(messageId)")
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Modifies a message on the OpenAI platform using the thread's unique identifier and the message's unique identifier.
 	 
@@ -108,16 +105,15 @@ extension OpenAI
 	 */
 	func modifyMessage(threadId: String,
 					   messageId: String,
-					   metadata: [String: String]) async throws -> Message 
-	{
+					   metadata: [String: String]) async throws -> Message {
 		let body = ["metadata": metadata]
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/threads/\(threadId)/messages/\(messageId)", body: body)
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/**
 	 Deletes a message from the OpenAI platform using the thread's unique identifier and the message's unique identifier.
 	 
@@ -130,14 +126,13 @@ extension OpenAI
 	 - SeeAlso: [Delete Message API](https://platform.openai.com/docs/api-reference/messages/deleteMessage)
 	 */
 	@discardableResult
-	func deleteMessage(threadId: String, messageId: String) async throws -> Bool 
-	{
+	func deleteMessage(threadId: String, messageId: String) async throws -> Bool {
 		let request = try self.createUrlRequest(httpMethod: "DELETE", path: "/v1/threads/\(threadId)/messages/\(messageId)")
-		
+
 		let (data, response) = try await URLSession.shared.data(for: request)
-		
+
 		let deletionStatus: DeletionStatus = try process(data: data, response: response)
-		
+
 		return deletionStatus.deleted
 	}
 

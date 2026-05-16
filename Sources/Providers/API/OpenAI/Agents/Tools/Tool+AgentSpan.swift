@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension Tool
-{
+extension Tool {
 	/** Returns the name of the tool as it should appear in agent spans
 	 
 	 This property provides a consistent way to identify tools in tracing and monitoring.
@@ -23,18 +22,18 @@ extension Tool
 	 - For computer tools: "computer_use_preview"
 	 */
 	var nameForAgentSpan: String {
-		
+
 		switch self {
-				
+
 			case .function(let function):
 				return function.name
-			case .fileSearch(_):
+			case .fileSearch:
 				return "file_search"
 			case .webSearch(let search):
 				return search.type
-			case .computer(_):
+			case .computer:
 				return "computer_use_preview"
-			case .mcp(_):
+			case .mcp:
 				return "mcp"
 			case .applyPatch:
 				return "apply_patch"

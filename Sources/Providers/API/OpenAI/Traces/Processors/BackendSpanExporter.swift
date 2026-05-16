@@ -11,23 +11,18 @@ import SwiftMCP
 /**
   A wrapper that implements sending tracing spans to the OpenAI backend
  */
-public actor BackendSpanExporter: TracingExporter
-{
+public actor BackendSpanExporter: TracingExporter {
 	let openAI: OpenAI
-	
-	public init(openAI: OpenAI)
-	{
+
+	public init(openAI: OpenAI) {
 		self.openAI = openAI
 	}
-	
-	nonisolated public func export(_ items: [[String : JSONValue]]) async {
-		
-		do
-		{
+
+	nonisolated public func export(_ items: [[String: JSONValue]]) async {
+
+		do {
 			try await self.openAI.ingestTraces(items)
-		}
-		catch
-		{
+		} catch {
 			print(error)
 		}
 	}

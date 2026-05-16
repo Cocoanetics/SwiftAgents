@@ -7,13 +7,11 @@
 
 import Foundation
 
-public struct ToolChoiceDescription: Codable, Sendable
-{
+public struct ToolChoiceDescription: Codable, Sendable {
 	public var type: String?
 	public var function: Function?
-	
-	public struct Function: Codable, Sendable
-	{
+
+	public struct Function: Codable, Sendable {
 		public var name: String?
 	}
 }

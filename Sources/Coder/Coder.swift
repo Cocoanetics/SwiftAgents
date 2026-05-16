@@ -58,8 +58,8 @@ private func flushMarkdown(_ buffer: String, terminal: TerminalHandler, inCodeBl
 	let markers = ["**", "`", "*"]
 
 	while true {
-		var earliestRange: Range<String.Index>? = nil
-		var earliestMarker: String? = nil
+		var earliestRange: Range<String.Index>?
+		var earliestMarker: String?
 
 		for marker in markers {
 			var searchStart = buf.startIndex
@@ -89,7 +89,7 @@ private func flushMarkdown(_ buffer: String, terminal: TerminalHandler, inCodeBl
 		let afterOpen = openRange.upperBound
 
 		// Find closing marker (skip bullets for *)
-		var closeRange: Range<String.Index>? = nil
+		var closeRange: Range<String.Index>?
 		if marker == "*" {
 			var searchStart = afterOpen
 			while searchStart < buf.endIndex {

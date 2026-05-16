@@ -7,4 +7,4 @@ public struct ComputerTool: Codable, Sendable {
     public let displayWidth: Double
     /// The type of computer environment to control.
     public let environment: String
-} 
+}

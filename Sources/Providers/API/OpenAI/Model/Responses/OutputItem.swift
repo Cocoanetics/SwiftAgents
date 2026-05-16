@@ -8,32 +8,31 @@
 import Foundation
 
 /// Represents an output item from the model.
-public enum OutputItem: Codable, Sendable
-{
+public enum OutputItem: Codable, Sendable {
 	/// An output message from the model.
 	case message(MessageOutput)
-	
+
 	/// A file search tool call result.
 	case fileSearch(FileSearchOutput)
-	
+
 	/// A function tool call.
 	case functionCall(FunctionCall)
-	
+
 	/// A web search tool call result.
 	case webSearch(WebSearchOutput)
-	
+
 	/// A computer tool call.
 	case computer(ComputerOutput)
-	
+
 	/// A description of the chain of thought used by a reasoning model.
 	case reasoning(ReasoningOutput)
-	
+
 	/// An MCP list tools output.
 	case mcpListTools(MCPListToolsOutput)
-	
+
 	/// An MCP approval request output.
 	case mcpApprovalRequest(MCPApprovalRequestOutput)
-	
+
 	/// An MCP call output.
 	case mcpCall(MCPCallOutput)
 
@@ -41,15 +40,15 @@ public enum OutputItem: Codable, Sendable
 	case applyPatchCall(ApplyPatchCallOutput)
 
 	// MARK: - Codable
-	
+
 	private enum CodingKeys: String, CodingKey {
 		case type
 	}
-	
+
 	public init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)
 		let type = try container.decode(String.self, forKey: .type)
-		
+
 		switch type {
 			case "message":
 				self = .message(try MessageOutput(from: decoder))
@@ -75,10 +74,10 @@ public enum OutputItem: Codable, Sendable
 				throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown output type: \(type)")
 		}
 	}
-	
+
 	public func encode(to encoder: Encoder) throws {
 		var container = encoder.container(keyedBy: CodingKeys.self)
-		
+
 		switch self {
 			case .message(let output):
 				try container.encode("message", forKey: .type)

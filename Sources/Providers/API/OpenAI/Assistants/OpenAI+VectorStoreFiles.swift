@@ -7,8 +7,7 @@
 
 import Foundation
 
-extension OpenAI 
-{
+extension OpenAI {
 	/// Creates a vector store file by attaching an existing file to a specified vector store.
 	///
 	/// This function sends a POST request to the OpenAI API endpoint that manages vector store files.
@@ -28,57 +27,51 @@ extension OpenAI
 	///
 	/// This method utilizes asynchronous network calls and requires proper error handling
 	/// in the surrounding context where it is called.
-	public func createVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> VectorStoreFile
-	{
+	public func createVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> VectorStoreFile {
 		let fileRequest = VectorStoreFileRequest(fileId: fileId)
-		
+
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/vector_stores/\(vectorStoreId)/files", body: fileRequest)
-		
+
 		let (data, response) = try await session.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
-	func listVectorStoreFiles(vectorStoreId: String, limit: Int = 20, order: SortOrder = .descending, after: String? = nil, before: String? = nil, filter: FileStatus? = nil) async throws -> ListPagedResponse<VectorStoreFile>
-	{
+
+	func listVectorStoreFiles(vectorStoreId: String, limit: Int = 20, order: SortOrder = .descending, after: String? = nil, before: String? = nil, filter: FileStatus? = nil) async throws -> ListPagedResponse<VectorStoreFile> {
 		var queryItems: [URLQueryItem] = [
 			URLQueryItem(name: "limit", value: String(limit)),
 			URLQueryItem(name: "order", value: order.rawValue)
 		]
-		
-		if let after = after 
-		{
+
+		if let after = after {
 			queryItems.append(URLQueryItem(name: "after", value: after))
 		}
-		
-		if let before = before 
-		{
+
+		if let before = before {
 			queryItems.append(URLQueryItem(name: "before", value: before))
 		}
-		
-		if let filter = filter
-		{
+
+		if let filter = filter {
 			queryItems.append(URLQueryItem(name: "filter", value: filter.rawValue))
 		}
-		
+
 		let request = try self.createUrlRequest(path: "/v1/vector_stores/" + vectorStoreId + "/files", queryItems: queryItems)
-		
+
 		let (data, response) = try await session.data(for: request)
-		
+
 		let list: ListPagedResponse<VectorStoreFile> = try process(data: data, response: response)
-		
+
 		return list
 	}
-	
-	func retrieveVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> VectorStoreFile
-	{
+
+	func retrieveVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> VectorStoreFile {
 		let request = try self.createUrlRequest(path: "/v1/vector_stores/" + vectorStoreId + "/files/" + fileId)
-		
+
 		let (data, response) = try await session.data(for: request)
-		
+
 		return try process(data: data, response: response)
 	}
-	
+
 	/// Waits until the specified VectorStoreFile has completed processing. Polls the file status
 	/// at regular intervals and returns once the file is no longer in progress.
 	///
@@ -98,31 +91,27 @@ extension OpenAI
 	/// - Throws: Throws an error if there is an API call failure during the status check. This could be due to network
 	///           issues, access permissions, or if the identifiers provided do not correspond to valid entities.
 	///
-	@discardableResult func waitUntilVectorStoreFileIsReady(vectorStoreId: String, fileId: String, interval: TimeInterval = 5) async throws -> VectorStoreFile
-	{
-		while true
-		{
+	@discardableResult func waitUntilVectorStoreFileIsReady(vectorStoreId: String, fileId: String, interval: TimeInterval = 5) async throws -> VectorStoreFile {
+		while true {
 			// Retrieve the current status of the VectorStore
 			let polledStoreFile = try await retrieveVectorStoreFile(vectorStoreId: vectorStoreId, fileId: fileId)
-			
-			if polledStoreFile.status != .inProgress
-			{
+
+			if polledStoreFile.status != .inProgress {
 				return polledStoreFile
 			}
-			
+
 			// Sleep for a few seconds before polling again
 			try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
 		}
 	}
-	
-	@discardableResult func deleteVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> Bool
-	{
+
+	@discardableResult func deleteVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> Bool {
 		let request = try self.createUrlRequest(httpMethod: "DELETE", path: "/v1/vector_stores/" + vectorStoreId + "/files/" + fileId)
-		
+
 		let (data, response) = try await session.data(for: request)
-		
+
 		let deletionStatus: DeletionStatus = try process(data: data, response: response)
-		
+
 		return deletionStatus.deleted
 	}
 }

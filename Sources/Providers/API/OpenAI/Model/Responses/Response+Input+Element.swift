@@ -8,56 +8,53 @@
 import Foundation
 
 extension Response.Input {
-	
+
 	/// Represents the different types of elements that can be part of a response input
-	public enum Element: Codable, Sendable
-	{
+	public enum Element: Codable, Sendable {
 		/// A message (user, assistant, system, or tool).
 		case message(Message)
-		
+
 		/// A file search tool call result.
 		case fileSearch(OutputItem.FileSearchOutput)
-		
+
 		/// A computer tool call.
 		case computerCall(OutputItem.ComputerOutput)
-		
+
 		/// A computer tool call output.
 		case computerCallOutput(ComputerCallOutput)
-		
+
 		/// A web search tool call result.
 		case webSearch(OutputItem.WebSearchOutput)
-		
+
 		/// A function tool call.
 		case functionCall(OutputItem.FunctionCall)
-		
+
 		/// A function tool call output.
 		case functionCallOutput(FunctionCallOutput)
-		
+
 		/// A description of the chain of thought used by a reasoning model.
 		case reasoning(Reasoning)
-		
+
 		/// An item in the response's input list.
 		case item(ResponseItem)
-		
+
 		/// A reference to an item in the response's input list.
 		case itemReference(ResponseItemReference)
-		
+
 		/// An MCP approval response.
 		case mcpApprovalResponse(MCPApprovalResponseInput)
 
 		/// An apply_patch tool call output.
 		case applyPatchCallOutput(ApplyPatchCallOutputResult)
-		
+
 		public init(from decoder: Decoder) throws {
 			let container = try decoder.container(keyedBy: CodingKeys.self)
-			
-			if let type = try? container.decode(String.self, forKey: .type)
-			{
-				switch type
-				{
+
+			if let type = try? container.decode(String.self, forKey: .type) {
+				switch type {
 					case "message":
 						self = .message(try Message(from: decoder))
-						
+
 					case "file_search_call":
 						self = .fileSearch(try OutputItem.FileSearchOutput(from: decoder))
 					case "computer_call":
@@ -80,9 +77,7 @@ extension Response.Input {
 						// If type is not one of the known types, try to decode as an item
 						self = .item(try ResponseItem(from: decoder))
 				}
-			}
-			else
-			{
+			} else {
 				// If no type is present, try to decode as an item or a message
 				do {
 					self = .message(try Message(from: decoder))
@@ -91,18 +86,17 @@ extension Response.Input {
 				}
 			}
 		}
-		
+
 		public func encode(to encoder: Encoder) throws {
 			var singleContainer = encoder.singleValueContainer()
-			
-			switch self
-			{
+
+			switch self {
 				case .message(let message):
 					try singleContainer.encode(message)
-					
+
 				case .functionCallOutput(let output):
 					try singleContainer.encode(output)
-					
+
 				case .mcpApprovalResponse(let input):
 					try singleContainer.encode(input)
 
@@ -117,35 +111,34 @@ extension Response.Input {
 				// Example:
 				// case .computerCallOutput(let output):
 				//    try singleContainer.encode(output)
-					
+
 				default:
 					// Handle encoding for other cases or throw an error if they aren't meant to be encoded here
 					let context = EncodingError.Context(codingPath: encoder.codingPath, debugDescription: "Encoding not implemented for this Response.Input.Element case")
 					throw EncodingError.invalidValue(self, context)
 			}
 		}
-		
+
 		// Keep CodingKeys needed for decoding
-		private enum CodingKeys: String, CodingKey
-		{
+		private enum CodingKeys: String, CodingKey {
 			case type
 			case role // Needed to check if it's a message during decoding
 		}
 	}
-	
+
 	/// Represents a message to be sent as input.
 	public struct Message: Codable, Sendable {
 		public let role: Role
 		public let content: [ContentElement]
 		public let phase: Response.Phase?
-		
+
 		// Convenience initializer for simple text content
 		public init(role: Role, text: String, phase: Response.Phase? = nil) {
 			self.role = role
 			self.content = [.inputText(text)]
 			self.phase = phase
 		}
-		
+
 		// Initializer for complex content
 		public init(role: Role, content: [ContentElement], phase: Response.Phase? = nil) {
 			self.role = role
@@ -169,23 +162,22 @@ extension Response.Input {
 			self.init(role: role, content: content, phase: phase)
 		}
 	}
-	
+
 	/// Represents the different types of content elements in a message
-	public enum ContentElement: Codable, Sendable
-	{
+	public enum ContentElement: Codable, Sendable {
 		/// Text content
 		case inputText(String)
-		
+
 		/// Image URL content
 		case inputImage(URL?)
-		
+
 		/// Image uploaded to OpenAI referenced by file identifier
 		case inputImageFileID(String)
-		
+
 		public init(from decoder: Decoder) throws {
 			let container = try decoder.container(keyedBy: CodingKeys.self)
 			let type = try container.decode(String.self, forKey: .type)
-			
+
 			switch type {
 				case "input_text":
 					let text = try container.decode(String.self, forKey: .text)
@@ -213,10 +205,10 @@ extension Response.Input {
 					)
 			}
 		}
-		
+
 		public func encode(to encoder: Encoder) throws {
 			var container = encoder.container(keyedBy: CodingKeys.self)
-			
+
 			switch self {
 				case .inputText(let text):
 					try container.encode("input_text", forKey: .type)
@@ -233,16 +225,15 @@ extension Response.Input {
 					try container.encode(fileID, forKey: .fileID)
 			}
 		}
-		
-		private enum CodingKeys: String, CodingKey
-		{
+
+		private enum CodingKeys: String, CodingKey {
 			case type
 			case text
 			case imageURL = "imageUrl"
 			case fileID = "file_id"
 		}
 	}
-	
+
 	/// Represents an MCP approval response input item.
 	public struct MCPApprovalResponseInput: Codable, Sendable {
 		/// The type of the input item, always "mcp_approval_response".

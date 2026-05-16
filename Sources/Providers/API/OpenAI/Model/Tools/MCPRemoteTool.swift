@@ -12,4 +12,4 @@ public struct MCPRemoteTool: Codable, Sendable, Equatable {
         self.requireApproval = requireApproval
         self.allowedTools = allowedTools
     }
-} 
+}

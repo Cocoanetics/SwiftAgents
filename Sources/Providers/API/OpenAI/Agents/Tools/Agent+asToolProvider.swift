@@ -5,7 +5,6 @@
 //  Created by Oliver Drobnik on 19.05.25.
 //
 
-
 // MARK: - Agent as ToolProvider
 
 public extension Agent where OutputType: Encodable & Sendable {

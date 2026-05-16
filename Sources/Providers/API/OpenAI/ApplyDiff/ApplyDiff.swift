@@ -71,7 +71,7 @@ private let SECTION_TERMINATORS = [
 	END_PATCH,
 	"*** Update File:",
 	"*** Delete File:",
-	"*** Add File:",
+	"*** Add File:"
 ]
 private let END_SECTION_MARKERS = SECTION_TERMINATORS + [END_FILE]
 

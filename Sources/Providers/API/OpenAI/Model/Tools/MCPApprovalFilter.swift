@@ -16,4 +16,3 @@ public struct MCPApprovalFilter: Codable, Equatable, Sendable {
 		self.toolNames = toolNames
 	}
 }
-

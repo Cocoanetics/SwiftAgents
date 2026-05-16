@@ -20,4 +20,4 @@ public final class ConsoleTraceExporter: TracingExporter {
             }
         }
     }
-} 
+}

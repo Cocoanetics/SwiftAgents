@@ -372,7 +372,7 @@ final class CodingAgent: Agent, @unchecked Sendable {
 	}
 
     // MARK: - Helpers
-    
+
     internal func resolve(_ path: String) -> String {
         if path.hasPrefix("/") { return path }
         return (workingDirectory as NSString).appendingPathComponent(path)

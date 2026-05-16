@@ -6,4 +6,4 @@ extension ContentItem {
         /// The refusal explanation from the model.
         public let refusal: String
     }
-} 
+}

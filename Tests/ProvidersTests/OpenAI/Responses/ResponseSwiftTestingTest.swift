@@ -16,4 +16,4 @@ struct ResponseSwiftTestingTest {
 		#expect(response.status == .queued || response.status == .inProgress)
 		#expect(response.output.isEmpty)
 	}
-} 
+}

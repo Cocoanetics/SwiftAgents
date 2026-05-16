@@ -7,12 +7,11 @@
 
 import Foundation
 
-extension OpenAI: EmbeddingProvider
-{
+extension OpenAI: EmbeddingProvider {
 	public func embedding(for text: String) async throws -> Vector? {
-		
+
 		let embedding = try await self.embedding(input: text, model: embeddingModelIdentifier)
-		
+
 		let vectors = embedding.map { $0.embedding }
 		return vectors.averageUnitVector()
 	}

@@ -12,14 +12,13 @@ import Foundation
  
  - SeeAlso: For more information, see [Vector Store Files API Documentation](https://platform.openai.com/docs/api-reference/vector-stores-files).
  */
-public struct VectorStoreFile: Codable
-{
+public struct VectorStoreFile: Codable {
 	/// The identifier, which can be referenced in API endpoints.
 	public let id: String
 
 	/// The object type, which is always "vector_store.file".
 	public let object: String
-	
+
 	/// The total vector store usage in bytes. Note that this may be different from the original file size.
 	public let usageBytes: Int
 
