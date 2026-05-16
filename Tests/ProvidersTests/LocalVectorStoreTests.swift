@@ -4,6 +4,12 @@ import Testing
 @testable import VectorStore
 
 struct LocalVectorStoreTests {
+    // `ContextualEmbeddingProvider` wraps `NLContextualEmbedding`, which is
+    // Apple-only. The type is itself gated with `#if canImport(NaturalLanguage)`
+    // in `Sources/VectorStore/ContextualEmbeddingProvider.swift`, so on
+    // Linux / Windows / Android the symbol doesn't exist and this test
+    // can't reference it. Gate it out on those platforms.
+    #if canImport(NaturalLanguage)
     @Test("Contextual embeddings produce unit vectors")
     func contextualEmbeddingProvider() async throws {
         let provider = ContextualEmbeddingProvider()
@@ -17,6 +23,7 @@ struct LocalVectorStoreTests {
 
         #expect(meetingSimilarity > addressSimilarity)
     }
+    #endif
 
     @Test("Embeddings from local LLM endpoint", .enabled(if: TestClients.hasLocalLLM, "Requires LOCAL_LLM_URL"))
     func localHostedEmbeddingProvider() async throws {

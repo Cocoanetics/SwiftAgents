@@ -28,8 +28,21 @@ jobs:
         run: swift --version
       - name: Build (macOS)
         run: swift build --build-tests -v
+      # Run the genuinely-offline test suites. The integration suites
+      # (gated with `.enabled(if: APIKey.has*)`) need API keys we don't
+      # have on public CI; trying to evaluate the gates pulls in
+      # `NLContextualEmbedding` model downloads that can hang the
+      # runner for ~10 minutes. `--no-parallel` keeps Swift Testing's
+      # output streamed so failures show up in the log instead of
+      # being buffered until process exit.
       - name: Test (macOS)
-        run: swift test -v --skip-build
+        run: |
+          swift test -v --skip-build --no-parallel \
+            --filter ArrayVectorTests \
+            --filter LocalVectorStoreTests \
+            --filter TracingTests \
+            --filter GoogleGenerateContentResponseTests \
+            --filter GoogleThinkingConfigTests
 
   build-ios:
     # Compile-only check on `generic/platform=iOS`. The `Coder` executable
@@ -44,10 +57,24 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "26.0"
+      # `-skipMacroValidation` opts out of the Xcode 15+ macro trust
+      # prompt — without it, builds of any package that ships Swift
+      # macros (here: SwiftMCPMacros via the SwiftMCP dependency) fail
+      # with `Macro "SwiftMCPMacros" from package "SwiftMCP" must be
+      # enabled before it can be used`. CI doesn't have a human to
+      # click the prompt.
       - name: Build Providers (iOS)
-        run: xcodebuild -scheme Providers -destination 'generic/platform=iOS' build
+        run: |
+          xcodebuild -scheme Providers \
+            -destination 'generic/platform=iOS' \
+            -skipMacroValidation \
+            build
       - name: Build VectorStore (iOS)
-        run: xcodebuild -scheme VectorStore -destination 'generic/platform=iOS' build
+        run: |
+          xcodebuild -scheme VectorStore \
+            -destination 'generic/platform=iOS' \
+            -skipMacroValidation \
+            build
 
   build-linux:
     # Linux: full build + test. `VectorStore` is universal except for
@@ -63,8 +90,18 @@ jobs:
         run: swift --version
       - name: Build (Linux)
         run: swift build --build-tests -v
+      # Same offline-only filter as macOS. `LocalVectorStoreTests`'s
+      # `contextualEmbeddingProvider` is `#if canImport(NaturalLanguage)`-gated
+      # so it compiles out on Linux; the other tests in that suite are
+      # `.enabled(if:)`-gated on API keys and will skip without them.
       - name: Test (Linux)
-        run: swift test -v --skip-build
+        run: |
+          swift test -v --skip-build --no-parallel \
+            --filter ArrayVectorTests \
+            --filter LocalVectorStoreTests \
+            --filter TracingTests \
+            --filter GoogleGenerateContentResponseTests \
+            --filter GoogleThinkingConfigTests
 
   build-windows:
     # Windows: full build + test. Same shape as Linux — the package has
@@ -84,7 +121,13 @@ jobs:
         run: swift build --build-tests -v
       - name: Test (Windows)
         shell: pwsh
-        run: swift test -v --skip-build
+        run: |
+          swift test -v --skip-build --no-parallel `
+            --filter ArrayVectorTests `
+            --filter LocalVectorStoreTests `
+            --filter TracingTests `
+            --filter GoogleGenerateContentResponseTests `
+            --filter GoogleThinkingConfigTests
 
   # skiptools/swift-android-action wraps the swift.org Android SDK
   # setup AND runs SwiftPM tests on an x86_64 Android emulator. No

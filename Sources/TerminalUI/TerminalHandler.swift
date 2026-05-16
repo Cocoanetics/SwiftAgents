@@ -1,5 +1,13 @@
 import Foundation
 
+// Raw-mode terminal handling needs POSIX termios. Apple's Darwin and the
+// Linux Glibc shim both expose it; Windows has no equivalent, and the
+// Swift Android SDK doesn't surface termios through its Bionic module.
+// Gate the active implementation behind those two platforms and provide
+// a no-op stub elsewhere so `Coder` (which depends on this target) can
+// still build on Windows / Android / iOS.
+#if canImport(Darwin) || canImport(Glibc)
+
 public class TerminalHandler {
     public let supportsANSI: Bool
 
@@ -40,7 +48,9 @@ public class TerminalHandler {
         if supportsANSI {
             tcgetattr(STDIN_FILENO, &originalTermios)
             var raw = originalTermios
-            raw.c_lflag &= ~UInt(ECHO | ICANON)
+            // `tcflag_t` is `UInt` on Darwin and `UInt32` on Glibc — using
+            // the typealias picks the right width on each platform.
+            raw.c_lflag &= ~tcflag_t(ECHO | ICANON)
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)
 
             // Listen for terminal resize
@@ -78,7 +88,14 @@ public class TerminalHandler {
 
     private var terminalWidth: Int {
         var winSize = winsize()
-        if ioctl(STDOUT_FILENO, UInt(TIOCGWINSZ), &winSize) == 0, winSize.ws_col > 0 {
+        // `ioctl`'s second argument is `UInt` on Darwin and `UInt32` on
+        // Glibc; pick the right type per platform.
+        #if canImport(Darwin)
+        let request = UInt(TIOCGWINSZ)
+        #else
+        let request = UInt32(TIOCGWINSZ)
+        #endif
+        if ioctl(STDOUT_FILENO, request, &winSize) == 0, winSize.ws_col > 0 {
             return Int(winSize.ws_col)
         }
         return 80
@@ -245,3 +262,30 @@ public class TerminalHandler {
         #endif
     }
 }
+
+#else
+
+// Inert stub used on Windows / Android / iOS (no termios available).
+// `Coder` calls into these methods but they no-op — the interactive
+// CLI is a terminal-only experience and there's nothing useful to do
+// on non-terminal platforms. The class is kept so the dependent target
+// compiles.
+public class TerminalHandler {
+    public let supportsANSI: Bool = false
+    public var handleInput: ((String) -> Void)?
+    public var slashCommandHandler = SlashCommandHandler()
+
+    public init() {}
+
+    public static func supportsANSICodes() -> Bool { false }
+
+    public func output(_ string: String, addLineFeed: Bool = true) {
+        print(string, terminator: addLineFeed ? "\n" : "")
+    }
+
+    public func run() async {}
+    public func processNormally(_ char: UInt8) async {}
+    public func clearScreen() {}
+}
+
+#endif
