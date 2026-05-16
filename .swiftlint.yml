@@ -5,62 +5,57 @@ included:
 excluded:
   # Test fixtures (JSON / PNG / text payloads bundled as test resources).
   - Tests/ProvidersTests/Resources
+  - .build
+  - .swiftpm
   - "**/.build"
+  - "**/.swiftpm"
 
-opt_in_rules:
-  - indentation_width
+# 4-space indentation is enforced by `.editorconfig` (read by Xcode and most
+# editors) and by running `swiftformat --indent 4` locally before committing.
+# SwiftLint's `indentation_width` rule is not enabled — it rejects the standard
+# multi-line condition continuation style (alignment with first condition past
+# `if `/`guard `), which is widely used and not worth reformatting away.
 
-# Doc comments wrap differently from code and shouldn't count against
-# the 120-char code line limit. URLs in comments are common (e.g. links
-# to the OpenAI API reference) and natural to keep on one line.
+# Match Xcode's default "Indent switch statement `case` labels in" setting —
+# cases are indented one level past the `switch` keyword, body two levels.
+switch_case_alignment:
+  indented_cases: true
+
+identifier_name:
+  # Names allowed because renaming would either break public API or lose
+  # protocol-level meaning:
+  #   - `n`: OpenAI's parameter name for "number of completions" on every
+  #     `createChatCompletion` signature and the Image Generation request.
+  #   - `id`: standard short name for object identifiers.
+  excluded:
+    - id
+    - n
+
+# Doc comments wrap differently from code and shouldn't count against the
+# 120-char code line limit. URLs in comments are common (e.g. links to the
+# OpenAI API reference) and natural to keep on one line.
 line_length:
   ignores_comments: true
   ignores_urls: true
 
-# `n` is OpenAI's parameter name for "number of completions" — surfaces
-# in every `createChatCompletion` signature on every provider plus the
-# Image Generation request. `id` is the standard short name for object
-# identifiers. Both are too well-established to rename.
-identifier_name:
-  excluded:
-    - n
-    - id
-
-# 4-space indentation across the codebase. The `.editorconfig` at the
-# repo root pre-empts editors going off-script; this rule is the
-# enforcement gate for CI and the pre-commit hook.
-indentation_width:
-  indentation_width: 4
-  include_compiler_directives: true
-  # Multi-line doc comments (`/** … */`) follow the Swift convention of
-  # `indent + 1 space` for body lines so the leading asterisk aligns with
-  # the opening `/*`. That trips `include_comments: true`. Off here.
-  include_comments: false
-  include_multiline_strings: false
-
-# Cases sit one level deeper than the `switch`, matching the
-# indented-case style swiftformat applies via `--indentcase true`.
-switch_case_alignment:
-  indented_cases: true
-
 # Provider API model files mirror the real-world JSON structure of the
 # upstream APIs (OpenAI / Gemini / Ollama). Nested types like
-# `Part.FileData` and their accompanying `CodingKeys` are a standard
-# Swift idiom for that — the default `type_level: 1` is too strict to
-# express it cleanly. Bumping the threshold rather than littering
+# `Part.FileData` and their accompanying `CodingKeys` are a standard Swift
+# idiom for that — the default `type_level: 1` is too strict to express it
+# cleanly. Bumping the threshold rather than littering
 # `// swiftlint:disable:next nesting` across every Codable model.
 nesting:
   type_level: 3
 
 # Structural thresholds — the OpenAI / Google / Ollama API clients are
-# inherently large because each provider exposes a dozen-plus endpoints
-# with rich parameter surface, and the agent runtime contains state
-# machines (Runner, RealtimeSession event router, Responses stream
-# decoder) that are clearer as one linear function than as a fan-out
-# of helpers. The defaults (file 400 / type 250 / func 50 /
-# complexity 10) were written for app code, not API-client libraries.
-# These thresholds are roughly 3× the defaults — still strict enough
-# to catch new bloat, lenient enough to express the existing shape.
+# inherently large because each provider exposes a dozen-plus endpoints with
+# rich parameter surface, and the agent runtime contains state machines
+# (Runner, RealtimeSession event router, Responses stream decoder) that are
+# clearer as one linear function than as a fan-out of helpers. The defaults
+# (file 400 / type 250 / func 50 / complexity 10) were written for app
+# code, not API-client libraries. These thresholds are roughly 3× the
+# defaults — still strict enough to catch new bloat, lenient enough to
+# express the existing shape.
 file_length:
   warning: 800
   error: 1200
