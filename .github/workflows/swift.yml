@@ -99,46 +99,13 @@ jobs:
             --filter GoogleGenerateContentResponseTests \
             --filter GoogleThinkingConfigTests
 
-  build-windows:
-    # Windows: full build + test. Same shape as Linux — the package has
-    # no C-library deps that would need vcpkg.
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-      - name: Setup Swift
-        uses: SwiftyLab/setup-swift@latest
-        with:
-          swift-version: "6.3.1"
-      - name: Verify Swift version
-        run: swift --version
-      - name: Build (Windows)
-        shell: pwsh
-        run: swift build --build-tests -v
-      - name: Test (Windows)
-        shell: pwsh
-        run: |
-          swift test -v --skip-build `
-            --filter ArrayVectorTests `
-            --filter TracingTests `
-            --filter GoogleGenerateContentResponseTests `
-            --filter GoogleThinkingConfigTests
-
-  # skiptools/swift-android-action wraps the swift.org Android SDK
-  # setup AND runs SwiftPM tests on an x86_64 Android emulator. No
-  # `container:` here — the emulator setup needs nested KVM, which
-  # only works on the bare ubuntu-* runner image.
-  build-android:
-    runs-on: ubuntu-latest
-    # First cold run = ~25 min (SDK + NDK + emulator boot dominates);
-    # cached subsequent runs are ~5 min.
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-      - name: Build & Test (Android emulator)
-        uses: skiptools/swift-android-action@v2
-        with:
-          swift-version: "6.3"
-          # The default Linux runner has ~14 GiB free; the SDK, NDK,
-          # and emulator together push past that without cleanup.
-          free-disk-space: true
+  # Windows and Android jobs are intentionally not present. SwiftMCP
+  # transitively depends on swift-nio, whose Windows port has open
+  # compile errors against current toolchains (`IPPROTO` /
+  # `BinaryFloatingPoint`, non-Sendable `NIOLockedValueBox<…>`,
+  # `UnsafeMutableRawPointer` Sendable unavailable in
+  # `NIOPosix/ThreadWindows.swift`). Android via
+  # `skiptools/swift-android-action` hits the same NIO wall once
+  # SwiftMCP's libc-shim work (Cocoanetics/SwiftMCP#120) lets the
+  # build progress past `String+Hostname.swift`. Re-add these jobs
+  # once swift-nio has a clean Windows / Android story.
