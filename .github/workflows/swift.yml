@@ -82,7 +82,14 @@ jobs:
     # `#if canImport(NaturalLanguage)`-gated; on Linux those compile to
     # empty, the rest of the target (Vector math, LocalVectorStore,
     # OpenAI / Ollama EmbeddingProvider bridges) builds and tests.
+    #
+    # Run inside the official `swift:6.1-jammy` container — SwiftMCP
+    # 1.4.5 requires `swift-tools-version: 6.1`, and the Swift toolchain
+    # currently pre-installed on `ubuntu-latest` is 6.0.x, which fails
+    # dependency resolution with: `'swiftmcp' >= 1.4.2 contains
+    # incompatible tools version (6.1.0)`.
     runs-on: ubuntu-latest
+    container: swift:6.1-jammy
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
