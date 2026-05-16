@@ -45,8 +45,14 @@ struct GoogleThinkingConfigTests {
         }
         """.utf8)
 
+        // Hoist this `#require` to its own line — nesting it inside the
+        // outer `HTTPURLResponse(...)` argument list trips Swift Testing's
+        // macro into a "recursive expansion of macro 'require'" build
+        // error. The outer `#require` captures the argument-list syntax
+        // and tries to re-emit it, which re-expands the inner `#require`.
+        let url = try #require(URL(string: "https://example.com"))
         let httpResponse = try #require(HTTPURLResponse(
-            url: #require(URL(string: "https://example.com")),
+            url: url,
             statusCode: 200,
             httpVersion: nil,
             headerFields: nil
