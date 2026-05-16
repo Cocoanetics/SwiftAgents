@@ -10,16 +10,18 @@ import Foundation
 extension OpenAI {
 	// MARK: - Assistants
 
-	func createAssistant(model: String,
-						 name: String? = nil,
-						 description: String? = nil,
-						 instructions: String? = nil,
-						 tools: [ToolDescription]? = nil,
-						 toolResources: ToolResources? = nil,
-						 metadata: [String: String] = [:],
-						 topP: Double = 1,
-						 temperature: Double = 1,
-						 responseFormat: ResponseFormat = .auto) async throws -> Assistant {
+	func createAssistant(
+		model: String,
+		name: String? = nil,
+		description: String? = nil,
+		instructions: String? = nil,
+		tools: [ToolDescription]? = nil,
+		toolResources: ToolResources? = nil,
+		metadata: [String: String] = [:],
+		topP: Double = 1,
+		temperature: Double = 1,
+		responseFormat: ResponseFormat = .auto
+	) async throws -> Assistant {
 
 		let assistant = AssistantOptionals(name: name, description: description, model: model, instructions: instructions, tools: tools, toolResources: toolResources, metadata: metadata, topP: topP, temperature: temperature, responseFormat: responseFormat)
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/assistants", body: assistant)
@@ -60,17 +62,19 @@ extension OpenAI {
 		return try process(data: data, response: response)
 	}
 
-	func modifyAssistent(id: String,
-						 model: String? = nil,
-						 name: String? = nil,
-						 description: String? = nil,
-						 instructions: String? = nil,
-						 tools: [ToolDescription]? = nil,
-						 toolResources: ToolResources? = nil,
-						 metadata: [String: String] = [:],
-						 topP: Double? = nil,
-						 temperature: Double? = nil,
-						 responseFormat: ResponseFormat? = nil) async throws -> Assistant {
+	func modifyAssistent(
+		id: String,
+		model: String? = nil,
+		name: String? = nil,
+		description: String? = nil,
+		instructions: String? = nil,
+		tools: [ToolDescription]? = nil,
+		toolResources: ToolResources? = nil,
+		metadata: [String: String] = [:],
+		topP: Double? = nil,
+		temperature: Double? = nil,
+		responseFormat: ResponseFormat? = nil
+	) async throws -> Assistant {
 		let tmpAssistant = AssistantOptionals(name: name, description: description, model: model, instructions: instructions, tools: tools, toolResources: toolResources, metadata: metadata, topP: topP, temperature: temperature, responseFormat: responseFormat)
 
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/assistants/" + id, body: tmpAssistant)

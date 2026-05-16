@@ -18,11 +18,13 @@ extension OutputItem {
         /// The content of the message output.
         public let content: [MessageContent]
 
-		public init(id: String,
-					role: Role,
-					status: ResponseStatus,
-					phase: Response.Phase? = nil,
-					content: [MessageContent]) {
+		public init(
+			id: String,
+			role: Role,
+			status: ResponseStatus,
+			phase: Response.Phase? = nil,
+			content: [MessageContent]
+		) {
 			self.id = id
 			self.role = role
 			self.status = status
@@ -100,9 +102,11 @@ extension OutputItem {
 			case logprobs
         }
 
-		public init(text: String,
-					annotations: [MessageOutput.Annotation],
-					logprobs: [Logprob]? = nil) {
+		public init(
+			text: String,
+			annotations: [MessageOutput.Annotation],
+			logprobs: [Logprob]? = nil
+		) {
 			self.text = text
 			self.annotations = annotations
 			self.logprobs = logprobs

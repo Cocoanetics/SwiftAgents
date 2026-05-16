@@ -68,15 +68,15 @@ struct GoogleImageGenerationTests {
 
 	private func debugDescription(for part: ChatMessage.ContentPart) -> String {
 		switch part.type {
-			case .text:
-				let preview = part.text?.prefix(60) ?? ""
-				return "text(\(preview))"
-			case .imageURL:
-				let url = part.imageURL?.url ?? ""
-				let prefix = url.prefix(24)
-				return "imageURL(data:\(url.hasPrefix("data:")), prefix:\(prefix))"
-			default:
-				return "\(part.type)"
+		case .text:
+			let preview = part.text?.prefix(60) ?? ""
+			return "text(\(preview))"
+		case .imageURL:
+			let url = part.imageURL?.url ?? ""
+			let prefix = url.prefix(24)
+			return "imageURL(data:\(url.hasPrefix("data:")), prefix:\(prefix))"
+		default:
+			return "\(part.type)"
 		}
 	}
 

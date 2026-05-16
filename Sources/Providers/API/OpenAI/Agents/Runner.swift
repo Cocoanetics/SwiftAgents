@@ -148,16 +148,16 @@ public actor Runner {
 			}
 
 			switch agentResult {
-				case .finalOutput(let output, let reasoning):
-					return RunResult(finalOutput: output, finalReasoning: reasoning)
-				case .handOff(let nextAgent):
-					if let nextAgentTyped = nextAgent as? A {
-						currentAgent = nextAgentTyped
-					} else {
-						// This shouldn't happen - but we need to handle it to satisfy the compiler
-						// The most reasonable thing to do is just terminate with an error
-						throw RunnerError.exceededMaxTurns
-					}
+			case .finalOutput(let output, let reasoning):
+				return RunResult(finalOutput: output, finalReasoning: reasoning)
+			case .handOff(let nextAgent):
+				if let nextAgentTyped = nextAgent as? A {
+					currentAgent = nextAgentTyped
+				} else {
+					// This shouldn't happen - but we need to handle it to satisfy the compiler
+					// The most reasonable thing to do is just terminate with an error
+					throw RunnerError.exceededMaxTurns
+				}
 			}
 		} while true
 	}
@@ -184,6 +184,7 @@ public actor Runner {
 	}
 
 	// Helper function for executing an agent with input guardrails
+	// swiftlint:disable:next function_parameter_count
 	private static func executeWithInputGuardrails<A: Agent>(
 		agent: A,
 		input: String,
@@ -254,32 +255,32 @@ public actor Runner {
 			// Process results from tasks
 			while let outcome = await group.nextResult() {
 				switch outcome {
-					case .success(let guardrailOutcome):
-						switch guardrailOutcome {
-							case .agent(let result):
-								if triggeredGuardrailError == nil {
-									storedAgentResult = result
-									agentFinishedFirst = true
-								}
-							case .guardrail(let name, let gResult):
-								guardrailResults.append((name, gResult))
-								if gResult.tripwireTriggered && triggeredGuardrailError == nil {
-									// First guardrail to trigger
-									triggeredGuardrailError = InputGuardrailTripwireTriggered(
-										guardrailName: name,
-										result: gResult
-									)
-									group.cancelAll() // Cancel other tasks
-								}
-							case .taskError(let err):
-								if triggeredGuardrailError == nil && firstEncounteredError == nil {
-									firstEncounteredError = err
-								}
+				case .success(let guardrailOutcome):
+					switch guardrailOutcome {
+					case .agent(let result):
+						if triggeredGuardrailError == nil {
+							storedAgentResult = result
+							agentFinishedFirst = true
 						}
-					case .failure(let error):
+					case .guardrail(let name, let gResult):
+						guardrailResults.append((name, gResult))
+						if gResult.tripwireTriggered && triggeredGuardrailError == nil {
+							// First guardrail to trigger
+							triggeredGuardrailError = InputGuardrailTripwireTriggered(
+								guardrailName: name,
+								result: gResult
+							)
+							group.cancelAll() // Cancel other tasks
+						}
+					case .taskError(let err):
 						if triggeredGuardrailError == nil && firstEncounteredError == nil {
-							firstEncounteredError = error
+							firstEncounteredError = err
 						}
+					}
+				case .failure(let error):
+					if triggeredGuardrailError == nil && firstEncounteredError == nil {
+						firstEncounteredError = error
+					}
 				}
 			}
 
@@ -317,6 +318,7 @@ public actor Runner {
 	}
 
 	// Helper function for executing agent turns
+	// swiftlint:disable:next function_parameter_count
 	private static func executeAgentTurns<A: Agent>(
 		agent: A,
 		agentSpan: TraceSpan,
@@ -410,28 +412,28 @@ public actor Runner {
 						// only add content if it is not empty
 						if let content = msg.content {
 							switch content {
-								case .text(let text):
-									if !text.isEmpty {
-										dict["content"] = JSONValue(text)
+							case .text(let text):
+								if !text.isEmpty {
+									dict["content"] = JSONValue(text)
+								}
+							case .parts(let parts):
+								let structured: [[String: JSONValue]] = parts.map { part in
+									var entry: [String: JSONValue] = ["type": JSONValue(part.encodedType)]
+									if let text = part.text {
+										entry["text"] = JSONValue(text)
 									}
-					case .parts(let parts):
-						let structured: [[String: JSONValue]] = parts.map { part in
-							var entry: [String: JSONValue] = ["type": JSONValue(part.encodedType)]
-										if let text = part.text {
-											entry["text"] = JSONValue(text)
-										}
-										if let url = part.imageURL?.url {
-											entry["image_url"] = JSONValue(["url": JSONValue(url)])
-										}
-										return entry
+									if let url = part.imageURL?.url {
+										entry["image_url"] = JSONValue(["url": JSONValue(url)])
 									}
-									if !structured.isEmpty {
-										dict["content"] = JSONValue(structured)
-									}
+									return entry
+								}
+								if !structured.isEmpty {
+									dict["content"] = JSONValue(structured)
+								}
 							}
 						}
 
-							if let toolCalls = msg.toolCalls {
+						if let toolCalls = msg.toolCalls {
 								dict["tool_calls"] = JSONValue(toolCalls.map { call -> [String: JSONValue] in
 									[
 										"id": JSONValue(call.id),
@@ -499,80 +501,80 @@ public actor Runner {
 
 					switch outputItem {
 
-						case .functionCall(let functionCall):
+					case .functionCall(let functionCall):
 
-							if let handoff = agent.handoffs.first(where: { $0.toolName == functionCall.name }), let targetAgent = handoff.targetAgent {
-								do {
-									if handoff.inputType.self == Void.self {
-										try await handoff.callPerform(input: ())
-									} else {
-										if let payload = functionCall.arguments.data(using: .utf8),
-										   let codableType = handoff.inputType as? Decodable.Type {
-											let typedInput = try JSONDecoder().decode(codableType, from: payload)
-											try await handoff.callPerform(input: typedInput)
-										}
+						if let handoff = agent.handoffs.first(where: { $0.toolName == functionCall.name }), let targetAgent = handoff.targetAgent {
+							do {
+								if handoff.inputType.self == Void.self {
+									try await handoff.callPerform(input: ())
+								} else {
+									if let payload = functionCall.arguments.data(using: .utf8),
+									   let codableType = handoff.inputType as? Decodable.Type {
+										let typedInput = try JSONDecoder().decode(codableType, from: payload)
+										try await handoff.callPerform(input: typedInput)
 									}
-								} catch {
-									let inputElement = Response.Input.Element.functionCallOutput(.init(callId: functionCall.callId, output: error.localizedDescription))
-									newInputs.append(inputElement)
-									continue
 								}
-
-								try await withSpan { span in
-									span.spanData = HandoffSpanData(fromAgent: agent.name, toAgent: targetAgent.name)
-
-									// respond with standard transfer message that only mentions the new agent name
-									let inputElement = Response.Input.Element.functionCallOutput(.init(callId: functionCall.callId, output: handoff.getTransferMessage()))
-									newInputs.append(inputElement)
-								}
-
-								// Store updates before returning
-								if !newInputs.isEmpty {
-									turnState.nextInput = .array(newInputs)
-									turnState.previousResponse = response
-								}
-
-								// Return the handoff agent directly
-								return AgentResult<A.OutputType>.handOff(targetAgent)
-							} else {
-								functionCalls.append(functionCall)
+							} catch {
+								let inputElement = Response.Input.Element.functionCallOutput(.init(callId: functionCall.callId, output: error.localizedDescription))
+								newInputs.append(inputElement)
+								continue
 							}
 
-						case .reasoning(let reasoningOutput):
-							roundReasoning = reasoningOutput.summary.map { $0.text }.joined(separator: "\n\n")
+							try await withSpan { span in
+								span.spanData = HandoffSpanData(fromAgent: agent.name, toAgent: targetAgent.name)
 
-						case .message(let messageOutput):
-							for output in messageOutput.content {
-								// get the last message text of the last output
-								if case .outputText(let outputText) = output {
-									roundResult = outputText.text
-								}
+								// respond with standard transfer message that only mentions the new agent name
+								let inputElement = Response.Input.Element.functionCallOutput(.init(callId: functionCall.callId, output: handoff.getTransferMessage()))
+								newInputs.append(inputElement)
 							}
 
-						case .mcpListTools:
-							// Decide how to handle this - for now, just continue
-							// This might involve logging, preparing a new input, or specific actions
-							logAgent("Received mcp_list_tools output, continuing.")
-							continue
-						case .mcpApprovalRequest(let approvalRequest):
-							logAgent("Received mcp_approval_request (id: \(approvalRequest.id)), automatically approving.")
-							let approvalResponse = Response.Input.Element.mcpApprovalResponse(
-								Response.Input.MCPApprovalResponseInput(
-									approve: true,
-									approvalRequestId: approvalRequest.id
-								)
+							// Store updates before returning
+							if !newInputs.isEmpty {
+								turnState.nextInput = .array(newInputs)
+								turnState.previousResponse = response
+							}
+
+							// Return the handoff agent directly
+							return AgentResult<A.OutputType>.handOff(targetAgent)
+						} else {
+							functionCalls.append(functionCall)
+						}
+
+					case .reasoning(let reasoningOutput):
+						roundReasoning = reasoningOutput.summary.map { $0.text }.joined(separator: "\n\n")
+
+					case .message(let messageOutput):
+						for output in messageOutput.content {
+							// get the last message text of the last output
+							if case .outputText(let outputText) = output {
+								roundResult = outputText.text
+							}
+						}
+
+					case .mcpListTools:
+						// Decide how to handle this - for now, just continue
+						// This might involve logging, preparing a new input, or specific actions
+						logAgent("Received mcp_list_tools output, continuing.")
+						continue
+					case .mcpApprovalRequest(let approvalRequest):
+						logAgent("Received mcp_approval_request (id: \(approvalRequest.id)), automatically approving.")
+						let approvalResponse = Response.Input.Element.mcpApprovalResponse(
+							Response.Input.MCPApprovalResponseInput(
+								approve: true,
+								approvalRequestId: approvalRequest.id
 							)
-							newInputs.append(approvalResponse)
-							// Continue to the next iteration to process newInputs
-							continue
-						case .mcpCall(let mcpCall):
-							logAgent("Received mcp_call output (id: \(mcpCall.id)), continuing.")
-							continue
-						case .applyPatchCall(let patchCall):
-							let result = executeApplyPatch(patchCall, agent: agent)
-							newInputs.append(.applyPatchCallOutput(result))
-						default:
-							continue
+						)
+						newInputs.append(approvalResponse)
+						// Continue to the next iteration to process newInputs
+						continue
+					case .mcpCall(let mcpCall):
+						logAgent("Received mcp_call output (id: \(mcpCall.id)), continuing.")
+						continue
+					case .applyPatchCall(let patchCall):
+						let result = executeApplyPatch(patchCall, agent: agent)
+						newInputs.append(.applyPatchCallOutput(result))
+					default:
+						continue
 					}
 				}
 
@@ -587,6 +589,7 @@ public actor Runner {
 				} else {
 					if functionCalls.isEmpty {
 						if A.OutputType.self == String.self {
+							// swiftlint:disable:next force_cast - guarded above by `A.OutputType.self == String.self`.
 							return AgentResult.finalOutput(roundResult as! A.OutputType, roundReasoning)
 						} else if let data = roundResult.data(using: .utf8) {
 							if let decoded = decoder.decodeWithResultsUnwrap(data, as: A.OutputType.self) {
@@ -622,9 +625,9 @@ public actor Runner {
 		do {
 			try patcher.applyPatch(path: call.operation.path, diff: call.operation.diff, type: call.operation.type)
 			let verb = switch call.operation.type {
-				case .createFile: "Created"
-				case .updateFile: "Updated"
-				case .deleteFile: "Deleted"
+			case .createFile: "Created"
+			case .updateFile: "Updated"
+			case .deleteFile: "Deleted"
 			}
 			return ApplyPatchCallOutputResult(callId: call.resolvedCallId, output: "\(verb) \(call.operation.path)")
 		} catch {
@@ -635,95 +638,95 @@ public actor Runner {
 	// Helper to serialize OutputItem to a dictionary for tracing
 	private static func outputItemToDict(_ item: OutputItem) -> [String: JSONValue] {
 		switch item {
-			case .message(let message):
-				let content = message.content.compactMap { c in
-					if case .outputText(let t) = c { return t.text }
-					return nil
-				}.joined(separator: "\n")
-				return [
-					"type": JSONValue("message"),
-					"role": JSONValue(message.role.rawValue),
-					"content": JSONValue(content)
-				]
-			case .functionCall(let call):
-				// Try to decode arguments as JSON, fallback to string
-				let args: JSONValue
-				if let data = call.arguments.data(using: .utf8),
-				   let obj = try? JSONSerialization.jsonObject(with: data) {
-					args = JSONValue(jsonObject: obj)
-				} else {
-					args = JSONValue(call.arguments)
-				}
-				return [
-					"type": JSONValue("tool_call"),
-					"tool_call_id": JSONValue(call.callId),
-					"tool_name": JSONValue(call.name),
-					"arguments": args
-				]
-			case .fileSearch(let file):
-				return [
-					"type": JSONValue("file_search"),
-					"id": JSONValue(file.id),
-					"queries": JSONValue(file.queries),
-					"results": JSONValue(file.results ?? [])
-				]
-			case .webSearch(let web):
-				return [
-					"type": JSONValue("web_search"),
-					"id": JSONValue(web.id)
-				]
-			case .computer(let comp):
-				return [
-					"type": JSONValue("computer"),
-					"id": JSONValue(comp.id),
-					"action": JSONValue(String(describing: comp.action))
-				]
-			case .reasoning(let reasoning):
-				let text = reasoning.summary.map { $0.text }.joined(separator: "\n")
-				return [
-					"type": JSONValue("reasoning"),
-					"content": JSONValue(text)
-				]
-			case .mcpListTools(let mcpList):
-				return [
-					"type": JSONValue("mcp_list_tools"),
-					"id": JSONValue(mcpList.id),
-					"server_label": JSONValue(mcpList.serverLabel),
-					"tools": JSONValue(mcpList.tools.map { tool in
-						[
-							"name": JSONValue(tool.name),
-							"description": JSONValue(tool.description),
-							"input_schema": JSONValue(tool.inputSchema),
-							"annotations": JSONValue(tool.annotations)
-						]
-					})
-				]
-			case .mcpApprovalRequest(let approval):
-				return [
-					"type": JSONValue("mcp_approval_request"),
-					"id": JSONValue(approval.id),
-					"name": JSONValue(approval.name),
-					"server_label": JSONValue(approval.serverLabel),
-					"arguments": JSONValue(approval.arguments)
-				]
-			case .mcpCall(let mcpCall):
-				return [
-					"type": JSONValue("mcp_call"),
-					"id": JSONValue(mcpCall.id),
-					"approval_request_id": JSONValue(mcpCall.approvalRequestId),
-					"arguments": JSONValue(mcpCall.arguments),
-					"error": JSONValue(mcpCall.error),
-					"name": JSONValue(mcpCall.name),
-					"output": JSONValue(mcpCall.output),
-					"server_label": JSONValue(mcpCall.serverLabel)
-				]
-			case .applyPatchCall(let patchCall):
-				return [
-					"type": JSONValue("apply_patch_call"),
-					"id": JSONValue(patchCall.id),
-					"operation_type": JSONValue(patchCall.operation.type.rawValue),
-					"path": JSONValue(patchCall.operation.path)
-				]
+		case .message(let message):
+			let content = message.content.compactMap { c in
+				if case .outputText(let t) = c { return t.text }
+				return nil
+			}.joined(separator: "\n")
+			return [
+				"type": JSONValue("message"),
+				"role": JSONValue(message.role.rawValue),
+				"content": JSONValue(content)
+			]
+		case .functionCall(let call):
+			// Try to decode arguments as JSON, fallback to string
+			let args: JSONValue
+			if let data = call.arguments.data(using: .utf8),
+			   let obj = try? JSONSerialization.jsonObject(with: data) {
+				args = JSONValue(jsonObject: obj)
+			} else {
+				args = JSONValue(call.arguments)
+			}
+			return [
+				"type": JSONValue("tool_call"),
+				"tool_call_id": JSONValue(call.callId),
+				"tool_name": JSONValue(call.name),
+				"arguments": args
+			]
+		case .fileSearch(let file):
+			return [
+				"type": JSONValue("file_search"),
+				"id": JSONValue(file.id),
+				"queries": JSONValue(file.queries),
+				"results": JSONValue(file.results ?? [])
+			]
+		case .webSearch(let web):
+			return [
+				"type": JSONValue("web_search"),
+				"id": JSONValue(web.id)
+			]
+		case .computer(let comp):
+			return [
+				"type": JSONValue("computer"),
+				"id": JSONValue(comp.id),
+				"action": JSONValue(String(describing: comp.action))
+			]
+		case .reasoning(let reasoning):
+			let text = reasoning.summary.map { $0.text }.joined(separator: "\n")
+			return [
+				"type": JSONValue("reasoning"),
+				"content": JSONValue(text)
+			]
+		case .mcpListTools(let mcpList):
+			return [
+				"type": JSONValue("mcp_list_tools"),
+				"id": JSONValue(mcpList.id),
+				"server_label": JSONValue(mcpList.serverLabel),
+				"tools": JSONValue(mcpList.tools.map { tool in
+					[
+						"name": JSONValue(tool.name),
+						"description": JSONValue(tool.description),
+						"input_schema": JSONValue(tool.inputSchema),
+						"annotations": JSONValue(tool.annotations)
+					]
+				})
+			]
+		case .mcpApprovalRequest(let approval):
+			return [
+				"type": JSONValue("mcp_approval_request"),
+				"id": JSONValue(approval.id),
+				"name": JSONValue(approval.name),
+				"server_label": JSONValue(approval.serverLabel),
+				"arguments": JSONValue(approval.arguments)
+			]
+		case .mcpCall(let mcpCall):
+			return [
+				"type": JSONValue("mcp_call"),
+				"id": JSONValue(mcpCall.id),
+				"approval_request_id": JSONValue(mcpCall.approvalRequestId),
+				"arguments": JSONValue(mcpCall.arguments),
+				"error": JSONValue(mcpCall.error),
+				"name": JSONValue(mcpCall.name),
+				"output": JSONValue(mcpCall.output),
+				"server_label": JSONValue(mcpCall.serverLabel)
+			]
+		case .applyPatchCall(let patchCall):
+			return [
+				"type": JSONValue("apply_patch_call"),
+				"id": JSONValue(patchCall.id),
+				"operation_type": JSONValue(patchCall.operation.type.rawValue),
+				"path": JSONValue(patchCall.operation.path)
+			]
 		}
 	}
 

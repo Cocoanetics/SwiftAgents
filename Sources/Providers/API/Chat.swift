@@ -62,39 +62,39 @@ public class Chat: GenericChat {
 		}
 
 		switch stream {
-			case true:
+		case true:
 
-				let tools = tools?.flatMap { $0.toolDescriptions }
-				let stream = try await api.createChatCompletionStream(model: model, messages: messages, tools: tools, streamOptions: .includeUsage(true), store: store, temperature: temperature)
-				let assembler = ChatCompletionAssembler()
+			let tools = tools?.flatMap { $0.toolDescriptions }
+			let stream = try await api.createChatCompletionStream(model: model, messages: messages, tools: tools, streamOptions: .includeUsage(true), store: store, temperature: temperature)
+			let assembler = ChatCompletionAssembler()
 
-				// Iterate through the stream to collect the response chunks
-				for try await chunk in stream {
-					assembler.processChunk(chunk)
+			// Iterate through the stream to collect the response chunks
+			for try await chunk in stream {
+				assembler.processChunk(chunk)
 
-					if let choice = chunk.choices.first, let message = choice.delta.content {
+				if let choice = chunk.choices.first, let message = choice.delta.content {
 
-						delegate?.chat(self, didReceiveMessage: message, role: .assistant, isComplete: false)
-					}
+					delegate?.chat(self, didReceiveMessage: message, role: .assistant, isComplete: false)
 				}
+			}
 
-				// end of stream
-				try await handleResponse(assembler.response)
+			// end of stream
+			try await handleResponse(assembler.response)
 
-			case false:
+		case false:
 
-				let tools = tools?.flatMap { $0.toolDescriptions }
-				let response = try await api.createChatCompletion(model: model, messages: messages, tools: tools, store: store, temperature: temperature)
+			let tools = tools?.flatMap { $0.toolDescriptions }
+			let response = try await api.createChatCompletion(model: model, messages: messages, tools: tools, store: store, temperature: temperature)
 
-				if let choice = response.choices.first {
-					delegate?.chat(self, didReceive: choice.message)
+			if let choice = response.choices.first {
+				delegate?.chat(self, didReceive: choice.message)
 
-			if let text = choice.message.textContent {
-						delegate?.chat(self, didReceiveMessage: text, role: choice.message.role, isComplete: true)
-					}
+		if let text = choice.message.textContent {
+					delegate?.chat(self, didReceiveMessage: text, role: choice.message.role, isComplete: true)
 				}
+			}
 
-				try await handleResponse(response)
+			try await handleResponse(response)
 		}
 	}
 
@@ -110,84 +110,26 @@ public class Chat: GenericChat {
 		messages.append(choice.message)
 
 		switch choice.finishReason {
-			case .stop:
+		case .stop:
 
-				if let tools {
-					var responses = [ChatMessage]()
-
-				if let content = choice.message.textContent,
-				   let calls = content.extractFunctionCalls() {
-						let toolCalls = calls.map { ToolCall(id: $0.name, type: "function", function: $0 )}
-
-						for toolCall in toolCalls {
-							guard let functionCall = toolCall.function else {
-								continue
-							}
-
-							let output = await tools.perform(toolCall)
-
-							let message = messageResponding(to: functionCall, role: .function, toolCallID: output.toolCallId, value: output.output)
-							responses.append(message)
-						}
-					} else if let toolCalls = choice.message.toolCalls {
-						delegate?.chat(self, didReceiveToolCalls: toolCalls)
-
-						for toolCall in choice.message.toolCalls ?? [] {
-							guard let functionCall = toolCall.function else {
-								continue
-							}
-
-							let output = await tools.perform(toolCall)
-
-							let message = messageResponding(to: functionCall, role: .tool, toolCallID: output.toolCallId, value: output.output)
-							responses.append(message)
-						}
-					}
-
-					if !responses.isEmpty {
-						for response in responses {
-							messages.append(response)
-							delegate?.chat(self, didReceive: response)
-						}
-
-						try await commonSend()
-					}
-
-				} else {
-					if stream {
-						delegate?.chat(self, didReceiveMessage: "", role: .assistant, isComplete: true)
-					}
-				}
-
-			case .limit, .contentFilter:
-
-				break
-
-			case .functionCall:
-
-				if let tools,
-				   let functionCall = choice.message.functionCall {
-					let toolCall = ToolCall(id: functionCall.name, type: "function", function: functionCall)
-
-					let output = await tools.perform(toolCall)
-
-					let message = messageResponding(to: functionCall, role: .tool, toolCallID: output.toolCallId, value: output.output)
-					messages.append(message)
-
-					delegate?.chat(self, didReceive: message)
-
-					try await commonSend()
-				}
-
-			case .toolCalls:
-
-				guard let tools else {
-					return
-				}
-
+			if let tools {
 				var responses = [ChatMessage]()
 
-				if let toolCalls = choice.message.toolCalls {
+			if let content = choice.message.textContent,
+			   let calls = content.extractFunctionCalls() {
+					let toolCalls = calls.map { ToolCall(id: $0.name, type: "function", function: $0 )}
+
+					for toolCall in toolCalls {
+						guard let functionCall = toolCall.function else {
+							continue
+						}
+
+						let output = await tools.perform(toolCall)
+
+						let message = messageResponding(to: functionCall, role: .function, toolCallID: output.toolCallId, value: output.output)
+						responses.append(message)
+					}
+				} else if let toolCalls = choice.message.toolCalls {
 					delegate?.chat(self, didReceiveToolCalls: toolCalls)
 
 					for toolCall in choice.message.toolCalls ?? [] {
@@ -196,22 +138,80 @@ public class Chat: GenericChat {
 						}
 
 						let output = await tools.perform(toolCall)
+
 						let message = messageResponding(to: functionCall, role: .tool, toolCallID: output.toolCallId, value: output.output)
 						responses.append(message)
 					}
-
-					if !responses.isEmpty {
-						for response in responses {
-							messages.append(response)
-							delegate?.chat(self, didReceive: response)
-						}
-
-						try await commonSend()
-					}
 				}
 
-			case .none:
-				break
+				if !responses.isEmpty {
+					for response in responses {
+						messages.append(response)
+						delegate?.chat(self, didReceive: response)
+					}
+
+					try await commonSend()
+				}
+
+			} else {
+				if stream {
+					delegate?.chat(self, didReceiveMessage: "", role: .assistant, isComplete: true)
+				}
+			}
+
+		case .limit, .contentFilter:
+
+			break
+
+		case .functionCall:
+
+			if let tools,
+			   let functionCall = choice.message.functionCall {
+				let toolCall = ToolCall(id: functionCall.name, type: "function", function: functionCall)
+
+				let output = await tools.perform(toolCall)
+
+				let message = messageResponding(to: functionCall, role: .tool, toolCallID: output.toolCallId, value: output.output)
+				messages.append(message)
+
+				delegate?.chat(self, didReceive: message)
+
+				try await commonSend()
+			}
+
+		case .toolCalls:
+
+			guard let tools else {
+				return
+			}
+
+			var responses = [ChatMessage]()
+
+			if let toolCalls = choice.message.toolCalls {
+				delegate?.chat(self, didReceiveToolCalls: toolCalls)
+
+				for toolCall in choice.message.toolCalls ?? [] {
+					guard let functionCall = toolCall.function else {
+						continue
+					}
+
+					let output = await tools.perform(toolCall)
+					let message = messageResponding(to: functionCall, role: .tool, toolCallID: output.toolCallId, value: output.output)
+					responses.append(message)
+				}
+
+				if !responses.isEmpty {
+					for response in responses {
+						messages.append(response)
+						delegate?.chat(self, didReceive: response)
+					}
+
+					try await commonSend()
+				}
+			}
+
+		case .none:
+			break
 		}
 	}
 

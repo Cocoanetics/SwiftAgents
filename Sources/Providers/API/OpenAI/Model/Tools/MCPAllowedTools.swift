@@ -46,10 +46,10 @@ public enum MCPAllowedTools: Codable, Sendable, Equatable {
 	public func encode(to encoder: Encoder) throws {
 		var container = encoder.singleValueContainer()
 		switch self {
-			case .list(let arr):
-				try container.encode(arr)
-			case .filter(let names):
-				try container.encode(MCPAllowedToolsFilter(toolNames: names))
+		case .list(let arr):
+			try container.encode(arr)
+		case .filter(let names):
+			try container.encode(MCPAllowedToolsFilter(toolNames: names))
 		}
 	}
 

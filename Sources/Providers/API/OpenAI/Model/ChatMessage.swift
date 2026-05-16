@@ -36,10 +36,10 @@ public struct ChatMessage: Codable, Sendable {
 		public func encode(to encoder: Encoder) throws {
 			var container = encoder.singleValueContainer()
 			switch self {
-				case .text(let string):
-					try container.encode(string)
-				case .parts(let parts):
-					try container.encode(parts)
+			case .text(let string):
+				try container.encode(string)
+			case .parts(let parts):
+				try container.encode(parts)
 			}
 		}
 	}
@@ -63,13 +63,15 @@ public struct ChatMessage: Codable, Sendable {
 	public var toolCalls: [ToolCall]?
 
 	/// Initializes a new `Message` instance with the specified parameters.
-	public init(role: Role,
-				 content: Content? = nil,
-				 phase: Response.Phase? = nil,
-				 name: String? = nil,
-				 functionCall: FunctionCall? = nil,
-				 toolCallID: String? = nil,
-				 toolCalls: [ToolCall]? = nil) {
+	public init(
+		role: Role,
+		content: Content? = nil,
+		phase: Response.Phase? = nil,
+		name: String? = nil,
+		functionCall: FunctionCall? = nil,
+		toolCallID: String? = nil,
+		toolCalls: [ToolCall]? = nil
+	) {
 		self.role = role
 		self.content = content
 		self.phase = phase
@@ -116,53 +118,53 @@ extension ChatMessage: CustomDebugStringConvertible {
 		var tmpStr = ""
 
 		switch role {
-			case .assistant:
-				tmpStr += "Assistant"
+		case .assistant:
+			tmpStr += "Assistant"
 
-			case .function:
-				tmpStr += "Function"
+		case .function:
+			tmpStr += "Function"
 
-				if let name = name {
-					tmpStr += " `" + name + "`"
-				}
+			if let name = name {
+				tmpStr += " `" + name + "`"
+			}
 
-				tmpStr += " result"
+			tmpStr += " result"
 
-			case .tool:
-				tmpStr += "Tool"
+		case .tool:
+			tmpStr += "Tool"
 
-				if let name = name {
-					tmpStr += " `" + name + "`"
-				}
+			if let name = name {
+				tmpStr += " `" + name + "`"
+			}
 
-				tmpStr += " result"
+			tmpStr += " result"
 
-			case .system:
-				tmpStr += "System"
+		case .system:
+			tmpStr += "System"
 
-			case .user:
+		case .user:
 
-				if let name = name {
-					tmpStr += name
-				} else {
-					tmpStr += "User"
-				}
-			case .developer:
-				tmpStr += "Developer"
+			if let name = name {
+				tmpStr += name
+			} else {
+				tmpStr += "User"
+			}
+		case .developer:
+			tmpStr += "Developer"
 		}
 
 		tmpStr += ":"
 
 		if let content = content {
 			switch content {
-				case .text(let string):
-					tmpStr += "\n\"" + string + "\""
-				case .parts(let parts):
-					let text = parts.compactMap { $0.text }.joined(separator: " \n")
-					if !text.isEmpty {
-						tmpStr += "\n\"" + text + "\""
-					}
-		}
+			case .text(let string):
+				tmpStr += "\n\"" + string + "\""
+			case .parts(let parts):
+				let text = parts.compactMap { $0.text }.joined(separator: " \n")
+				if !text.isEmpty {
+					tmpStr += "\n\"" + text + "\""
+				}
+			}
 		}
 
 		tmpStr += "\n"
@@ -240,16 +242,16 @@ public extension ChatMessage {
 				let container = try decoder.singleValueContainer()
 				let raw = try container.decode(String.self)
 				switch raw {
-					case "text", "input_text":
-						self = .text
-					case "image_url":
-						self = .imageURL
-					case "input_audio":
-						self = .inputAudio
-					case "file":
-						self = .file
-					default:
-						throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown content part type \(raw)")
+				case "text", "input_text":
+					self = .text
+				case "image_url":
+					self = .imageURL
+				case "input_audio":
+					self = .inputAudio
+				case "file":
+					self = .file
+				default:
+					throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown content part type \(raw)")
 				}
 			}
 
@@ -260,14 +262,14 @@ public extension ChatMessage {
 
 			var encodedValue: String {
 				switch self {
-					case .text:
-						return "text"
-					case .imageURL:
-						return "image_url"
-					case .inputAudio:
-						return "input_audio"
-					case .file:
-						return "file"
+				case .text:
+					return "text"
+				case .imageURL:
+					return "image_url"
+				case .inputAudio:
+					return "input_audio"
+				case .file:
+					return "file"
 				}
 			}
 		}
@@ -359,26 +361,26 @@ public extension ChatMessage {
 				let container = try decoder.container(keyedBy: CodingKeys.self)
 				type = try container.decode(PartType.self, forKey: .type)
 				switch type {
-					case .text:
-						text = try container.decodeIfPresent(String.self, forKey: .text)
-						imageURL = nil
-						inputAudio = nil
-						file = nil
-					case .imageURL:
-						text = nil
-						imageURL = try container.decodeIfPresent(ImageURL.self, forKey: .imageURL)
-						inputAudio = nil
-						file = nil
-					case .inputAudio:
-						text = nil
-						imageURL = nil
-						inputAudio = try container.decodeIfPresent(InputAudio.self, forKey: .inputAudio)
-						file = nil
-					case .file:
-						text = nil
-						imageURL = nil
-						inputAudio = nil
-						file = try container.decodeIfPresent(FilePart.self, forKey: .file)
+				case .text:
+					text = try container.decodeIfPresent(String.self, forKey: .text)
+					imageURL = nil
+					inputAudio = nil
+					file = nil
+				case .imageURL:
+					text = nil
+					imageURL = try container.decodeIfPresent(ImageURL.self, forKey: .imageURL)
+					inputAudio = nil
+					file = nil
+				case .inputAudio:
+					text = nil
+					imageURL = nil
+					inputAudio = try container.decodeIfPresent(InputAudio.self, forKey: .inputAudio)
+					file = nil
+				case .file:
+					text = nil
+					imageURL = nil
+					inputAudio = nil
+					file = try container.decodeIfPresent(FilePart.self, forKey: .file)
 				}
 			}
 
@@ -386,16 +388,16 @@ public extension ChatMessage {
 				var container = encoder.container(keyedBy: CodingKeys.self)
 				try container.encode(encodedType, forKey: .type)
 				switch type {
-					case .text:
-						try container.encode(text, forKey: .text)
-					case .imageURL:
-						if let imageURL {
-							try container.encode(imageURL, forKey: .imageURL)
-						}
-					case .inputAudio:
-						try container.encode(inputAudio, forKey: .inputAudio)
-					case .file:
-						try container.encode(file, forKey: .file)
+				case .text:
+					try container.encode(text, forKey: .text)
+				case .imageURL:
+					if let imageURL {
+						try container.encode(imageURL, forKey: .imageURL)
+					}
+				case .inputAudio:
+					try container.encode(inputAudio, forKey: .inputAudio)
+				case .file:
+					try container.encode(file, forKey: .file)
 				}
 			}
 
@@ -408,14 +410,14 @@ public extension ChatMessage {
 
 		var encodedType: String {
 			switch type {
-				case .text:
-					return "text"
-				case .imageURL:
-					return "image_url"
-				case .inputAudio:
-					return "input_audio"
-				case .file:
-					return "file"
+			case .text:
+				return "text"
+			case .imageURL:
+				return "image_url"
+			case .inputAudio:
+				return "input_audio"
+			case .file:
+				return "file"
 			}
 		}
 	}

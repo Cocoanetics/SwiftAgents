@@ -117,16 +117,16 @@ private extension RealtimeConversationItem.Message {
 		}
 
 		switch content[contentIndex] {
-			case .inputAudio(var audio):
-				audio.transcript = transcript
-				content[contentIndex] = .inputAudio(audio)
-				return true
-			case .outputAudio(var audio):
-				audio.transcript = transcript
-				content[contentIndex] = .outputAudio(audio)
-				return true
-			case .inputText, .outputText:
-				return false
+		case .inputAudio(var audio):
+			audio.transcript = transcript
+			content[contentIndex] = .inputAudio(audio)
+			return true
+		case .outputAudio(var audio):
+			audio.transcript = transcript
+			content[contentIndex] = .outputAudio(audio)
+			return true
+		case .inputText, .outputText:
+			return false
 		}
 	}
 
@@ -136,12 +136,12 @@ private extension RealtimeConversationItem.Message {
 		}
 
 		switch content[contentIndex] {
-			case .outputAudio(var audio):
-				audio.audioEndMilliseconds = audioEndMilliseconds
-				content[contentIndex] = .outputAudio(audio)
-				return true
-			case .inputAudio, .inputText, .outputText:
-				return false
+		case .outputAudio(var audio):
+			audio.audioEndMilliseconds = audioEndMilliseconds
+			content[contentIndex] = .outputAudio(audio)
+			return true
+		case .inputAudio, .inputText, .outputText:
+			return false
 		}
 	}
 }

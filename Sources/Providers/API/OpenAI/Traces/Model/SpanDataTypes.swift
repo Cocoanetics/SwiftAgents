@@ -68,8 +68,13 @@ public struct GenerationSpanData: SpanData {
 	public let modelConfig: [String: JSONValue]?
 	public let usage: [String: JSONValue]?
 
-	public init(input: [[String: JSONValue]]? = nil, output: [[String: JSONValue]]? = nil, model: String? = nil,
-				modelConfig: [String: JSONValue]? = nil, usage: [String: JSONValue]? = nil) {
+	public init(
+		input: [[String: JSONValue]]? = nil,
+		output: [[String: JSONValue]]? = nil,
+		model: String? = nil,
+		modelConfig: [String: JSONValue]? = nil,
+		usage: [String: JSONValue]? = nil
+	) {
 		self.input = input
 		self.output = output
 		self.model = model
@@ -187,8 +192,13 @@ public struct TranscriptionSpanData: SpanData {
 	public let model: String?
 	public let modelConfig: [String: JSONValue]?
 
-	public init(input: String? = nil, inputFormat: String? = "pcm", output: String? = nil,
-				model: String? = nil, modelConfig: [String: JSONValue]? = nil) {
+	public init(
+		input: String? = nil,
+		inputFormat: String? = "pcm",
+		output: String? = nil,
+		model: String? = nil,
+		modelConfig: [String: JSONValue]? = nil
+	) {
 		self.input = input
 		self.inputFormat = inputFormat
 		self.output = output
@@ -222,8 +232,14 @@ public struct SpeechSpanData: SpanData {
 	public let modelConfig: [String: JSONValue]?
 	public let firstContentAt: String?
 
-	public init(input: String? = nil, output: String? = nil, outputFormat: String? = "pcm",
-				model: String? = nil, modelConfig: [String: JSONValue]? = nil, firstContentAt: String? = nil) {
+	public init(
+		input: String? = nil,
+		output: String? = nil,
+		outputFormat: String? = "pcm",
+		model: String? = nil,
+		modelConfig: [String: JSONValue]? = nil,
+		firstContentAt: String? = nil
+	) {
 		self.input = input
 		self.output = output
 		self.outputFormat = outputFormat

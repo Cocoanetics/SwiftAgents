@@ -124,13 +124,13 @@ public class AssistantChat: GenericChat {
 		if let latestMessage = messages.data.first {
 			for content in latestMessage.content {
 				switch content {
-					case .image(let file):
+				case .image(let file):
 
-						try await delegate?.chat(self, didReceive: file)
+					try await delegate?.chat(self, didReceive: file)
 
-					case .text(let textContent):
+				case .text(let textContent):
 
-						delegate?.chat(self, didReceiveMessage: textContent.value, role: latestMessage.role, isComplete: true)
+					delegate?.chat(self, didReceiveMessage: textContent.value, role: latestMessage.role, isComplete: true)
 				}
 			}
 		}
@@ -148,83 +148,83 @@ public class AssistantChat: GenericChat {
 
 		for try await event in stream {
 			switch event.object {
-				case .run(let run):
+			case .run(let run):
 
-					if run.status == .requiresAction,
-							let toolCalls = run.requiredAction?.submitToolOutputs?.toolCalls,
-							let tools {
-						delegate?.chat(self, didReceiveToolCalls: toolCalls)
+				if run.status == .requiresAction,
+						let toolCalls = run.requiredAction?.submitToolOutputs?.toolCalls,
+						let tools {
+					delegate?.chat(self, didReceiveToolCalls: toolCalls)
 
-						let outputs = await tools.perform(toolCalls)
+					let outputs = await tools.perform(toolCalls)
 
-						let stream = try await api.submitToolOutputsStream(toThreadId: thread.id, runId: run.id, toolOutputs: outputs)
-						return try await handleRunStream(stream)
-					}
+					let stream = try await api.submitToolOutputsStream(toThreadId: thread.id, runId: run.id, toolOutputs: outputs)
+					return try await handleRunStream(stream)
+				}
 
-				case .message(let message):
+			case .message(let message):
 
-					if !self.stream {
-						for content in message.content {
-							switch content {
-								case .image(let file):
+				if !self.stream {
+					for content in message.content {
+						switch content {
+						case .image(let file):
 
-									try await delegate?.chat(self, didReceive: file)
+							try await delegate?.chat(self, didReceive: file)
 
-								case .text(let textContent):
+						case .text(let textContent):
 
-									if textContent.value == "![" {
-										buffer = textContent.value
-									} else if buffer != nil {
-										buffer.append(textContent.value)
+							if textContent.value == "![" {
+								buffer = textContent.value
+							} else if buffer != nil {
+								buffer.append(textContent.value)
 
-										if buffer.contains(")") {
-											// flush entire image tag
-											delegate?.chat(self, didReceiveMessage: buffer, role: .assistant, isComplete: false)
-											buffer = nil
-										}
-									} else {
-										delegate?.chat(self, didReceiveMessage: textContent.value, role: .assistant, isComplete: false)
-									}
+								if buffer.contains(")") {
+									// flush entire image tag
+									delegate?.chat(self, didReceiveMessage: buffer, role: .assistant, isComplete: false)
+									buffer = nil
+								}
+							} else {
+								delegate?.chat(self, didReceiveMessage: textContent.value, role: .assistant, isComplete: false)
 							}
 						}
 					}
+				}
 
-					// print(message)
+				// print(message)
 
-					if message.status == .completed {
-						delegate?.chat(self, didReceiveMessage: "", role: .assistant, isComplete: true)
-					}
+				if message.status == .completed {
+					delegate?.chat(self, didReceiveMessage: "", role: .assistant, isComplete: true)
+				}
 
-				case .messageDelta(let delta):
+			case .messageDelta(let delta):
 
-					if self.stream {
-						for content in delta.delta.content {
-							switch content {
-								case .image(let file):
+				if self.stream {
+					for content in delta.delta.content {
+						switch content {
+						case .image(let file):
 
-									try await delegate?.chat(self, didReceive: file)
+							try await delegate?.chat(self, didReceive: file)
 
-								case .text(let textContent):
+						case .text(let textContent):
 
-									if textContent.value == "![" {
-										buffer = textContent.value
-									} else if buffer != nil {
-										buffer.append(textContent.value)
+							if textContent.value == "![" {
+								buffer = textContent.value
+							} else if buffer != nil {
+								buffer.append(textContent.value)
 
-										if buffer.contains(")") {
-											// flush entire image tag
-											delegate?.chat(self, didReceiveMessage: buffer, role: .assistant, isComplete: false)
-											buffer = nil
-										}
-									} else {
-										delegate?.chat(self, didReceiveMessage: textContent.value, role: .assistant, isComplete: false)
-									}
+								if buffer.contains(")") {
+									// flush entire image tag
+									delegate?.chat(self, didReceiveMessage: buffer, role: .assistant, isComplete: false)
+									buffer = nil
+								}
+							} else {
+								delegate?.chat(self, didReceiveMessage: textContent.value, role: .assistant, isComplete: false)
 							}
 						}
 					}
+				}
 
-				default:
-					break
+			default:
+				break
 			}
 		}
 	}

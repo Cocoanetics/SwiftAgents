@@ -10,22 +10,24 @@ import Foundation
 public class OllamaAPI: API, @unchecked Sendable {
 	// MARK: - Chat Completions
 
-	override public func createChatCompletion(model: String,
-											  messages: [ChatMessage],
-											  tools: [ToolDescription]? = nil,
-											  toolChoice: ToolChoice? = nil,
-											  n: Int? = nil,
-											  stop: [String]? = nil,
-											  store: Bool? = nil,
-											  temperature: Double? = nil,
-											  maxCompletionTokens: Int? = nil,
-											  metadata: [String: String]? = nil,
-											  parallelToolCalls: Bool? = nil,
-											  presencePenalty: Double? = nil,
-											  responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
-											  frequencyPenalty: Double? = nil,
-											  logitBias: [String: Int]? = nil,
-											  user: String? = nil) async throws -> ChatCompletionResponse {
+	override public func createChatCompletion(
+		model: String,
+		messages: [ChatMessage],
+		tools: [ToolDescription]? = nil,
+		toolChoice: ToolChoice? = nil,
+		n: Int? = nil,
+		stop: [String]? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		maxCompletionTokens: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		presencePenalty: Double? = nil,
+		responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
+		frequencyPenalty: Double? = nil,
+		logitBias: [String: Int]? = nil,
+		user: String? = nil
+	) async throws -> ChatCompletionResponse {
 		// inject the tools description into the system prompt
 		let messages = inject(tools: tools, messages: messages)
 
@@ -76,23 +78,25 @@ public class OllamaAPI: API, @unchecked Sendable {
 		return response
 	}
 
-	override public func createChatCompletionStream(model: String,
-													messages: [ChatMessage],
-													tools: [ToolDescription]? = nil,
-													toolChoice: ToolChoice? = nil,
-													n: Int = 1,
-													streamOptions: ChatCompletionRequest.StreamOptions? = nil,
-													stop: [String]? = nil,
-													store: Bool? = nil,
-													temperature: Double? = nil,
-													maxCompletionTokens: Int? = nil,
-													metadata: [String: String]? = nil,
-													parallelToolCalls: Bool? = nil,
-													presencePenalty: Double = 0.0,
-													responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
-													frequencyPenalty: Double = 0.0,
-													logitBias: [String: Int]? = nil,
-													user: String? = nil) async throws -> AsyncThrowingStream<Chunk, Error> {
+	override public func createChatCompletionStream(
+		model: String,
+		messages: [ChatMessage],
+		tools: [ToolDescription]? = nil,
+		toolChoice: ToolChoice? = nil,
+		n: Int = 1,
+		streamOptions: ChatCompletionRequest.StreamOptions? = nil,
+		stop: [String]? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		maxCompletionTokens: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		presencePenalty: Double = 0.0,
+		responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
+		frequencyPenalty: Double = 0.0,
+		logitBias: [String: Int]? = nil,
+		user: String? = nil
+	) async throws -> AsyncThrowingStream<Chunk, Error> {
 		// inject the tools description into the system prompt
 		let messages = inject(tools: tools, messages: messages)
 

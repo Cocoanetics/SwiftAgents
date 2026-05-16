@@ -22,13 +22,15 @@ public struct GoogleGenerateContent {
 		public let thought: Bool?
 		public let thoughtSignature: String?
 
-		public init(text: String? = nil,
-			 inlineData: InlineData? = nil,
-			 fileData: FileData? = nil,
-			 functionCall: FunctionCall? = nil,
-			 functionResponse: FunctionResponse? = nil,
-			 thought: Bool? = nil,
-			 thoughtSignature: String? = nil) {
+		public init(
+			text: String? = nil,
+			inlineData: InlineData? = nil,
+			fileData: FileData? = nil,
+			functionCall: FunctionCall? = nil,
+			functionResponse: FunctionResponse? = nil,
+			thought: Bool? = nil,
+			thoughtSignature: String? = nil
+		) {
 			self.text = text
 			self.inlineData = inlineData
 			self.fileData = fileData

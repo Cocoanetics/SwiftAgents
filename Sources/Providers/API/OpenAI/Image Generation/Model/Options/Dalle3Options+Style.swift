@@ -11,8 +11,6 @@ extension Dalle3Options {
 	/// The style of the generated images (DALL-E 3 only)
 	public enum Style: String, Codable {
 		/// Vivid style - hyper-real and dramatic images.
-		case vivid = "vivid"
-		/// Natural style - more natural, less hyper-real looking images.
-		case natural = "natural"
-	}
+		case vivid		/// Natural style - more natural, less hyper-real looking images.
+		case natural	}
 }

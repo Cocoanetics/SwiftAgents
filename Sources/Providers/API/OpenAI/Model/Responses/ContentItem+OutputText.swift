@@ -16,9 +16,11 @@ extension ContentItem {
         /// - Parameters:
         ///   - text: The text output from the model.
         ///   - annotations: The annotations of the text output.
-        public init(text: String,
-					annotations: [OutputItem.MessageOutput.Annotation],
-					logprobs: [Logprob]? = nil) {
+        public init(
+            text: String,
+            annotations: [OutputItem.MessageOutput.Annotation],
+            logprobs: [Logprob]? = nil
+        ) {
             self.text = text
             self.annotations = annotations
 			self.logprobs = logprobs

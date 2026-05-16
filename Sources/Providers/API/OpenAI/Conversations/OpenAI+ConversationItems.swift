@@ -19,9 +19,11 @@ extension OpenAI {
 	/// - Returns: Returns a `ConversationItemList` containing the created items.
 	///
 	/// - SeeAlso: [Create Conversation Items API](https://platform.openai.com/docs/api-reference/conversations/create-items)
-	public func createConversationItems(conversationId: String,
-										items: [Response.Input.Element],
-										include: [Include]? = nil) async throws -> ConversationItemList {
+	public func createConversationItems(
+		conversationId: String,
+		items: [Response.Input.Element],
+		include: [Include]? = nil
+	) async throws -> ConversationItemList {
 		let body = ConversationItemsCreation(items: items, include: include)
 		let request = try self.createUrlRequest(httpMethod: "POST",
 												path: "/v1/conversations/\(conversationId)/items",
@@ -44,11 +46,13 @@ extension OpenAI {
 	/// - Returns: Returns a paginated list of conversation items.
 	///
 	/// - SeeAlso: [List Conversation Items API](https://platform.openai.com/docs/api-reference/conversations/list-items)
-	public func listConversationItems(conversationId: String,
-									  limit: Int = 20,
-									  order: SortOrder = .descending,
-									  after: String? = nil,
-									  include: [Include]? = nil) async throws -> ConversationItemList {
+	public func listConversationItems(
+		conversationId: String,
+		limit: Int = 20,
+		order: SortOrder = .descending,
+		after: String? = nil,
+		include: [Include]? = nil
+	) async throws -> ConversationItemList {
 		var queryItems: [URLQueryItem] = [
 			URLQueryItem(name: "limit", value: String(limit)),
 			URLQueryItem(name: "order", value: order.rawValue)
@@ -82,9 +86,11 @@ extension OpenAI {
 	/// - Returns: Returns a `ConversationItem` containing the details of the retrieved item.
 	///
 	/// - SeeAlso: [Retrieve Conversation Item API](https://platform.openai.com/docs/api-reference/conversations/get-item)
-	public func retrieveConversationItem(conversationId: String,
-										 itemId: String,
-										 include: [Include]? = nil) async throws -> ConversationItem {
+	public func retrieveConversationItem(
+		conversationId: String,
+		itemId: String,
+		include: [Include]? = nil
+	) async throws -> ConversationItem {
 		var queryItems: [URLQueryItem] = []
 
 		if let include = include {
@@ -111,8 +117,10 @@ extension OpenAI {
 	///
 	/// - SeeAlso: [Delete Conversation Item API](https://platform.openai.com/docs/api-reference/conversations/delete-item)
 	@discardableResult
-	public func deleteConversationItem(conversationId: String,
-									   itemId: String) async throws -> Conversation {
+	public func deleteConversationItem(
+		conversationId: String,
+		itemId: String
+	) async throws -> Conversation {
 		let request = try self.createUrlRequest(httpMethod: "DELETE",
 												path: "/v1/conversations/\(conversationId)/items/\(itemId)")
 

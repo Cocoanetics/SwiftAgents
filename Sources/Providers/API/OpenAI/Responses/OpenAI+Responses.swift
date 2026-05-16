@@ -41,33 +41,35 @@ extension OpenAI {
 	 
 	 - SeeAlso: [Create Response API](https://platform.openai.com/docs/api-reference/responses/create)
 	 */
-	public func createResponse(input: Response.Input,
-							   model: String,
-							   contextManagement: [Response.ContextManagement]? = nil,
-							   conversation: String? = nil,
-							   include: [Include]? = nil,
-							   instructions: String? = nil,
-							   maxOutputTokens: Int? = nil,
-							   maxToolCalls: Int? = nil,
-							   metadata: [String: String]? = nil,
-							   parallelToolCalls: Bool? = nil,
-							   previousResponseId: String? = nil,
-							   prompt: Response.Prompt? = nil,
-							   promptCacheKey: String? = nil,
-							   promptCacheRetention: Response.PromptCacheRetention? = nil,
-							   reasoning: Reasoning? = nil,
-							   safetyIdentifier: String? = nil,
-							   serviceTier: ServiceTier? = nil,
-							   store: Bool? = nil,
-							   stream: Bool? = nil,
-							   temperature: Double? = nil,
-							   textFormat: TextFormat? = nil,
-							   toolChoice: ToolChoice? = nil,
-							   tools: [Tool]? = nil,
-							   topP: Double? = nil,
-							   truncation: Response.TruncationStrategy? = nil,
-							   user: String? = nil,
-							   background: Bool? = nil) async throws -> Response {
+	public func createResponse(
+		input: Response.Input,
+		model: String,
+		contextManagement: [Response.ContextManagement]? = nil,
+		conversation: String? = nil,
+		include: [Include]? = nil,
+		instructions: String? = nil,
+		maxOutputTokens: Int? = nil,
+		maxToolCalls: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		previousResponseId: String? = nil,
+		prompt: Response.Prompt? = nil,
+		promptCacheKey: String? = nil,
+		promptCacheRetention: Response.PromptCacheRetention? = nil,
+		reasoning: Reasoning? = nil,
+		safetyIdentifier: String? = nil,
+		serviceTier: ServiceTier? = nil,
+		store: Bool? = nil,
+		stream: Bool? = nil,
+		temperature: Double? = nil,
+		textFormat: TextFormat? = nil,
+		toolChoice: ToolChoice? = nil,
+		tools: [Tool]? = nil,
+		topP: Double? = nil,
+		truncation: Response.TruncationStrategy? = nil,
+		user: String? = nil,
+		background: Bool? = nil
+	) async throws -> Response {
 		let text: TextConfiguration?
 
 		if let textFormat {
@@ -152,32 +154,34 @@ extension OpenAI {
 	 
 	 - SeeAlso: [Create Response API](https://platform.openai.com/docs/api-reference/responses/create)
 	 */
-	public func createResponseStream(input: Response.Input,
-									 model: String,
-									 contextManagement: [Response.ContextManagement]? = nil,
-									 conversation: String? = nil,
-									 include: [Include]? = nil,
-									 instructions: String? = nil,
-									 maxOutputTokens: Int? = nil,
-									 maxToolCalls: Int? = nil,
-									 metadata: [String: String]? = nil,
-									 parallelToolCalls: Bool? = nil,
-									 previousResponseId: String? = nil,
-									 prompt: Response.Prompt? = nil,
-									 promptCacheKey: String? = nil,
-									 promptCacheRetention: Response.PromptCacheRetention? = nil,
-									 reasoning: Reasoning? = nil,
-									 safetyIdentifier: String? = nil,
-									 serviceTier: ServiceTier? = nil,
-									 store: Bool? = nil,
-									 temperature: Double? = nil,
-									 text: TextConfiguration? = nil,
-									 toolChoice: ToolChoice? = nil,
-									 tools: [Tool]? = nil,
-									 topP: Double? = nil,
-									 truncation: Response.TruncationStrategy? = nil,
-									 user: String? = nil,
-									 background: Bool? = nil) async throws -> AsyncThrowingStream<ResponsesStreamEvent, Error> {
+	public func createResponseStream(
+		input: Response.Input,
+		model: String,
+		contextManagement: [Response.ContextManagement]? = nil,
+		conversation: String? = nil,
+		include: [Include]? = nil,
+		instructions: String? = nil,
+		maxOutputTokens: Int? = nil,
+		maxToolCalls: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		previousResponseId: String? = nil,
+		prompt: Response.Prompt? = nil,
+		promptCacheKey: String? = nil,
+		promptCacheRetention: Response.PromptCacheRetention? = nil,
+		reasoning: Reasoning? = nil,
+		safetyIdentifier: String? = nil,
+		serviceTier: ServiceTier? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		text: TextConfiguration? = nil,
+		toolChoice: ToolChoice? = nil,
+		tools: [Tool]? = nil,
+		topP: Double? = nil,
+		truncation: Response.TruncationStrategy? = nil,
+		user: String? = nil,
+		background: Bool? = nil
+	) async throws -> AsyncThrowingStream<ResponsesStreamEvent, Error> {
 		let details = ResponseOptionals(
 			input: input,
 			model: model,
@@ -396,130 +400,130 @@ extension OpenAI {
 						}
 
 						switch currentEvent {
-							case "response.created":
-								let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .responseCreated(wrapper.response))
-								continuation.yield(event)
-							case "response.in_progress":
-								let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .responseInProgress(wrapper.response))
-								continuation.yield(event)
-							case "response.completed":
-								let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .responseCompleted(wrapper.response))
-								continuation.yield(event)
-							case "response.failed":
-								let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .responseFailed(wrapper.response))
-								continuation.yield(event)
-							case "response.incomplete":
-								let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .responseIncomplete(wrapper.response))
-								continuation.yield(event)
-							case "response.output_item.added":
-								let info = try self.decoder.decode(ResponsesStreamEvent.OutputItemInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .outputItemAdded(info))
-								continuation.yield(event)
-							case "response.output_item.done":
-								let info = try self.decoder.decode(ResponsesStreamEvent.OutputItemInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .outputItemDone(info))
-								continuation.yield(event)
-							case "response.content_part.added":
-								let info = try self.decoder.decode(ResponsesStreamEvent.ContentPartInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .contentPartAdded(info))
-								continuation.yield(event)
-							case "response.content_part.done":
-								let info = try self.decoder.decode(ResponsesStreamEvent.ContentPartInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .contentPartDone(info))
-								continuation.yield(event)
-							case "response.output_text.delta":
-								let info = try self.decoder.decode(ResponsesStreamEvent.OutputTextDeltaInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .outputTextDelta(info))
-								continuation.yield(event)
-							case "response.output_text.annotation.added":
-								let info = try self.decoder.decode(ResponsesStreamEvent.OutputTextAnnotationInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .outputTextAnnotationAdded(info))
-								continuation.yield(event)
-							case "response.output_text.done":
-								let info = try self.decoder.decode(ResponsesStreamEvent.OutputTextDoneInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .outputTextDone(info))
-								continuation.yield(event)
-							case "response.refusal.delta":
-								let info = try self.decoder.decode(ResponsesStreamEvent.RefusalDeltaInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .refusalDelta(info))
-								continuation.yield(event)
-							case "response.refusal.done":
-								let info = try self.decoder.decode(ResponsesStreamEvent.RefusalDoneInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .refusalDone(info))
-								continuation.yield(event)
-							case "response.function_call_arguments.delta":
-								let info = try self.decoder.decode(ResponsesStreamEvent.FunctionCallArgumentsDeltaInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .functionCallArgumentsDelta(info))
-								continuation.yield(event)
-							case "response.function_call_arguments.done":
-								let info = try self.decoder.decode(ResponsesStreamEvent.FunctionCallArgumentsDoneInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .functionCallArgumentsDone(info))
-								continuation.yield(event)
-							case "response.file_search_call.in_progress":
-								let info = try self.decoder.decode(ResponsesStreamEvent.FileSearchCallInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .fileSearchCallInProgress(info))
-								continuation.yield(event)
-							case "response.file_search_call.searching":
-								let info = try self.decoder.decode(ResponsesStreamEvent.FileSearchCallInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .fileSearchCallSearching(info))
-								continuation.yield(event)
-							case "response.file_search_call.completed":
-								let info = try self.decoder.decode(ResponsesStreamEvent.FileSearchCallInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .fileSearchCallCompleted(info))
-								continuation.yield(event)
-							case "response.web_search_call.in_progress":
-								let info = try self.decoder.decode(ResponsesStreamEvent.WebSearchCallInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .webSearchCallInProgress(info))
-								continuation.yield(event)
-							case "response.web_search_call.searching":
-								let info = try self.decoder.decode(ResponsesStreamEvent.WebSearchCallInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .webSearchCallSearching(info))
-								continuation.yield(event)
-							case "response.web_search_call.completed":
-								let info = try self.decoder.decode(ResponsesStreamEvent.WebSearchCallInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .webSearchCallCompleted(info))
-								continuation.yield(event)
-							case "response.reasoning_summary_part.added":
-								let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningSummaryPartInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningSummaryPartAdded(info))
-								continuation.yield(event)
-							case "response.reasoning_summary_part.done":
-								let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningSummaryPartInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningSummaryPartDone(info))
-								continuation.yield(event)
-							case "response.reasoning_summary.text":
-								let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningSummaryInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningSummaryText(info))
-								continuation.yield(event)
-							case "error":
-								// Try bare ErrorDetail first (OpenAI), then wrapped ErrorResponse (LM Studio)
-								let errorDetail: ErrorDetail
-								if let bare = try? self.decoder.decode(ErrorDetail.self, from: jsonData) {
-									errorDetail = bare
-								} else {
-									let wrapped = try self.decoder.decode(ErrorResponse.self, from: jsonData)
-									errorDetail = wrapped.error
-								}
-								let event = ResponsesStreamEvent(type: currentEvent, object: .error(errorDetail))
-								continuation.yield(event)
-							case "response.reasoning_text.delta":
-								let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningTextDeltaInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningTextDelta(info))
-								continuation.yield(event)
-							case "response.reasoning_text.done":
-								let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningTextDoneInfo.self, from: jsonData)
-								let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningTextDone(info))
-								continuation.yield(event)
-							default:
-								// Silently ignore apply_patch streaming deltas
-								if !currentEvent.hasPrefix("response.apply_patch_call") {
-									print("Unknown event type '\(currentEvent)'")
-								}
+						case "response.created":
+							let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .responseCreated(wrapper.response))
+							continuation.yield(event)
+						case "response.in_progress":
+							let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .responseInProgress(wrapper.response))
+							continuation.yield(event)
+						case "response.completed":
+							let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .responseCompleted(wrapper.response))
+							continuation.yield(event)
+						case "response.failed":
+							let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .responseFailed(wrapper.response))
+							continuation.yield(event)
+						case "response.incomplete":
+							let wrapper = try self.decoder.decode(ResponseWrapper.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .responseIncomplete(wrapper.response))
+							continuation.yield(event)
+						case "response.output_item.added":
+							let info = try self.decoder.decode(ResponsesStreamEvent.OutputItemInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .outputItemAdded(info))
+							continuation.yield(event)
+						case "response.output_item.done":
+							let info = try self.decoder.decode(ResponsesStreamEvent.OutputItemInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .outputItemDone(info))
+							continuation.yield(event)
+						case "response.content_part.added":
+							let info = try self.decoder.decode(ResponsesStreamEvent.ContentPartInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .contentPartAdded(info))
+							continuation.yield(event)
+						case "response.content_part.done":
+							let info = try self.decoder.decode(ResponsesStreamEvent.ContentPartInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .contentPartDone(info))
+							continuation.yield(event)
+						case "response.output_text.delta":
+							let info = try self.decoder.decode(ResponsesStreamEvent.OutputTextDeltaInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .outputTextDelta(info))
+							continuation.yield(event)
+						case "response.output_text.annotation.added":
+							let info = try self.decoder.decode(ResponsesStreamEvent.OutputTextAnnotationInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .outputTextAnnotationAdded(info))
+							continuation.yield(event)
+						case "response.output_text.done":
+							let info = try self.decoder.decode(ResponsesStreamEvent.OutputTextDoneInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .outputTextDone(info))
+							continuation.yield(event)
+						case "response.refusal.delta":
+							let info = try self.decoder.decode(ResponsesStreamEvent.RefusalDeltaInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .refusalDelta(info))
+							continuation.yield(event)
+						case "response.refusal.done":
+							let info = try self.decoder.decode(ResponsesStreamEvent.RefusalDoneInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .refusalDone(info))
+							continuation.yield(event)
+						case "response.function_call_arguments.delta":
+							let info = try self.decoder.decode(ResponsesStreamEvent.FunctionCallArgumentsDeltaInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .functionCallArgumentsDelta(info))
+							continuation.yield(event)
+						case "response.function_call_arguments.done":
+							let info = try self.decoder.decode(ResponsesStreamEvent.FunctionCallArgumentsDoneInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .functionCallArgumentsDone(info))
+							continuation.yield(event)
+						case "response.file_search_call.in_progress":
+							let info = try self.decoder.decode(ResponsesStreamEvent.FileSearchCallInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .fileSearchCallInProgress(info))
+							continuation.yield(event)
+						case "response.file_search_call.searching":
+							let info = try self.decoder.decode(ResponsesStreamEvent.FileSearchCallInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .fileSearchCallSearching(info))
+							continuation.yield(event)
+						case "response.file_search_call.completed":
+							let info = try self.decoder.decode(ResponsesStreamEvent.FileSearchCallInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .fileSearchCallCompleted(info))
+							continuation.yield(event)
+						case "response.web_search_call.in_progress":
+							let info = try self.decoder.decode(ResponsesStreamEvent.WebSearchCallInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .webSearchCallInProgress(info))
+							continuation.yield(event)
+						case "response.web_search_call.searching":
+							let info = try self.decoder.decode(ResponsesStreamEvent.WebSearchCallInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .webSearchCallSearching(info))
+							continuation.yield(event)
+						case "response.web_search_call.completed":
+							let info = try self.decoder.decode(ResponsesStreamEvent.WebSearchCallInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .webSearchCallCompleted(info))
+							continuation.yield(event)
+						case "response.reasoning_summary_part.added":
+							let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningSummaryPartInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningSummaryPartAdded(info))
+							continuation.yield(event)
+						case "response.reasoning_summary_part.done":
+							let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningSummaryPartInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningSummaryPartDone(info))
+							continuation.yield(event)
+						case "response.reasoning_summary.text":
+							let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningSummaryInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningSummaryText(info))
+							continuation.yield(event)
+						case "error":
+							// Try bare ErrorDetail first (OpenAI), then wrapped ErrorResponse (LM Studio)
+							let errorDetail: ErrorDetail
+							if let bare = try? self.decoder.decode(ErrorDetail.self, from: jsonData) {
+								errorDetail = bare
+							} else {
+								let wrapped = try self.decoder.decode(ErrorResponse.self, from: jsonData)
+								errorDetail = wrapped.error
+							}
+							let event = ResponsesStreamEvent(type: currentEvent, object: .error(errorDetail))
+							continuation.yield(event)
+						case "response.reasoning_text.delta":
+							let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningTextDeltaInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningTextDelta(info))
+							continuation.yield(event)
+						case "response.reasoning_text.done":
+							let info = try self.decoder.decode(ResponsesStreamEvent.ReasoningTextDoneInfo.self, from: jsonData)
+							let event = ResponsesStreamEvent(type: currentEvent, object: .reasoningTextDone(info))
+							continuation.yield(event)
+						default:
+							// Silently ignore apply_patch streaming deltas
+							if !currentEvent.hasPrefix("response.apply_patch_call") {
+								print("Unknown event type '\(currentEvent)'")
+							}
 						}
 					} catch let error {
 						if ProcessInfo.processInfo.environment["DEBUG_RESPONSES"] != nil {

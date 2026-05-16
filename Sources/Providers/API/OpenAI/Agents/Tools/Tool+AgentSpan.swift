@@ -25,18 +25,18 @@ extension Tool {
 
 		switch self {
 
-			case .function(let function):
-				return function.name
-			case .fileSearch:
-				return "file_search"
-			case .webSearch(let search):
-				return search.type
-			case .computer:
-				return "computer_use_preview"
-			case .mcp:
-				return "mcp"
-			case .applyPatch:
-				return "apply_patch"
+		case .function(let function):
+			return function.name
+		case .fileSearch:
+			return "file_search"
+		case .webSearch(let search):
+			return search.type
+		case .computer:
+			return "computer_use_preview"
+		case .mcp:
+			return "mcp"
+		case .applyPatch:
+			return "apply_patch"
 		}
 	}
 }

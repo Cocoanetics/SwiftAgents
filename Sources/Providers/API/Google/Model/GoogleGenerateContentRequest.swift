@@ -76,10 +76,12 @@ public struct GoogleGenerateContentRequest: Codable, Sendable {
 
 	public let generationConfig: GenerationConfig?
 
-	public init(contents: [Content],
-		 systemInstruction: Content?,
-		 tools: [Tool]?,
-		 generationConfig: GenerationConfig? = nil) {
+	public init(
+		contents: [Content],
+		systemInstruction: Content?,
+		tools: [Tool]?,
+		generationConfig: GenerationConfig? = nil
+	) {
 		self.contents = contents
 		self.systemInstruction = systemInstruction
 		self.tools = tools

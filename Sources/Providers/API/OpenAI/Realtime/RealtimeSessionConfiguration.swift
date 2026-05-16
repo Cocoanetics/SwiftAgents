@@ -44,10 +44,10 @@ public struct RealtimeSessionConfiguration: Codable, Sendable {
 			var container = encoder.singleValueContainer()
 
 			switch self {
-				case .finite(let value):
-					try container.encode(value)
-				case .inf:
-					try container.encode("inf")
+			case .finite(let value):
+				try container.encode(value)
+			case .inf:
+				try container.encode("inf")
 			}
 		}
 	}

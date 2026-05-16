@@ -197,24 +197,20 @@ private func advanceCursorToAnchor(_ anchor: String, inputLines: [String], curso
 	var found = false
 
 	if !inputLines[0..<cursor].contains(where: { $0 == anchor }) {
-		for i in cursor..<inputLines.count {
-			if inputLines[i] == anchor {
-				cursor = i + 1
-				found = true
-				break
-			}
+		for i in cursor..<inputLines.count where inputLines[i] == anchor {
+			cursor = i + 1
+			found = true
+			break
 		}
 	}
 
 	let trimmedAnchor = anchor.trimmingCharacters(in: .whitespaces)
 	if !found && !inputLines[0..<cursor].contains(where: { $0.trimmingCharacters(in: .whitespaces) == trimmedAnchor }) {
-		for i in cursor..<inputLines.count {
-			if inputLines[i].trimmingCharacters(in: .whitespaces) == trimmedAnchor {
-				cursor = i + 1
-				parser.fuzz += 1
-				found = true
-				break
-			}
+		for i in cursor..<inputLines.count where inputLines[i].trimmingCharacters(in: .whitespaces) == trimmedAnchor {
+			cursor = i + 1
+			parser.fuzz += 1
+			found = true
+			break
 		}
 	}
 
@@ -321,22 +317,16 @@ private func findContextCore(_ lines: [String], context: [String], start: Int) -
 	}
 
 	// Exact match
-	for i in start..<lines.count {
-		if equalsSlice(lines, target: context, start: i, map: { $0 }) {
-			return ContextMatch(newIndex: i, fuzz: 0)
-		}
+	for i in start..<lines.count where equalsSlice(lines, target: context, start: i, map: { $0 }) {
+		return ContextMatch(newIndex: i, fuzz: 0)
 	}
 	// Trailing whitespace fuzz
-	for i in start..<lines.count {
-		if equalsSlice(lines, target: context, start: i, map: { $0.replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression) }) {
-			return ContextMatch(newIndex: i, fuzz: 1)
-		}
+	for i in start..<lines.count where equalsSlice(lines, target: context, start: i, map: { $0.replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression) }) {
+		return ContextMatch(newIndex: i, fuzz: 1)
 	}
 	// Full whitespace fuzz
-	for i in start..<lines.count {
-		if equalsSlice(lines, target: context, start: i, map: { $0.trimmingCharacters(in: .whitespaces) }) {
-			return ContextMatch(newIndex: i, fuzz: 100)
-		}
+	for i in start..<lines.count where equalsSlice(lines, target: context, start: i, map: { $0.trimmingCharacters(in: .whitespaces) }) {
+		return ContextMatch(newIndex: i, fuzz: 100)
 	}
 
 	return ContextMatch(newIndex: -1, fuzz: 0)
@@ -344,8 +334,9 @@ private func findContextCore(_ lines: [String], context: [String], start: Int) -
 
 private func equalsSlice(_ source: [String], target: [String], start: Int, map: (String) -> String) -> Bool {
 	guard start + target.count <= source.count else { return false }
-	for (offset, targetValue) in target.enumerated() {
-		if map(source[start + offset]) != map(targetValue) { return false }
+	for (offset, targetValue) in target.enumerated()
+	where map(source[start + offset]) != map(targetValue) {
+		return false
 	}
 	return true
 }

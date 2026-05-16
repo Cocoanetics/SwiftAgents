@@ -18,10 +18,10 @@ public enum TraceError: Error, LocalizedError {
 	 */
 	public var errorDescription: String? {
 		switch self {
-			case .missingTraceContext:
-				return "Cannot create span: No active trace found in context and no traceID provided."
-			case .unexpectedNilResult:
-				return "Span operation completed successfully but returned an unexpected nil result."
+		case .missingTraceContext:
+			return "Cannot create span: No active trace found in context and no traceID provided."
+		case .unexpectedNilResult:
+			return "Span operation completed successfully but returned an unexpected nil result."
 		}
 	}
 }

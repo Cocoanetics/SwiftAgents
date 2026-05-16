@@ -58,7 +58,7 @@ public struct ModelSettings: Codable, Sendable {
         presencePenalty: Double? = nil,
         toolChoice: ToolChoice? = nil,
         parallelToolCalls: Bool? = nil,
-		truncation: Response.TruncationStrategy? = nil,
+        truncation: Response.TruncationStrategy? = nil,
         maxCompletionTokens: Int? = nil,
         reasoning: Reasoning? = nil,
         metadata: [String: String]? = nil,

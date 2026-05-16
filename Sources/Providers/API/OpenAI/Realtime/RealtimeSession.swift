@@ -27,12 +27,12 @@ public enum RealtimeSessionError: LocalizedError {
 
 	public var errorDescription: String? {
 		switch self {
-			case .alreadyConnected:
-				return "Realtime session is already connected"
-			case .notConnected:
-				return "Realtime session is not connected"
-			case .modelChangeRequiresNewSession(let current, let requested):
-				return "Realtime sessions cannot change model from \(current) to \(requested) after the WebSocket has connected. Start a new session instead."
+		case .alreadyConnected:
+			return "Realtime session is already connected"
+		case .notConnected:
+			return "Realtime session is not connected"
+		case .modelChangeRequiresNewSession(let current, let requested):
+			return "Realtime sessions cannot change model from \(current) to \(requested) after the WebSocket has connected. Start a new session instead."
 		}
 	}
 }
@@ -330,108 +330,108 @@ public actor RealtimeSession {
 		eventContinuation.yield(.raw(event))
 
 		switch event.object {
-			case .sessionCreated(let payload):
-				currentSessionConfiguration = payload.session
-				eventContinuation.yield(.sessionCreated(payload.session))
+		case .sessionCreated(let payload):
+			currentSessionConfiguration = payload.session
+			eventContinuation.yield(.sessionCreated(payload.session))
 
-			case .sessionUpdated(let payload):
-				currentSessionConfiguration = payload.session
-				eventContinuation.yield(.sessionUpdated(payload.session))
+		case .sessionUpdated(let payload):
+			currentSessionConfiguration = payload.session
+			eventContinuation.yield(.sessionUpdated(payload.session))
 
-			case .conversationCreated(let payload):
-				conversationID = payload.conversation.id
+		case .conversationCreated(let payload):
+			conversationID = payload.conversation.id
 
-			case .conversationItemCreated(let payload):
-				await applyConversationItemEvent(payload)
+		case .conversationItemCreated(let payload):
+			await applyConversationItemEvent(payload)
 
-			case .conversationItemAdded(let payload):
-				await applyConversationItemEvent(payload)
+		case .conversationItemAdded(let payload):
+			await applyConversationItemEvent(payload)
 
-			case .conversationItemDone(let payload):
-				await applyConversationItemEvent(payload)
+		case .conversationItemDone(let payload):
+			await applyConversationItemEvent(payload)
 
-			case .conversationItemDeleted(let payload):
-				if let change = await history.delete(itemID: payload.itemId) {
-					eventContinuation.yield(.historyChange(change))
-				}
+		case .conversationItemDeleted(let payload):
+			if let change = await history.delete(itemID: payload.itemId) {
+				eventContinuation.yield(.historyChange(change))
+			}
 
-			case .conversationItemTruncated(let payload):
-				if let change = await history.applyTruncation(
-					itemID: payload.itemId,
-					contentIndex: payload.contentIndex,
-					audioEndMilliseconds: payload.audioEndMs
-				) {
-					eventContinuation.yield(.historyChange(change))
-				}
+		case .conversationItemTruncated(let payload):
+			if let change = await history.applyTruncation(
+				itemID: payload.itemId,
+				contentIndex: payload.contentIndex,
+				audioEndMilliseconds: payload.audioEndMs
+			) {
+				eventContinuation.yield(.historyChange(change))
+			}
 
-			case .conversationItemInputAudioTranscriptionDelta(let payload):
-				eventContinuation.yield(.inputAudioTranscriptDelta(payload))
+		case .conversationItemInputAudioTranscriptionDelta(let payload):
+			eventContinuation.yield(.inputAudioTranscriptDelta(payload))
 
-			case .conversationItemInputAudioTranscriptionCompleted(let payload):
-				if let change = await history.applyInputAudioTranscript(
-					itemID: payload.itemId,
-					contentIndex: payload.contentIndex,
-					transcript: payload.transcript
-				) {
-					eventContinuation.yield(.historyChange(change))
-				}
-				eventContinuation.yield(.inputAudioTranscriptDone(payload))
-				await recordTranscriptionSpan(transcript: payload.transcript)
+		case .conversationItemInputAudioTranscriptionCompleted(let payload):
+			if let change = await history.applyInputAudioTranscript(
+				itemID: payload.itemId,
+				contentIndex: payload.contentIndex,
+				transcript: payload.transcript
+			) {
+				eventContinuation.yield(.historyChange(change))
+			}
+			eventContinuation.yield(.inputAudioTranscriptDone(payload))
+			await recordTranscriptionSpan(transcript: payload.transcript)
 
-			case .responseCreated:
-				pendingResponseRequests = max(0, pendingResponseRequests - 1)
-				activeResponses += 1
+		case .responseCreated:
+			pendingResponseRequests = max(0, pendingResponseRequests - 1)
+			activeResponses += 1
 
-			case .responseDone(let payload):
-				await handleResponseDone(payload)
+		case .responseDone(let payload):
+			await handleResponseDone(payload)
 
-			case .responseOutputItemAdded(let payload):
-				if let change = await history.upsert(payload.item) {
-					eventContinuation.yield(.historyChange(change))
-				}
+		case .responseOutputItemAdded(let payload):
+			if let change = await history.upsert(payload.item) {
+				eventContinuation.yield(.historyChange(change))
+			}
 
-			case .responseOutputItemDone(let payload):
-				if let change = await history.upsert(payload.item) {
-					eventContinuation.yield(.historyChange(change))
-				}
-				if case .functionCall(let call) = payload.item {
-					eventContinuation.yield(.toolCalled(call))
-				}
+		case .responseOutputItemDone(let payload):
+			if let change = await history.upsert(payload.item) {
+				eventContinuation.yield(.historyChange(change))
+			}
+			if case .functionCall(let call) = payload.item {
+				eventContinuation.yield(.toolCalled(call))
+			}
 
-			case .responseOutputTextDelta(let payload):
-				eventContinuation.yield(.textDelta(payload))
+		case .responseOutputTextDelta(let payload):
+			eventContinuation.yield(.textDelta(payload))
 
-			case .responseOutputTextDone(let payload):
-				eventContinuation.yield(.textDone(payload))
+		case .responseOutputTextDone(let payload):
+			eventContinuation.yield(.textDone(payload))
 
-			case .responseOutputAudioDelta(let payload):
-				eventContinuation.yield(.audioDelta(payload))
+		case .responseOutputAudioDelta(let payload):
+			eventContinuation.yield(.audioDelta(payload))
 
-			case .responseOutputAudioDone(let payload):
-				eventContinuation.yield(.audioDone(payload))
-				await recordSpeechSpan(byteCount: payload.audio?.count)
+		case .responseOutputAudioDone(let payload):
+			eventContinuation.yield(.audioDone(payload))
+			await recordSpeechSpan(byteCount: payload.audio?.count)
 
-			case .responseOutputAudioTranscriptDelta(let payload):
-				eventContinuation.yield(.outputAudioTranscriptDelta(payload))
+		case .responseOutputAudioTranscriptDelta(let payload):
+			eventContinuation.yield(.outputAudioTranscriptDelta(payload))
 
-			case .responseOutputAudioTranscriptDone(let payload):
-				eventContinuation.yield(.outputAudioTranscriptDone(payload))
+		case .responseOutputAudioTranscriptDone(let payload):
+			eventContinuation.yield(.outputAudioTranscriptDone(payload))
 
-			case .responseFunctionCallArgumentsDelta:
-				break
+		case .responseFunctionCallArgumentsDelta:
+			break
 
-			case .responseFunctionCallArgumentsDone:
-				break
+		case .responseFunctionCallArgumentsDone:
+			break
 
-			case .error(let payload):
-				let error = APIError.apiError(payload.error.message)
-				lastServerError = error
-				pendingResponseRequests = 0
-				eventContinuation.yield(.error(payload.error))
-				failIdleWaiters(error)
+		case .error(let payload):
+			let error = APIError.apiError(payload.error.message)
+			lastServerError = error
+			pendingResponseRequests = 0
+			eventContinuation.yield(.error(payload.error))
+			failIdleWaiters(error)
 
-			case .unknown:
-				break
+		case .unknown:
+			break
 		}
 	}
 

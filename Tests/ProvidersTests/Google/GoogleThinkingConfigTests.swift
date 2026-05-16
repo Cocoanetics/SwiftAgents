@@ -26,7 +26,7 @@ struct GoogleThinkingConfigTests {
 
 	@Test("Thought parts map to reasoning content")
 	func decodesThoughtSummaryIntoReasoningContent() throws {
-		let responseJSON = """
+		let responseJSON = Data("""
 		{
 		  "candidates": [
 			{
@@ -43,7 +43,7 @@ struct GoogleThinkingConfigTests {
 		  ],
 		  "model_version": "gemini-test"
 		}
-		""".data(using: .utf8)!
+		""".utf8)
 
 		let httpResponse = HTTPURLResponse(url: URL(string: "https://example.com")!, statusCode: 200, httpVersion: nil, headerFields: nil)!
 		let api = GoogleAPI()

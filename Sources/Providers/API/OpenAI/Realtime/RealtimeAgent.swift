@@ -19,10 +19,10 @@ public extension RealtimeAgent {
 extension Tool {
 	var isRealtimeCompatible: Bool {
 		switch self {
-			case .function, .mcp:
-				return true
-			case .fileSearch, .webSearch, .computer, .applyPatch:
-				return false
+		case .function, .mcp:
+			return true
+		case .fileSearch, .webSearch, .computer, .applyPatch:
+			return false
 		}
 	}
 

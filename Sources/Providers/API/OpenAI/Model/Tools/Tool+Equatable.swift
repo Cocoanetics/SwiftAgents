@@ -9,13 +9,13 @@ extension Tool: Equatable {
 
     public static func == (lhs: Tool, rhs: Tool) -> Bool {
         switch (lhs, rhs) {
-            case (.function(let a), .function(let b)): a.name == b.name
-            case (.fileSearch(let a), .fileSearch(let b)): a.vectorStoreIds == b.vectorStoreIds
-            case (.webSearch(let a), .webSearch(let b)): a.type == b.type
-            case (.computer, .computer): true
-            case (.mcp(let a), .mcp(let b)): a == b
-            case (.applyPatch, .applyPatch): true
-            default: false
+        case (.function(let lhsFn), .function(let rhsFn)): lhsFn.name == rhsFn.name
+        case (.fileSearch(let lhsFs), .fileSearch(let rhsFs)): lhsFs.vectorStoreIds == rhsFs.vectorStoreIds
+        case (.webSearch(let lhsWs), .webSearch(let rhsWs)): lhsWs.type == rhsWs.type
+        case (.computer, .computer): true
+        case (.mcp(let lhsMcp), .mcp(let rhsMcp)): lhsMcp == rhsMcp
+        case (.applyPatch, .applyPatch): true
+        default: false
         }
     }
 }

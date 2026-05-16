@@ -48,6 +48,8 @@ extension Runner {
 
 	// MARK: - Internal Streaming Loop
 
+	// swiftlint:disable:next function_parameter_count
+
 	private static func _runStreamedLoop<A: Agent>(
 		agent: A,
 		input: String,
@@ -159,6 +161,8 @@ extension Runner {
 	}
 
 	// MARK: - Streamed Turn Execution
+
+	// swiftlint:disable:next function_parameter_count
 
 	private static func _executeStreamedTurns<A: Agent>(
 		agent: A,
@@ -363,6 +367,7 @@ extension Runner {
 
 			// No tool calls — this is the final output
 			if A.OutputType.self == String.self {
+				// swiftlint:disable:next force_cast - guarded above by `A.OutputType.self == String.self`.
 				return .finalOutput(roundResult as! A.OutputType, roundReasoning)
 			} else if let data = roundResult.data(using: .utf8) {
 				let decoder = JSONDecoder()

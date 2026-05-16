@@ -19,18 +19,18 @@ public enum ImageGenerationModel {
 	/// The raw model identifier used in the API
 	public var identifier: String {
 		switch self {
-			case .dalle2: return "dall-e-2"
-			case .dalle3: return "dall-e-3"
-			case .gptImage: return "gpt-image-1"
+		case .dalle2: return "dall-e-2"
+		case .dalle3: return "dall-e-3"
+		case .gptImage: return "gpt-image-1"
 		}
 	}
 
 	/// The options specific to this model
 	public var options: ImageGenerationOptions {
 		switch self {
-			case .dalle2(let options): return options
-			case .dalle3(let options): return options
-			case .gptImage(let options): return options
+		case .dalle2(let options): return options
+		case .dalle3(let options): return options
+		case .gptImage(let options): return options
 		}
 	}
 }

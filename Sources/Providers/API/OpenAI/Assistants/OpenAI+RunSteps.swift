@@ -23,12 +23,14 @@ extension OpenAI {
 	 
 	 - SeeAlso: [List Run Steps API](https://platform.openai.com/docs/api-reference/run-steps/listRunSteps)
 	 */
-	func listRunSteps(threadId: String,
-					  runId: String,
-					  limit: Int = 20,
-					  order: SortOrder = .descending,
-					  after: String? = nil,
-					  before: String? = nil) async throws -> ListPagedResponse<RunStep> {
+	func listRunSteps(
+		threadId: String,
+		runId: String,
+		limit: Int = 20,
+		order: SortOrder = .descending,
+		after: String? = nil,
+		before: String? = nil
+	) async throws -> ListPagedResponse<RunStep> {
 		var queryItems: [URLQueryItem] = [
 			URLQueryItem(name: "limit", value: String(limit)),
 			URLQueryItem(name: "order", value: order.rawValue)

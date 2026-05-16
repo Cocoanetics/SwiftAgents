@@ -79,13 +79,13 @@ public struct ChatCompletionRequest: Codable, Sendable {
 		public func encode(to encoder: Encoder) throws {
 			var container = encoder.container(keyedBy: CodingKeys.self)
 			switch self {
-				case .text:
-					try container.encode("text", forKey: .type)
-				case .json:
-					try container.encode("json_object", forKey: .type)
-				case .jsonSchema(let schemaFormat):
-					try container.encode("json_schema", forKey: .type)
-					try container.encode(schemaFormat, forKey: .jsonSchema)
+			case .text:
+				try container.encode("text", forKey: .type)
+			case .json:
+				try container.encode("json_object", forKey: .type)
+			case .jsonSchema(let schemaFormat):
+				try container.encode("json_schema", forKey: .type)
+				try container.encode(schemaFormat, forKey: .jsonSchema)
 			}
 		}
 
@@ -93,15 +93,15 @@ public struct ChatCompletionRequest: Codable, Sendable {
 			let container = try decoder.container(keyedBy: CodingKeys.self)
 			let type = try container.decode(String.self, forKey: .type)
 			switch type {
-				case "text":
-					self = .text
-				case "json_object":
-					self = .json
-				case "json_schema":
-					let jsonSchemaFormat = try container.decode(JSONSchemaFormat.self, forKey: .jsonSchema)
-					self = .jsonSchema(jsonSchemaFormat)
-				default:
-					throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Invalid response format type")
+			case "text":
+				self = .text
+			case "json_object":
+				self = .json
+			case "json_schema":
+				let jsonSchemaFormat = try container.decode(JSONSchemaFormat.self, forKey: .jsonSchema)
+				self = .jsonSchema(jsonSchemaFormat)
+			default:
+				throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Invalid response format type")
 			}
 		}
 	}

@@ -34,22 +34,24 @@ extension OpenAI {
 	 
 	 - SeeAlso: [Create Run API](https://platform.openai.com/docs/api-reference/runs/createRun)
 	 */
-	func createRun(threadId: String,
-				   assistantId: String,
-				   model: String? = nil,
-				   instructions: String? = nil,
-				   additionalInstructions: String? = nil,
-				   additionalMessages: [MessageCreation]? = nil,
-				   attachments: [Attachment]? = nil,
-				   tools: [ToolDescription]? = nil,
-				   metadata: [String: String]? = nil,
-				   temperature: Double? = nil,
-				   topP: Double? = nil,
-				   maxPromptTokens: Int? = nil,
-				   maxCompletionTokens: Int? = nil,
-				   truncationStrategy: TruncationStrategy? = nil,
-				   toolChoice: ToolChoice? = nil,
-				   responseFormat: ResponseFormat? = nil) async throws -> Run {
+	func createRun(
+		threadId: String,
+		assistantId: String,
+		model: String? = nil,
+		instructions: String? = nil,
+		additionalInstructions: String? = nil,
+		additionalMessages: [MessageCreation]? = nil,
+		attachments: [Attachment]? = nil,
+		tools: [ToolDescription]? = nil,
+		metadata: [String: String]? = nil,
+		temperature: Double? = nil,
+		topP: Double? = nil,
+		maxPromptTokens: Int? = nil,
+		maxCompletionTokens: Int? = nil,
+		truncationStrategy: TruncationStrategy? = nil,
+		toolChoice: ToolChoice? = nil,
+		responseFormat: ResponseFormat? = nil
+	) async throws -> Run {
 		let runCreation = RunCreation(assistantId: assistantId,
 									  model: model,
 									  instructions: instructions,
@@ -74,22 +76,24 @@ extension OpenAI {
 		return try process(data: data, response: response)
 	}
 
-	func createRunStream(threadId: String,
-				   assistantId: String,
-				   model: String? = nil,
-				   instructions: String? = nil,
-				   additionalInstructions: String? = nil,
-				   additionalMessages: [MessageCreation]? = nil,
-				   attachments: [Attachment]? = nil,
-				   tools: [ToolDescription]? = nil,
-				   metadata: [String: String]? = nil,
-				   temperature: Double? = nil,
-				   topP: Double? = nil,
-				   maxPromptTokens: Int? = nil,
-				   maxCompletionTokens: Int? = nil,
-				   truncationStrategy: TruncationStrategy? = nil,
-				   toolChoice: ToolChoice? = nil,
-				   responseFormat: ResponseFormat? = nil) async throws -> AsyncThrowingStream<StreamEvent, Error> {
+	func createRunStream(
+		threadId: String,
+		assistantId: String,
+		model: String? = nil,
+		instructions: String? = nil,
+		additionalInstructions: String? = nil,
+		additionalMessages: [MessageCreation]? = nil,
+		attachments: [Attachment]? = nil,
+		tools: [ToolDescription]? = nil,
+		metadata: [String: String]? = nil,
+		temperature: Double? = nil,
+		topP: Double? = nil,
+		maxPromptTokens: Int? = nil,
+		maxCompletionTokens: Int? = nil,
+		truncationStrategy: TruncationStrategy? = nil,
+		toolChoice: ToolChoice? = nil,
+		responseFormat: ResponseFormat? = nil
+	) async throws -> AsyncThrowingStream<StreamEvent, Error> {
 		let runCreation = RunCreation(assistantId: assistantId,
 									  model: model,
 									  instructions: instructions,
@@ -271,9 +275,11 @@ extension OpenAI {
 	 
 	 - SeeAlso: [Modify Run API](https://platform.openai.com/docs/api-reference/runs/modifyRun)
 	 */
-	func modifyRun(threadId: String,
-				   runId: String,
-				   metadata: [String: String]) async throws -> Run {
+	func modifyRun(
+		threadId: String,
+		runId: String,
+		metadata: [String: String]
+	) async throws -> Run {
 		let body = ["metadata": metadata]
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/threads/\(threadId)/runs/\(runId)", body: body)
 
@@ -368,11 +374,11 @@ extension OpenAI {
 			let run = try await retrieveRun(threadId: threadId, runId: runId)
 
 			switch run.status {
-				case .cancelled, .failed, .completed, .expired, .requiresAction:
-					return run
-				default:
-					// The run is still in progress, continue waiting
-					break
+			case .cancelled, .failed, .completed, .expired, .requiresAction:
+				return run
+			default:
+				// The run is still in progress, continue waiting
+				break
 			}
 
 			// Sleep for a few seconds before polling again to manage API request frequency

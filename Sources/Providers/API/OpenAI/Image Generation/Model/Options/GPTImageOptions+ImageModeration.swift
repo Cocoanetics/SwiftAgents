@@ -11,8 +11,6 @@ extension GPTImageOptions {
 	/// The moderation level for GPT Image
 	public enum ImageModeration: String, Codable {
 		/// Low moderation
-		case low = "low"
-		/// Auto moderation
-		case auto = "auto"
-	}
+		case low		/// Auto moderation
+		case auto	}
 }

@@ -163,7 +163,7 @@ extension ToolChoice {
             }
         }
 
-        if let _ = generationOutput["content"] as? String {
+        if generationOutput["content"] is String {
 			return ToolChoice.none
         }
 

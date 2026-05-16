@@ -65,8 +65,8 @@ public func withSpan<T>(
 
 		switch error {
 
-			case .exceededMaxTurns:
-				span.error = SpanError(message: "Exceeded maximum number of turns")
+		case .exceededMaxTurns:
+			span.error = SpanError(message: "Exceeded maximum number of turns")
 		}
 
 		operationError = error
@@ -97,6 +97,7 @@ public func withSpan<T>(
 		return result
 	} else if T.self == Void.self {
 		// If T is Void and operationResult is nil, return empty tuple
+		// swiftlint:disable:next force_cast - guarded above by `T.self == Void.self`.
 		return () as! T
 	} else {
 		throw TraceError.unexpectedNilResult
@@ -154,6 +155,7 @@ public func withTrace<T>(
 	} else if let result = operationResult {
 		return result
 	} else if T.self == Void.self {
+        // swiftlint:disable:next force_cast - guarded above by `T.self == Void.self`.
         return () as! T
     } else {
         throw TraceError.unexpectedNilResult

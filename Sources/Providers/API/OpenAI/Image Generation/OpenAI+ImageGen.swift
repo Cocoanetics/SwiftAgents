@@ -26,9 +26,9 @@ extension OpenAI {
 		// Validate prompt length based on model
 		let maxPromptLength: Int
 		switch model {
-			case .dalle2: maxPromptLength = 1000
-			case .dalle3: maxPromptLength = 4000
-			case .gptImage: maxPromptLength = 32000
+		case .dalle2: maxPromptLength = 1000
+		case .dalle3: maxPromptLength = 4000
+		case .gptImage: maxPromptLength = 32000
 		}
 		guard prompt.count <= maxPromptLength else {
 			throw ImageGenerationError.invalidParameter("Prompt exceeds maximum length of \(maxPromptLength) characters for \(model.identifier)")
@@ -37,55 +37,55 @@ extension OpenAI {
 		// Create the request based on model type
 		let request: ImageGenerationRequest
 		switch model {
-			case .dalle2(let options):
-				// DALL-E 2 specific checks
-				guard options.count >= 1 && options.count <= 10 else {
-					throw ImageGenerationError.invalidParameter("DALL-E 2 requires 1 to 10 images (count=\(options.count))")
-				}
-				request = ImageGenerationRequest(
-					prompt: prompt,
-					model: model.identifier,
-					n: options.count,
-					size: options.size.rawValue,
-					responseFormat: options.responseFormat.rawValue,
-					user: options.user
-				)
+		case .dalle2(let options):
+			// DALL-E 2 specific checks
+			guard options.count >= 1 && options.count <= 10 else {
+				throw ImageGenerationError.invalidParameter("DALL-E 2 requires 1 to 10 images (count=\(options.count))")
+			}
+			request = ImageGenerationRequest(
+				prompt: prompt,
+				model: model.identifier,
+				n: options.count,
+				size: options.size.rawValue,
+				responseFormat: options.responseFormat.rawValue,
+				user: options.user
+			)
 
-			case .dalle3(let options):
-				// DALL-E 3 specific checks (count=1 is enforced by Dalle3Options)
-				request = ImageGenerationRequest(
-					prompt: prompt,
-					model: model.identifier,
-					n: options.count,
-					size: options.size.rawValue,
-					quality: options.quality.rawValue,
-					responseFormat: options.responseFormat.rawValue,
-					style: options.style.rawValue,
-					user: options.user
-				)
+		case .dalle3(let options):
+			// DALL-E 3 specific checks (count=1 is enforced by Dalle3Options)
+			request = ImageGenerationRequest(
+				prompt: prompt,
+				model: model.identifier,
+				n: options.count,
+				size: options.size.rawValue,
+				quality: options.quality.rawValue,
+				responseFormat: options.responseFormat.rawValue,
+				style: options.style.rawValue,
+				user: options.user
+			)
 
-			case .gptImage(let options):
-				// GPT Image specific checks
-				guard options.count >= 1 && options.count <= 10 else {
-					throw ImageGenerationError.invalidParameter("GPT Image requires 1 to 10 images (count=\(options.count))")
+		case .gptImage(let options):
+			// GPT Image specific checks
+			guard options.count >= 1 && options.count <= 10 else {
+				throw ImageGenerationError.invalidParameter("GPT Image requires 1 to 10 images (count=\(options.count))")
+			}
+			if let compression = options.outputCompression {
+				guard compression >= 0 && compression <= 100 else {
+					throw ImageGenerationError.invalidParameter("Output compression must be between 0 and 100")
 				}
-				if let compression = options.outputCompression {
-					guard compression >= 0 && compression <= 100 else {
-						throw ImageGenerationError.invalidParameter("Output compression must be between 0 and 100")
-					}
-				}
-				request = ImageGenerationRequest(
-					prompt: prompt,
-					model: model.identifier,
-					n: options.count,
-					size: options.size.rawValue,
-					quality: options.quality.rawValue,
-					background: options.background.rawValue,
-					moderation: options.moderation.rawValue,
-					outputCompression: options.outputCompression,
-					outputFormat: options.outputFormat.rawValue,
-					user: options.user
-				)
+			}
+			request = ImageGenerationRequest(
+				prompt: prompt,
+				model: model.identifier,
+				n: options.count,
+				size: options.size.rawValue,
+				quality: options.quality.rawValue,
+				background: options.background.rawValue,
+				moderation: options.moderation.rawValue,
+				outputCompression: options.outputCompression,
+				outputFormat: options.outputFormat.rawValue,
+				user: options.user
+			)
 		}
 
 		// Create the request using the helper function from API

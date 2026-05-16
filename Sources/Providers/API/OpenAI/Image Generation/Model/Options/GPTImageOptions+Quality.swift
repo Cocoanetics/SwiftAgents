@@ -11,12 +11,8 @@ extension GPTImageOptions {
 	/// Quality options for GPT Image
 	public enum Quality: String, Codable {
 		/// High quality
-		case high = "high"
-		/// Medium quality
-		case medium = "medium"
-		/// Low quality
-		case low = "low"
-		/// Auto quality
-		case auto = "auto"
-	}
+		case high		/// Medium quality
+		case medium		/// Low quality
+		case low		/// Auto quality
+		case auto	}
 }

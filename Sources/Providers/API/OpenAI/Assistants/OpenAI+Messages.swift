@@ -103,9 +103,11 @@ extension OpenAI {
 	 
 	 - SeeAlso: [Modify Message API](https://platform.openai.com/docs/api-reference/messages/modifyMessage)
 	 */
-	func modifyMessage(threadId: String,
-					   messageId: String,
-					   metadata: [String: String]) async throws -> Message {
+	func modifyMessage(
+		threadId: String,
+		messageId: String,
+		metadata: [String: String]
+	) async throws -> Message {
 		let body = ["metadata": metadata]
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/threads/\(threadId)/messages/\(messageId)", body: body)
 

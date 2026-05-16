@@ -64,13 +64,13 @@ public extension Agent {
 	/// The response format to request from ChatCompletionRequest
 	var responseFormat: ChatCompletionRequest.ResponseFormat? {
 		switch outputType {
-			case .text:
-				// workaround for LM Studio bug which complains about this value, so we go with default nil
-				return nil
-			case .json:
-				return .json
-			case .jsonSchema(let schemaFormat):
-				return .jsonSchema(schemaFormat)
+		case .text:
+			// workaround for LM Studio bug which complains about this value, so we go with default nil
+			return nil
+		case .json:
+			return .json
+		case .jsonSchema(let schemaFormat):
+			return .jsonSchema(schemaFormat)
 		}
 	}
 
@@ -148,6 +148,7 @@ public extension Agent {
 								output: JSONValue(result)
 							)
 
+							// swiftlint:disable:next force_cast - callTool returns Encodable; protocol return requires Codable. Concrete return paths conform in practice.
 							return (call.callId, result as! any Codable)
 						}
 					}
@@ -177,6 +178,7 @@ public extension Agent {
 										mcpData: ["server": .string(serverName)]
 									)
 
+									// swiftlint:disable:next force_cast - callTool returns Encodable; protocol return requires Codable. Concrete return paths conform in practice.
 									return (call.callId, result as! any Codable)
 								}
 							}

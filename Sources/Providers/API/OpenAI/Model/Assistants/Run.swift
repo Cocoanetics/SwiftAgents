@@ -206,15 +206,15 @@ public enum ToolChoice: Codable, Sendable {
 		var container = encoder.singleValueContainer()
 
 		switch self {
-			case .none:
-				try container.encode("none")
-			case .auto:
-				try container.encode("auto")
-			case .required:
-				try container.encode("required")
+		case .none:
+			try container.encode("none")
+		case .auto:
+			try container.encode("auto")
+		case .required:
+			try container.encode("required")
 
-			case .tool(let toolDescription):
-				try toolDescription.encode(to: encoder)
+		case .tool(let toolDescription):
+			try toolDescription.encode(to: encoder)
 		}
 	}
 }

@@ -68,78 +68,78 @@ public struct RealtimeServerEvent: Sendable {
 		}
 
 		switch eventType {
-			case "session.created":
-				let payload = try decodePayload(SessionEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .sessionCreated(payload))
-			case "session.updated":
-				let payload = try decodePayload(SessionEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .sessionUpdated(payload))
-			case "conversation.created":
-				let payload = try decodePayload(ConversationCreatedEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .conversationCreated(payload))
-			case "conversation.item.created":
-				let payload = try decodePayload(ConversationItemEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .conversationItemCreated(payload))
-			case "conversation.item.added":
-				let payload = try decodePayload(ConversationItemEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .conversationItemAdded(payload))
-			case "conversation.item.done":
-				let payload = try decodePayload(ConversationItemEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .conversationItemDone(payload))
-			case "conversation.item.deleted":
-				let payload = try decodePayload(ConversationItemDeletedEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .conversationItemDeleted(payload))
-			case "conversation.item.truncated":
-				let payload = try decodePayload(ConversationItemTruncatedEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .conversationItemTruncated(payload))
-			case "conversation.item.input_audio_transcription.delta":
-				let payload = try decodePayload(InputAudioTranscriptionDeltaEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .conversationItemInputAudioTranscriptionDelta(payload))
-			case "conversation.item.input_audio_transcription.completed":
-				let payload = try decodePayload(InputAudioTranscriptionCompletedEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .conversationItemInputAudioTranscriptionCompleted(payload))
-			case "response.created":
-				let payload = try decodePayload(ResponseEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseCreated(payload))
-			case "response.done":
-				let payload = try decodePayload(ResponseEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseDone(payload))
-			case "response.output_item.added":
-				let payload = try decodePayload(ResponseOutputItemEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseOutputItemAdded(payload))
-			case "response.output_item.done":
-				let payload = try decodePayload(ResponseOutputItemEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseOutputItemDone(payload))
-			case "response.output_text.delta":
-				let payload = try decodePayload(OutputTextDeltaEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseOutputTextDelta(payload))
-			case "response.output_text.done":
-				let payload = try decodePayload(OutputTextDoneEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseOutputTextDone(payload))
-			case "response.output_audio.delta":
-				let payload = try decodePayload(OutputAudioDeltaEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseOutputAudioDelta(payload))
-			case "response.output_audio.done":
-				let payload = try decodePayload(OutputAudioDoneEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseOutputAudioDone(payload))
-			case "response.output_audio_transcript.delta":
-				let payload = try decodePayload(OutputAudioTranscriptDeltaEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseOutputAudioTranscriptDelta(payload))
-			case "response.output_audio_transcript.done":
-				let payload = try decodePayload(OutputAudioTranscriptDoneEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseOutputAudioTranscriptDone(payload))
-			case "response.function_call_arguments.delta":
-				let payload = try decodePayload(FunctionCallArgumentsDeltaEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseFunctionCallArgumentsDelta(payload))
-			case "response.function_call_arguments.done":
-				let payload = try decodePayload(FunctionCallArgumentsDoneEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .responseFunctionCallArgumentsDone(payload))
-			case "error":
-				let payload = try decodePayload(ErrorEvent.self)
-				return .init(type: eventType, eventId: payload.eventId, object: .error(payload))
-			default:
-				let raw = rawDictionary.mapValues(JSONValue.init(jsonObject:))
-				return .init(type: eventType, eventId: rawDictionary["event_id"] as? String, object: .unknown(raw))
+		case "session.created":
+			let payload = try decodePayload(SessionEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .sessionCreated(payload))
+		case "session.updated":
+			let payload = try decodePayload(SessionEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .sessionUpdated(payload))
+		case "conversation.created":
+			let payload = try decodePayload(ConversationCreatedEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .conversationCreated(payload))
+		case "conversation.item.created":
+			let payload = try decodePayload(ConversationItemEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .conversationItemCreated(payload))
+		case "conversation.item.added":
+			let payload = try decodePayload(ConversationItemEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .conversationItemAdded(payload))
+		case "conversation.item.done":
+			let payload = try decodePayload(ConversationItemEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .conversationItemDone(payload))
+		case "conversation.item.deleted":
+			let payload = try decodePayload(ConversationItemDeletedEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .conversationItemDeleted(payload))
+		case "conversation.item.truncated":
+			let payload = try decodePayload(ConversationItemTruncatedEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .conversationItemTruncated(payload))
+		case "conversation.item.input_audio_transcription.delta":
+			let payload = try decodePayload(InputAudioTranscriptionDeltaEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .conversationItemInputAudioTranscriptionDelta(payload))
+		case "conversation.item.input_audio_transcription.completed":
+			let payload = try decodePayload(InputAudioTranscriptionCompletedEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .conversationItemInputAudioTranscriptionCompleted(payload))
+		case "response.created":
+			let payload = try decodePayload(ResponseEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseCreated(payload))
+		case "response.done":
+			let payload = try decodePayload(ResponseEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseDone(payload))
+		case "response.output_item.added":
+			let payload = try decodePayload(ResponseOutputItemEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseOutputItemAdded(payload))
+		case "response.output_item.done":
+			let payload = try decodePayload(ResponseOutputItemEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseOutputItemDone(payload))
+		case "response.output_text.delta":
+			let payload = try decodePayload(OutputTextDeltaEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseOutputTextDelta(payload))
+		case "response.output_text.done":
+			let payload = try decodePayload(OutputTextDoneEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseOutputTextDone(payload))
+		case "response.output_audio.delta":
+			let payload = try decodePayload(OutputAudioDeltaEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseOutputAudioDelta(payload))
+		case "response.output_audio.done":
+			let payload = try decodePayload(OutputAudioDoneEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseOutputAudioDone(payload))
+		case "response.output_audio_transcript.delta":
+			let payload = try decodePayload(OutputAudioTranscriptDeltaEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseOutputAudioTranscriptDelta(payload))
+		case "response.output_audio_transcript.done":
+			let payload = try decodePayload(OutputAudioTranscriptDoneEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseOutputAudioTranscriptDone(payload))
+		case "response.function_call_arguments.delta":
+			let payload = try decodePayload(FunctionCallArgumentsDeltaEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseFunctionCallArgumentsDelta(payload))
+		case "response.function_call_arguments.done":
+			let payload = try decodePayload(FunctionCallArgumentsDoneEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .responseFunctionCallArgumentsDone(payload))
+		case "error":
+			let payload = try decodePayload(ErrorEvent.self)
+			return .init(type: eventType, eventId: payload.eventId, object: .error(payload))
+		default:
+			let raw = rawDictionary.mapValues(JSONValue.init(jsonObject:))
+			return .init(type: eventType, eventId: rawDictionary["event_id"] as? String, object: .unknown(raw))
 		}
 	}
 }

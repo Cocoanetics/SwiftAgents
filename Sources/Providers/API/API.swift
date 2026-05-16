@@ -135,22 +135,24 @@ public class API: @unchecked Sendable {
 	 
 	 - See also: [OpenAI API Documentation](https://platform.openai.com/docs/api-reference/chat/create)
 	 */
-	public func createChatCompletion(model: String,
-									 messages: [ChatMessage],
-									 tools: [ToolDescription]? = nil,
-									 toolChoice: ToolChoice? = nil,
-									 n: Int? = nil,
-									 stop: [String]? = nil,
-									 store: Bool? = nil,
-									 temperature: Double? = nil,
-									 maxCompletionTokens: Int? = nil,
-									 metadata: [String: String]? = nil,
-									 parallelToolCalls: Bool? = nil,
-									 presencePenalty: Double? = nil,
-									 responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
-									 frequencyPenalty: Double? = nil,
-									 logitBias: [String: Int]? = nil,
-									 user: String? = nil) async throws -> ChatCompletionResponse {
+	public func createChatCompletion(
+		model: String,
+		messages: [ChatMessage],
+		tools: [ToolDescription]? = nil,
+		toolChoice: ToolChoice? = nil,
+		n: Int? = nil,
+		stop: [String]? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		maxCompletionTokens: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		presencePenalty: Double? = nil,
+		responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
+		frequencyPenalty: Double? = nil,
+		logitBias: [String: Int]? = nil,
+		user: String? = nil
+	) async throws -> ChatCompletionResponse {
 		// Check rate limits before proceeding
 		if let rateLimit {
 			await rateLimit.waitForRateLimitReset()
@@ -235,23 +237,25 @@ public class API: @unchecked Sendable {
 	 
 	 - See also: [OpenAI API Documentation](https://platform.openai.com/docs/api-reference/chat/create)
 	 */
-	public func createChatCompletionStream(model: String,
-										   messages: [ChatMessage],
-										   tools: [ToolDescription]? = nil,
-										   toolChoice: ToolChoice? = nil,
-										   n: Int = 1,
-										   streamOptions: ChatCompletionRequest.StreamOptions? = nil,
-										   stop: [String]? = nil,
-										   store: Bool? = nil,
-										   temperature: Double? = nil,
-										   maxCompletionTokens: Int? = nil,
-										   metadata: [String: String]? = nil,
-										   parallelToolCalls: Bool? = nil,
-										   presencePenalty: Double = 0.0,
-										   responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
-										   frequencyPenalty: Double = 0.0,
-										   logitBias: [String: Int]? = nil,
-										   user: String? = nil) async throws -> AsyncThrowingStream<Chunk, Error> {
+	public func createChatCompletionStream(
+		model: String,
+		messages: [ChatMessage],
+		tools: [ToolDescription]? = nil,
+		toolChoice: ToolChoice? = nil,
+		n: Int = 1,
+		streamOptions: ChatCompletionRequest.StreamOptions? = nil,
+		stop: [String]? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		maxCompletionTokens: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		presencePenalty: Double = 0.0,
+		responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
+		frequencyPenalty: Double = 0.0,
+		logitBias: [String: Int]? = nil,
+		user: String? = nil
+	) async throws -> AsyncThrowingStream<Chunk, Error> {
 		// Check rate limits before proceeding
 		if let rateLimit {
 			await rateLimit.waitForRateLimitReset()
@@ -290,10 +294,12 @@ public class API: @unchecked Sendable {
 
 	// MARK: - Helpers
 
-	internal func createUrlRequest(httpMethod: String = "GET",
-								   path: String,
-								   body: Codable? = nil,
-								   queryItems: [URLQueryItem]? = nil) throws -> URLRequest {
+	internal func createUrlRequest(
+		httpMethod: String = "GET",
+		path: String,
+		body: Codable? = nil,
+		queryItems: [URLQueryItem]? = nil
+	) throws -> URLRequest {
 		// Create the URL from the base endpoint and the specific path.
 		guard var urlComponents = URLComponents(url: endpointURL.appending(path: path), resolvingAgainstBaseURL: true) else {
 			throw URLError(.badURL)
@@ -343,21 +349,21 @@ public class API: @unchecked Sendable {
 			}
 
 			switch errorResponse.error.type {
-				case "server_error":
-					return APIError.serverError(errorResponse.error.message)
+			case "server_error":
+				return APIError.serverError(errorResponse.error.message)
 
-				case "invalid_request_error":
-					return APIError.invalidRequest(errorResponse.error.message)
+			case "invalid_request_error":
+				return APIError.invalidRequest(errorResponse.error.message)
 
-				case "insufficient_quota":
-					return APIError.quotaError(errorResponse.error.message)
+			case "insufficient_quota":
+				return APIError.quotaError(errorResponse.error.message)
 
-				case "api_error":
-					return APIError.apiError(errorResponse.error.message)
+			case "api_error":
+				return APIError.apiError(errorResponse.error.message)
 
-				default:
+			default:
 
-					return APIError.otherError(errorResponse.error.type, errorResponse.error.message)
+				return APIError.otherError(errorResponse.error.type, errorResponse.error.message)
 			}
 		} catch {
 			let string = String(data: data, encoding: .utf8) ?? ""

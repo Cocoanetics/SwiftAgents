@@ -20,9 +20,11 @@ extension OpenAI {
 	 
 	 - SeeAlso: [Create Thread API](https://platform.openai.com/docs/api-reference/threads/createThread)
 	 */
-	public func createThread(messages: [MessageCreation]? = nil,
-					  toolResources: ToolResources? = nil,
-					  metadata: [String: String]? = nil) async throws -> Thread {
+	public func createThread(
+		messages: [MessageCreation]? = nil,
+		toolResources: ToolResources? = nil,
+		metadata: [String: String]? = nil
+	) async throws -> Thread {
 		let details = ThreadOptionals(messages: messages, toolResources: toolResources, metadata: metadata)
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/threads", body: details)
 
@@ -61,9 +63,11 @@ extension OpenAI {
 	 
 	 - SeeAlso: [Modify Thread API](https://platform.openai.com/docs/api-reference/threads/modifyThread)
 	 */
-	public func modifyThread(id: String,
-					  toolResources: ToolResources? = nil,
-					  metadata: [String: String]? = nil) async throws -> Thread {
+	public func modifyThread(
+		id: String,
+		toolResources: ToolResources? = nil,
+		metadata: [String: String]? = nil
+	) async throws -> Thread {
 		let threadDetails = ThreadOptionals(toolResources: toolResources, metadata: metadata)
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/threads/" + id, body: threadDetails)
 

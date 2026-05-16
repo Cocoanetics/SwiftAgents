@@ -13,17 +13,19 @@ public struct GoogleFile: Codable, Sendable {
 	public let state: String?
 	public let source: String?
 
-	public init(name: String?,
-			 displayName: String?,
-			 mimeType: String?,
-			 sizeBytes: Int?,
-			 createTime: Date?,
-			 updateTime: Date?,
-			 expirationTime: Date?,
-			 sha256Hash: String?,
-			 uri: String?,
-			 state: String?,
-			 source: String?) {
+	public init(
+		name: String?,
+		displayName: String?,
+		mimeType: String?,
+		sizeBytes: Int?,
+		createTime: Date?,
+		updateTime: Date?,
+		expirationTime: Date?,
+		sha256Hash: String?,
+		uri: String?,
+		state: String?,
+		source: String?
+	) {
 		self.name = name
 		self.displayName = displayName
 		self.mimeType = mimeType

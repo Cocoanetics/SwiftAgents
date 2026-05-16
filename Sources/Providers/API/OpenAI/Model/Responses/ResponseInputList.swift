@@ -81,38 +81,38 @@ public enum ResponseListItem: Codable, Sendable {
 		// First try to decode as a message
 		if let type = try? container.decode(String.self, forKey: .type) {
 			switch type {
-				case "message":
-					if let role = try? container.decode(Role.self, forKey: .role) {
-						if role == .user || role == .system || role == .developer {
-							self = .inputMessage(try InputMessage(from: decoder))
-						} else if role == .assistant {
-							self = .outputMessage(try OutputItem.MessageOutput(from: decoder))
-						} else {
-							throw DecodingError.dataCorruptedError(forKey: .role, in: container, debugDescription: "Invalid role: \(role)")
-						}
+			case "message":
+				if let role = try? container.decode(Role.self, forKey: .role) {
+					if role == .user || role == .system || role == .developer {
+						self = .inputMessage(try InputMessage(from: decoder))
+					} else if role == .assistant {
+						self = .outputMessage(try OutputItem.MessageOutput(from: decoder))
 					} else {
-						throw DecodingError.keyNotFound(CodingKeys.role, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Missing role"))
+						throw DecodingError.dataCorruptedError(forKey: .role, in: container, debugDescription: "Invalid role: \(role)")
 					}
+				} else {
+					throw DecodingError.keyNotFound(CodingKeys.role, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Missing role"))
+				}
 
-				case "file_search_call":
-					self = .fileSearch(try OutputItem.FileSearchOutput(from: decoder))
-				case "computer_call":
-					self = .computerCall(try OutputItem.ComputerOutput(from: decoder))
-				case "computer_call_output":
-					self = .computerCallOutput(try ComputerCallOutput(from: decoder))
-				case "web_search_call":
-					self = .webSearch(try OutputItem.WebSearchOutput(from: decoder))
-				case "function_call":
-					self = .functionCall(try OutputItem.FunctionCallOutput(from: decoder))
-				case "function_call_output":
-					self = .functionCallOutput(try FunctionCallOutput(from: decoder))
-				case "item_reference":
-					self = .itemReference(try ResponseItemReference(from: decoder))
-				case "reasoning":
-					self = .reasoning(try Reasoning(from: decoder))
-				default:
-					// If type is not one of the known types, try to decode as an item
-					self = .item(try ResponseItem(from: decoder))
+			case "file_search_call":
+				self = .fileSearch(try OutputItem.FileSearchOutput(from: decoder))
+			case "computer_call":
+				self = .computerCall(try OutputItem.ComputerOutput(from: decoder))
+			case "computer_call_output":
+				self = .computerCallOutput(try ComputerCallOutput(from: decoder))
+			case "web_search_call":
+				self = .webSearch(try OutputItem.WebSearchOutput(from: decoder))
+			case "function_call":
+				self = .functionCall(try OutputItem.FunctionCallOutput(from: decoder))
+			case "function_call_output":
+				self = .functionCallOutput(try FunctionCallOutput(from: decoder))
+			case "item_reference":
+				self = .itemReference(try ResponseItemReference(from: decoder))
+			case "reasoning":
+				self = .reasoning(try Reasoning(from: decoder))
+			default:
+				// If type is not one of the known types, try to decode as an item
+				self = .item(try ResponseItem(from: decoder))
 			}
 		} else {
 			// If no type is present, try to decode as an item
@@ -124,48 +124,48 @@ public enum ResponseListItem: Codable, Sendable {
 		var container = encoder.container(keyedBy: CodingKeys.self)
 
 		switch self {
-			case .inputMessage(let message):
-				try container.encode("message", forKey: .type)
-				try message.encode(to: encoder)
+		case .inputMessage(let message):
+			try container.encode("message", forKey: .type)
+			try message.encode(to: encoder)
 
-			case .outputMessage(let message):
-				try container.encode("message", forKey: .type)
-				try message.encode(to: encoder)
+		case .outputMessage(let message):
+			try container.encode("message", forKey: .type)
+			try message.encode(to: encoder)
 
-			case .fileSearch(let search):
-				try container.encode("file_search_call", forKey: .type)
-				try search.encode(to: encoder)
+		case .fileSearch(let search):
+			try container.encode("file_search_call", forKey: .type)
+			try search.encode(to: encoder)
 
-			case .computerCall(let call):
-				try container.encode("computer_call", forKey: .type)
-				try call.encode(to: encoder)
+		case .computerCall(let call):
+			try container.encode("computer_call", forKey: .type)
+			try call.encode(to: encoder)
 
-			case .computerCallOutput(let output):
-				try container.encode("computer_call_output", forKey: .type)
-				try output.encode(to: encoder)
+		case .computerCallOutput(let output):
+			try container.encode("computer_call_output", forKey: .type)
+			try output.encode(to: encoder)
 
-			case .webSearch(let search):
-				try container.encode("web_search_call", forKey: .type)
-				try search.encode(to: encoder)
+		case .webSearch(let search):
+			try container.encode("web_search_call", forKey: .type)
+			try search.encode(to: encoder)
 
-			case .functionCall(let call):
-				try container.encode("function_call", forKey: .type)
-				try call.encode(to: encoder)
+		case .functionCall(let call):
+			try container.encode("function_call", forKey: .type)
+			try call.encode(to: encoder)
 
-			case .functionCallOutput(let output):
-				try container.encode("function_call_output", forKey: .type)
-				try output.encode(to: encoder)
+		case .functionCallOutput(let output):
+			try container.encode("function_call_output", forKey: .type)
+			try output.encode(to: encoder)
 
-			case .reasoning(let reasoning):
-				try container.encode("reasoning", forKey: .type)
-				try reasoning.encode(to: encoder)
+		case .reasoning(let reasoning):
+			try container.encode("reasoning", forKey: .type)
+			try reasoning.encode(to: encoder)
 
-			case .item(let item):
-				try item.encode(to: encoder)
+		case .item(let item):
+			try item.encode(to: encoder)
 
-			case .itemReference(let reference):
-				try container.encode("item_reference", forKey: .type)
-				try reference.encode(to: encoder)
+		case .itemReference(let reference):
+			try container.encode("item_reference", forKey: .type)
+			try reference.encode(to: encoder)
 		}
 	}
 }

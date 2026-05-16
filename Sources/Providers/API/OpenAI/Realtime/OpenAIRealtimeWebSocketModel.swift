@@ -110,12 +110,12 @@ public actor OpenAIRealtimeWebSocketModel: RealtimeModel {
 				let data: Data
 
 				switch message {
-					case .string(let string):
-						data = Data(string.utf8)
-					case .data(let payload):
-						data = payload
-					@unknown default:
-						continue
+				case .string(let string):
+					data = Data(string.utf8)
+				case .data(let payload):
+					data = payload
+				@unknown default:
+					continue
 				}
 
 				do {

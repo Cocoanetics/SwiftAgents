@@ -18,70 +18,70 @@ public enum APIError: LocalizedError {
 
 	public var errorDescription: String? {
 		switch self {
-			case .invalidResponse:
-				return "Invalid Response"
+		case .invalidResponse:
+			return "Invalid Response"
 
-			case .serverError:
-				return "Server Error"
+		case .serverError:
+			return "Server Error"
 
-			case .invalidRequest(let message):
-				return "Invalid Request: \(message)"
+		case .invalidRequest(let message):
+			return "Invalid Request: \(message)"
 
-			case .authenticationError(let message):
-				return "Authentication Error: \(message)"
+		case .authenticationError(let message):
+			return "Authentication Error: \(message)"
 
-			case .quotaError(let message):
-				return "Quota Error: \(message)"
+		case .quotaError(let message):
+			return "Quota Error: \(message)"
 
-			case .apiError(let message):
-				return "API Error: \(message)"
+		case .apiError(let message):
+			return "API Error: \(message)"
 
-			case .otherError(let type, let message):
-				return "Unknown Error \(type): \(message)"
+		case .otherError(let type, let message):
+			return "Unknown Error \(type): \(message)"
 		}
 	}
 
 	public var failureReason: String? {
 		switch self {
-			case .invalidResponse:
-				return "An invalid response was received"
+		case .invalidResponse:
+			return "An invalid response was received"
 
-			case .serverError(let message):
-				return message
+		case .serverError(let message):
+			return message
 
-			case .invalidRequest(let message):
-				return message
+		case .invalidRequest(let message):
+			return message
 
-			case .authenticationError(let message):
-				return message
+		case .authenticationError(let message):
+			return message
 
-			case .quotaError(let message):
-				return message
+		case .quotaError(let message):
+			return message
 
-			case .apiError(let message):
-				return message
+		case .apiError(let message):
+			return message
 
-			case .otherError(_, let message):
-				return message
+		case .otherError(_, let message):
+			return message
 		}
 	}
 
 	public var type: String {
 		switch self {
-			case .invalidResponse:
-				return "invalid-response"
-			case .serverError:
-				return "server-error"
-			case .invalidRequest:
-				return "invalid_request_error"
-			case .authenticationError:
-				return "authentication_error"
-			case .quotaError:
-				return "insufficient_quota"
-			case .apiError:
-				return "api_error"
-			case .otherError:
-				return "other_error"
+		case .invalidResponse:
+			return "invalid-response"
+		case .serverError:
+			return "server-error"
+		case .invalidRequest:
+			return "invalid_request_error"
+		case .authenticationError:
+			return "authentication_error"
+		case .quotaError:
+			return "insufficient_quota"
+		case .apiError:
+			return "api_error"
+		case .otherError:
+			return "other_error"
 		}
 	}
 }

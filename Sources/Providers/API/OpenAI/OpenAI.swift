@@ -36,22 +36,24 @@ public func embedding(input: String, model: String) async throws -> [EmbeddingVe
 
 	// MARK: - Helpers
 
-	public override func createChatCompletion(model: String,
-											  messages: [ChatMessage],
-											  tools: [ToolDescription]? = nil,
-											  toolChoice: ToolChoice? = nil,
-											  n: Int? = nil,
-											  stop: [String]? = nil,
-											  store: Bool? = nil,
-											  temperature: Double? = nil,
-											  maxCompletionTokens: Int? = nil,
-											  metadata: [String: String]? = nil,
-											  parallelToolCalls: Bool? = nil,
-											  presencePenalty: Double? = nil,
-											  responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
-											  frequencyPenalty: Double? = nil,
-											  logitBias: [String: Int]? = nil,
-											  user: String? = nil) async throws -> ChatCompletionResponse {
+	public override func createChatCompletion(
+		model: String,
+		messages: [ChatMessage],
+		tools: [ToolDescription]? = nil,
+		toolChoice: ToolChoice? = nil,
+		n: Int? = nil,
+		stop: [String]? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		maxCompletionTokens: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		presencePenalty: Double? = nil,
+		responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
+		frequencyPenalty: Double? = nil,
+		logitBias: [String: Int]? = nil,
+		user: String? = nil
+	) async throws -> ChatCompletionResponse {
 		if let rateLimit {
 			await rateLimit.waitForRateLimitReset()
 		}
@@ -83,23 +85,25 @@ public func embedding(input: String, model: String) async throws -> [EmbeddingVe
 		return try process(data: data, response: response)
 	}
 
-	public override func createChatCompletionStream(model: String,
-													messages: [ChatMessage],
-													tools: [ToolDescription]? = nil,
-													toolChoice: ToolChoice? = nil,
-													n: Int = 1,
-													streamOptions: ChatCompletionRequest.StreamOptions? = nil,
-													stop: [String]? = nil,
-													store: Bool? = nil,
-													temperature: Double? = nil,
-													maxCompletionTokens: Int? = nil,
-													metadata: [String: String]? = nil,
-													parallelToolCalls: Bool? = nil,
-													presencePenalty: Double = 0.0,
-													responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
-													frequencyPenalty: Double = 0.0,
-													logitBias: [String: Int]? = nil,
-													user: String? = nil) async throws -> AsyncThrowingStream<Chunk, Error> {
+	public override func createChatCompletionStream(
+		model: String,
+		messages: [ChatMessage],
+		tools: [ToolDescription]? = nil,
+		toolChoice: ToolChoice? = nil,
+		n: Int = 1,
+		streamOptions: ChatCompletionRequest.StreamOptions? = nil,
+		stop: [String]? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		maxCompletionTokens: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		presencePenalty: Double = 0.0,
+		responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
+		frequencyPenalty: Double = 0.0,
+		logitBias: [String: Int]? = nil,
+		user: String? = nil
+	) async throws -> AsyncThrowingStream<Chunk, Error> {
 		if let rateLimit {
 			await rateLimit.waitForRateLimitReset()
 		}

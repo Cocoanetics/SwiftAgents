@@ -27,23 +27,23 @@ extension OutputItem {
 			let type = try container.decode(ActionType.self, forKey: .type)
 
 			switch type {
-				case .search:
-					self = .search(try Search(from: decoder))
-				case .openPage:
-					self = .openPage(try OpenPage(from: decoder))
-				case .findInPage:
-					self = .findInPage(try FindInPage(from: decoder))
+			case .search:
+				self = .search(try Search(from: decoder))
+			case .openPage:
+				self = .openPage(try OpenPage(from: decoder))
+			case .findInPage:
+				self = .findInPage(try FindInPage(from: decoder))
 			}
 		}
 
 		public func encode(to encoder: Encoder) throws {
 			switch self {
-				case .search(let search):
-					try search.encode(to: encoder)
-				case .openPage(let openPage):
-					try openPage.encode(to: encoder)
-				case .findInPage(let findInPage):
-					try findInPage.encode(to: encoder)
+			case .search(let search):
+				try search.encode(to: encoder)
+			case .openPage(let openPage):
+				try openPage.encode(to: encoder)
+			case .findInPage(let findInPage):
+				try findInPage.encode(to: encoder)
 			}
 		}
 	}

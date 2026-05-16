@@ -14,10 +14,10 @@ public enum ProviderError: Error, LocalizedError {
 
 	public var errorDescription: String? {
 		switch self {
-			case .unknownProvider(let name):
-				return "Unknown provider: \(name)"
-			case .missingAPIKey(let provider):
-				return "Missing API key for provider: \(provider)"
+		case .unknownProvider(let name):
+			return "Unknown provider: \(name)"
+		case .missingAPIKey(let provider):
+			return "Missing API key for provider: \(provider)"
 		}
 	}
 }

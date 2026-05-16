@@ -60,22 +60,24 @@ public class GoogleAPI: API, @unchecked Sendable {
 		}
 	}
 
-	public override func createChatCompletion(model: String,
-											  messages: [ChatMessage],
-											  tools: [ToolDescription]? = nil,
-											  toolChoice: ToolChoice? = nil,
-											  n: Int? = nil,
-											  stop: [String]? = nil,
-											  store: Bool? = nil,
-											  temperature: Double? = nil,
-											  maxCompletionTokens: Int? = nil,
-											  metadata: [String: String]? = nil,
-											  parallelToolCalls: Bool? = nil,
-											  presencePenalty: Double? = nil,
-											  responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
-											  frequencyPenalty: Double? = nil,
-											  logitBias: [String: Int]? = nil,
-											  user: String? = nil) async throws -> ChatCompletionResponse {
+	public override func createChatCompletion(
+		model: String,
+		messages: [ChatMessage],
+		tools: [ToolDescription]? = nil,
+		toolChoice: ToolChoice? = nil,
+		n: Int? = nil,
+		stop: [String]? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		maxCompletionTokens: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		presencePenalty: Double? = nil,
+		responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
+		frequencyPenalty: Double? = nil,
+		logitBias: [String: Int]? = nil,
+		user: String? = nil
+	) async throws -> ChatCompletionResponse {
 		return try await createChatCompletion(
 			model: model,
 			messages: messages,
@@ -98,24 +100,26 @@ public class GoogleAPI: API, @unchecked Sendable {
 		)
 	}
 
-	public func createChatCompletion(model: String,
-									 messages: [ChatMessage],
-									 tools: [ToolDescription]? = nil,
-									 toolChoice: ToolChoice? = nil,
-									 n: Int? = nil,
-									 stop: [String]? = nil,
-									 store: Bool? = nil,
-									 temperature: Double? = nil,
-									 maxCompletionTokens: Int? = nil,
-									 metadata: [String: String]? = nil,
-									 parallelToolCalls: Bool? = nil,
-									 presencePenalty: Double? = nil,
-									 responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
-									 frequencyPenalty: Double? = nil,
-									 logitBias: [String: Int]? = nil,
-									 user: String? = nil,
-									 thinkingConfig: GoogleThinkingConfig? = nil,
-									 imageConfig: GoogleImageConfig? = nil) async throws -> ChatCompletionResponse {
+	public func createChatCompletion(
+		model: String,
+		messages: [ChatMessage],
+		tools: [ToolDescription]? = nil,
+		toolChoice: ToolChoice? = nil,
+		n: Int? = nil,
+		stop: [String]? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		maxCompletionTokens: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		presencePenalty: Double? = nil,
+		responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
+		frequencyPenalty: Double? = nil,
+		logitBias: [String: Int]? = nil,
+		user: String? = nil,
+		thinkingConfig: GoogleThinkingConfig? = nil,
+		imageConfig: GoogleImageConfig? = nil
+	) async throws -> ChatCompletionResponse {
 		let thinking = thinkingConfig ?? defaultThinkingConfig
 		let requestPayload = buildGenerateContentRequest(
 			from: messages,
@@ -208,32 +212,36 @@ public class GoogleAPI: API, @unchecked Sendable {
 		return responsePayload
 	}
 
-	public override func createChatCompletionStream(model: String,
-													messages: [ChatMessage],
-													tools: [ToolDescription]? = nil,
-													toolChoice: ToolChoice? = nil,
-													n: Int = 1,
-													streamOptions: ChatCompletionRequest.StreamOptions? = nil,
-													stop: [String]? = nil,
-													store: Bool? = nil,
-													temperature: Double? = nil,
-													maxCompletionTokens: Int? = nil,
-													metadata: [String: String]? = nil,
-													parallelToolCalls: Bool? = nil,
-													presencePenalty: Double = 0.0,
-													responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
-													frequencyPenalty: Double = 0.0,
-													logitBias: [String: Int]? = nil,
-													user: String? = nil) async throws -> AsyncThrowingStream<Chunk, Error> {
+	public override func createChatCompletionStream(
+		model: String,
+		messages: [ChatMessage],
+		tools: [ToolDescription]? = nil,
+		toolChoice: ToolChoice? = nil,
+		n: Int = 1,
+		streamOptions: ChatCompletionRequest.StreamOptions? = nil,
+		stop: [String]? = nil,
+		store: Bool? = nil,
+		temperature: Double? = nil,
+		maxCompletionTokens: Int? = nil,
+		metadata: [String: String]? = nil,
+		parallelToolCalls: Bool? = nil,
+		presencePenalty: Double = 0.0,
+		responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
+		frequencyPenalty: Double = 0.0,
+		logitBias: [String: Int]? = nil,
+		user: String? = nil
+	) async throws -> AsyncThrowingStream<Chunk, Error> {
 		throw APIError.otherError("unsupported", "Streaming is not supported for Google models yet")
 	}
 
 	// MARK: - Helpers
 
-	internal override func createUrlRequest(httpMethod: String = "GET",
-								   path: String,
-								   body: Codable? = nil,
-								   queryItems: [URLQueryItem]? = nil) throws -> URLRequest {
+	internal override func createUrlRequest(
+		httpMethod: String = "GET",
+		path: String,
+		body: Codable? = nil,
+		queryItems: [URLQueryItem]? = nil
+	) throws -> URLRequest {
 		// Create the URL from the base endpoint and the specific path.
 		guard var urlComponents = URLComponents(url: endpointURL.appending(path: path), resolvingAgainstBaseURL: true) else {
 			throw URLError(.badURL)
@@ -272,82 +280,84 @@ public class GoogleAPI: API, @unchecked Sendable {
 
 	// MARK: - Private Helpers
 
-	private func buildGenerateContentRequest(from messages: [ChatMessage],
-											 tools: [ToolDescription]?,
-											 thinkingConfig: GoogleThinkingConfig?,
-											 imageConfig: GoogleGenerateContentRequest.ImageConfig?) -> GoogleGenerateContentRequest {
+	private func buildGenerateContentRequest(
+		from messages: [ChatMessage],
+		tools: [ToolDescription]?,
+		thinkingConfig: GoogleThinkingConfig?,
+		imageConfig: GoogleGenerateContentRequest.ImageConfig?
+	) -> GoogleGenerateContentRequest {
 		var systemParts: [GoogleGenerateContent.Part] = []
 		var contents: [GoogleGenerateContent.Content] = []
 		var toolNamesById: [String: String] = [:]
 
 		for message in messages {
 			switch message.role {
-				case .system, .developer:
-					let parts = googleParts(from: message)
-					if !parts.isEmpty {
-						systemParts.append(contentsOf: parts)
-					}
+			case .system, .developer:
+				let parts = googleParts(from: message)
+				if !parts.isEmpty {
+					systemParts.append(contentsOf: parts)
+				}
 
-				case .user:
-					let parts = googleParts(from: message)
-					if !parts.isEmpty {
-						contents.append(.init(role: "user", parts: parts))
-					}
+			case .user:
+				let parts = googleParts(from: message)
+				if !parts.isEmpty {
+					contents.append(.init(role: "user", parts: parts))
+				}
 
-				case .assistant:
-					var parts: [GoogleGenerateContent.Part] = []
+			case .assistant:
+				var parts: [GoogleGenerateContent.Part] = []
 
-					if let toolCalls = message.toolCalls {
-						for call in toolCalls {
-							if let function = call.function {
-								toolNamesById[call.id] = function.name
-								let argsDict = (try? function.argumentsDictionary()) ?? [:]
-								let wrapped = wrapAsJSONValue(argsDict)
-								let callPart = GoogleGenerateContent.Part(
-									text: nil,
-									inlineData: nil,
-									fileData: nil,
-									functionCall: .init(name: function.name, args: wrapped),
-									functionResponse: nil,
-									thought: nil,
-									thoughtSignature: nil
-								)
-								parts.append(callPart)
-							}
+				if let toolCalls = message.toolCalls {
+					for call in toolCalls {
+						if let function = call.function {
+							toolNamesById[call.id] = function.name
+							let argsDict = (try? function.argumentsDictionary()) ?? [:]
+							let wrapped = wrapAsJSONValue(argsDict)
+							let callPart = GoogleGenerateContent.Part(
+								text: nil,
+								inlineData: nil,
+								fileData: nil,
+								functionCall: .init(name: function.name, args: wrapped),
+								functionResponse: nil,
+								thought: nil,
+								thoughtSignature: nil
+							)
+							parts.append(callPart)
 						}
 					}
+				}
 
-					parts.append(contentsOf: googleParts(from: message))
+				parts.append(contentsOf: googleParts(from: message))
 
-					if !parts.isEmpty {
-						contents.append(.init(role: "model", parts: parts))
-					}
+				if !parts.isEmpty {
+					contents.append(.init(role: "model", parts: parts))
+				}
 
-				case .tool:
-					guard let toolCallID = message.toolCallID,
-						  let functionName = toolNamesById[toolCallID] else {
-						continue
-					}
-
-					var parts: [GoogleGenerateContent.Part] = []
-					let responsePart = GoogleGenerateContent.Part(
-						text: nil,
-						inlineData: nil,
-						fileData: nil,
-						functionCall: nil,
-						functionResponse: .init(
-							name: functionName,
-							response: ["output": JSONValue(message.textContent ?? "")]
-						),
-						thought: nil,
-						thoughtSignature: nil
-					)
-					parts.append(responsePart)
-					parts.append(contentsOf: googleParts(from: message))
-					contents.append(.init(role: "user", parts: parts))
-
-				case .function:
+			case .tool:
+				guard let toolCallID = message.toolCallID,
+					  let functionName = toolNamesById[toolCallID] else {
 					continue
+				}
+
+				var parts: [GoogleGenerateContent.Part] = []
+				let responsePart = GoogleGenerateContent.Part(
+					text: nil,
+					inlineData: nil,
+					fileData: nil,
+					functionCall: nil,
+					functionResponse: .init(
+						name: functionName,
+						response: ["output": JSONValue(message.textContent ?? "")]
+					),
+					thought: nil,
+					thoughtSignature: nil
+				)
+				parts.append(responsePart)
+				parts.append(contentsOf: googleParts(from: message))
+				contents.append(.init(role: "user", parts: parts))
+
+			case .function:
+				continue
 			}
 		}
 
@@ -487,32 +497,32 @@ public class GoogleAPI: API, @unchecked Sendable {
 		}
 
 		switch reason {
-			case "stop":
-				return .stop
-			case "max_tokens":
-				return .limit
-			case "safety",
-				 "blocklist",
-				 "prohibited_content",
-				 "spii",
-				 "model_armor",
-				 "image_safety",
-				 "image_prohibited_content":
-				return .contentFilter
-			case "recitation",
-				 "other",
-				 "image_other",
-				 "image_recitation",
-				 "malware",
-				 "unknown":
-				return .stop
-			case "malformed_function_call",
-				 "unexpected_tool_call":
-				return .functionCall
-			case "no_image":
-				return .limit
-			default:
-				return .stop
+		case "stop":
+			return .stop
+		case "max_tokens":
+			return .limit
+		case "safety",
+			 "blocklist",
+			 "prohibited_content",
+			 "spii",
+			 "model_armor",
+			 "image_safety",
+			 "image_prohibited_content":
+			return .contentFilter
+		case "recitation",
+			 "other",
+			 "image_other",
+			 "image_recitation",
+			 "malware",
+			 "unknown":
+			return .stop
+		case "malformed_function_call",
+			 "unexpected_tool_call":
+			return .functionCall
+		case "no_image":
+			return .limit
+		default:
+			return .stop
 		}
 	}
 
@@ -553,18 +563,18 @@ public class GoogleAPI: API, @unchecked Sendable {
 		var result: [GoogleGenerateContent.Part] = []
 		for part in parts {
 			switch part.type {
-				case .text:
-					if let text = part.text {
-						result.append(.text(text))
-					}
-				case .imageURL:
-					if let inline = makeInlinePart(from: part) {
-						result.append(inline)
-					} else if let url = part.imageURL?.url {
-						result.append(.file(uri: url, mimeType: part.imageURL?.mimeType))
-					}
-				default:
-					continue
+			case .text:
+				if let text = part.text {
+					result.append(.text(text))
+				}
+			case .imageURL:
+				if let inline = makeInlinePart(from: part) {
+					result.append(inline)
+				} else if let url = part.imageURL?.url {
+					result.append(.file(uri: url, mimeType: part.imageURL?.mimeType))
+				}
+			default:
+				continue
 			}
 		}
 		return result

@@ -19,60 +19,60 @@ public enum RealtimeConversationItem: Codable, Sendable {
 		let type = try container.decode(String.self, forKey: .type)
 
 		switch type {
-			case "message":
-				self = .message(try Message(from: decoder))
-			case "function_call":
-				self = .functionCall(try OutputItem.FunctionCall(from: decoder))
-			case "function_call_output":
-				self = .functionCallOutput(try FunctionCallOutput(from: decoder))
-			case "mcp_list_tools":
-				self = .mcpListTools(try OutputItem.MCPListToolsOutput(from: decoder))
-			case "mcp_approval_request":
-				self = .mcpApprovalRequest(try OutputItem.MCPApprovalRequestOutput(from: decoder))
-			case "mcp_call":
-				self = .mcpCall(try OutputItem.MCPCallOutput(from: decoder))
-			default:
-				self = .unknown(try Unknown(from: decoder))
+		case "message":
+			self = .message(try Message(from: decoder))
+		case "function_call":
+			self = .functionCall(try OutputItem.FunctionCall(from: decoder))
+		case "function_call_output":
+			self = .functionCallOutput(try FunctionCallOutput(from: decoder))
+		case "mcp_list_tools":
+			self = .mcpListTools(try OutputItem.MCPListToolsOutput(from: decoder))
+		case "mcp_approval_request":
+			self = .mcpApprovalRequest(try OutputItem.MCPApprovalRequestOutput(from: decoder))
+		case "mcp_call":
+			self = .mcpCall(try OutputItem.MCPCallOutput(from: decoder))
+		default:
+			self = .unknown(try Unknown(from: decoder))
 		}
 	}
 
 	public func encode(to encoder: Encoder) throws {
 		switch self {
-			case .message(let message):
-				try message.encode(to: encoder)
-			case .functionCall(let functionCall):
-				var container = encoder.container(keyedBy: CodingKeys.self)
-				try container.encode("function_call", forKey: .type)
-				try functionCall.encode(to: encoder)
-			case .functionCallOutput(let functionCallOutput):
-				try functionCallOutput.encode(to: encoder)
-			case .mcpListTools(let output):
-				try output.encode(to: encoder)
-			case .mcpApprovalRequest(let output):
-				try output.encode(to: encoder)
-			case .mcpCall(let output):
-				try output.encode(to: encoder)
-			case .unknown(let unknown):
-				try unknown.encode(to: encoder)
+		case .message(let message):
+			try message.encode(to: encoder)
+		case .functionCall(let functionCall):
+			var container = encoder.container(keyedBy: CodingKeys.self)
+			try container.encode("function_call", forKey: .type)
+			try functionCall.encode(to: encoder)
+		case .functionCallOutput(let functionCallOutput):
+			try functionCallOutput.encode(to: encoder)
+		case .mcpListTools(let output):
+			try output.encode(to: encoder)
+		case .mcpApprovalRequest(let output):
+			try output.encode(to: encoder)
+		case .mcpCall(let output):
+			try output.encode(to: encoder)
+		case .unknown(let unknown):
+			try unknown.encode(to: encoder)
 		}
 	}
 
 	public var id: String? {
 		switch self {
-			case .message(let message):
-				return message.id
-			case .functionCall(let functionCall):
-				return functionCall.id
-			case .functionCallOutput(let output):
-				return output.id
-			case .mcpListTools(let output):
-				return output.id
-			case .mcpApprovalRequest(let output):
-				return output.id
-			case .mcpCall(let output):
-				return output.id
-			case .unknown(let unknown):
-				return unknown.id
+		case .message(let message):
+			return message.id
+		case .functionCall(let functionCall):
+			return functionCall.id
+		case .functionCallOutput(let output):
+			return output.id
+		case .mcpListTools(let output):
+			return output.id
+		case .mcpApprovalRequest(let output):
+			return output.id
+		case .mcpCall(let output):
+			return output.id
+		case .unknown(let unknown):
+			return unknown.id
 		}
 	}
 
@@ -133,29 +133,29 @@ public enum RealtimeConversationItem: Codable, Sendable {
 				let type = try container.decode(String.self, forKey: .type)
 
 				switch type {
-					case "input_text":
-						self = .inputText(try InputText(from: decoder))
-					case "input_audio":
-						self = .inputAudio(try Audio(from: decoder))
-					case "output_text":
-						self = .outputText(try OutputText(from: decoder))
-					case "output_audio":
-						self = .outputAudio(try Audio(from: decoder))
-					default:
-						throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unsupported realtime message content type: \(type)")
+				case "input_text":
+					self = .inputText(try InputText(from: decoder))
+				case "input_audio":
+					self = .inputAudio(try Audio(from: decoder))
+				case "output_text":
+					self = .outputText(try OutputText(from: decoder))
+				case "output_audio":
+					self = .outputAudio(try Audio(from: decoder))
+				default:
+					throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unsupported realtime message content type: \(type)")
 				}
 			}
 
 			public func encode(to encoder: Encoder) throws {
 				switch self {
-					case .inputText(let inputText):
-						try inputText.encode(to: encoder)
-					case .inputAudio(let audio):
-						try audio.encode(as: "input_audio", to: encoder)
-					case .outputText(let outputText):
-						try outputText.encode(to: encoder)
-					case .outputAudio(let audio):
-						try audio.encode(as: "output_audio", to: encoder)
+				case .inputText(let inputText):
+					try inputText.encode(to: encoder)
+				case .inputAudio(let audio):
+					try audio.encode(as: "input_audio", to: encoder)
+				case .outputText(let outputText):
+					try outputText.encode(to: encoder)
+				case .outputAudio(let audio):
+					try audio.encode(as: "output_audio", to: encoder)
 				}
 			}
 		}

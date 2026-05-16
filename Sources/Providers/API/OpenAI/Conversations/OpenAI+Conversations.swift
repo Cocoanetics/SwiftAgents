@@ -18,8 +18,10 @@ extension OpenAI {
 	/// - Returns: Returns a `Conversation` object containing details of the newly created conversation.
 	///
 	/// - SeeAlso: [Create Conversation API](https://platform.openai.com/docs/api-reference/conversations/create)
-	public func createConversation(items: [Response.Input.Element]? = nil,
-								   metadata: [String: String]? = nil) async throws -> Conversation {
+	public func createConversation(
+		items: [Response.Input.Element]? = nil,
+		metadata: [String: String]? = nil
+	) async throws -> Conversation {
 		let details = ConversationOptionals(items: items, metadata: metadata)
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/conversations", body: details)
 
@@ -53,8 +55,10 @@ extension OpenAI {
 	/// - Returns: Returns the updated `Conversation` object.
 	///
 	/// - SeeAlso: [Update Conversation API](https://platform.openai.com/docs/api-reference/conversations/update)
-	public func updateConversation(id: String,
-								   metadata: [String: String]? = nil) async throws -> Conversation {
+	public func updateConversation(
+		id: String,
+		metadata: [String: String]? = nil
+	) async throws -> Conversation {
 		let details = ConversationOptionals(metadata: metadata)
 		let request = try self.createUrlRequest(httpMethod: "POST", path: "/v1/conversations/" + id, body: details)
 
