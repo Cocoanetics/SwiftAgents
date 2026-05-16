@@ -81,14 +81,7 @@ jobs:
             build
 
   build-linux:
-    # `VectorStore`'s `ContextualEmbeddingProvider` and `TextChunker`
-    # are `#if canImport(NaturalLanguage)`-gated; everything else
-    # builds and tests on Linux. The `swift:6.2-jammy` container
-    # provides the toolchain SwiftMCP 1.4.5 needs
-    # (`swift-tools-version: 6.1`) — `ubuntu-latest`'s pre-installed
-    # Swift is too old.
     runs-on: ubuntu-latest
-    container: swift:6.2-jammy
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -96,14 +89,8 @@ jobs:
         run: swift --version
       - name: Build (Linux)
         run: swift build --build-tests -v
-      # Same offline filter as macOS.
       - name: Test (Linux)
-        run: |
-          swift test -v --skip-build \
-            --filter ArrayVectorTests \
-            --filter TracingTests \
-            --filter GoogleGenerateContentResponseTests \
-            --filter GoogleThinkingConfigTests
+        run: swift test -v --skip-build
 
   # Windows and Android jobs are intentionally not present. SwiftMCP
   # transitively depends on swift-nio, whose Windows port has open
