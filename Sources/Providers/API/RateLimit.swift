@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// A struct that holds rate limit information from an API response.
 public struct RateLimit {

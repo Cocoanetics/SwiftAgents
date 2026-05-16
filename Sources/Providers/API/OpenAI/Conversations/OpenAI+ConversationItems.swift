@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public extension OpenAI {
     /// Creates items in a conversation on the OpenAI platform.

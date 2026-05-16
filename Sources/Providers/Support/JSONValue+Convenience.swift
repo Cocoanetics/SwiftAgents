@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import SwiftMCP
 
 public extension JSONValue {
@@ -66,9 +69,20 @@ public extension JSONValue {
             case let double as Double:
                 self = .double(double)
             case let number as NSNumber:
+                #if canImport(Darwin)
+                // On Apple platforms, `Bool` bridges to `NSNumber` via
+                // `CFBoolean`; the earlier `case let bool as Bool` only
+                // catches it sometimes, so re-check via the CFTypeID.
+                // `CFGetTypeID` / `CFBooleanGetTypeID` aren't exposed
+                // through swift-corelibs-foundation's `CoreFoundation`,
+                // so gate on Darwin instead. On Linux the earlier
+                // `bool as Bool` branch always wins for actual booleans.
                 if CFGetTypeID(number) == CFBooleanGetTypeID() {
                     self = .bool(number.boolValue)
-                } else if let int = Int(exactly: number.int64Value), number.doubleValue == Double(int) {
+                    break
+                }
+                #endif
+                if let int = Int(exactly: number.int64Value), number.doubleValue == Double(int) {
                     self = .integer(int)
                 } else if let uint = UInt(exactly: number.uint64Value), number.doubleValue == Double(uint) {
                     self = .unsignedInteger(uint)

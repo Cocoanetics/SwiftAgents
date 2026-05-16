@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import SwiftMCP
 
 /// User-facing image configuration for Gemini image generation.
