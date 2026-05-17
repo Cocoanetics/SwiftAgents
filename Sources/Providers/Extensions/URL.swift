@@ -11,16 +11,17 @@ import UniformTypeIdentifiers
 #endif
 
 extension URL {
-    /// Determines the preferred MIME type for a file
+    /// Determines the preferred MIME type for a file.
+    ///
+    /// `UTType` resolves through `UniformTypeIdentifiers` on Apple
+    /// platforms and through the homegrown shim in
+    /// `Providers/Support/UTType+LinuxCompat.swift` everywhere else,
+    /// so the behaviour is identical across platforms — no
+    /// per-call-site gating needed.
     func mimeType() -> String {
-        #if canImport(UniformTypeIdentifiers)
         if let utType = UTType(filenameExtension: pathExtension) {
             return utType.preferredMIMEType ?? "application/octet-stream"
-        } else {
-            return "application/octet-stream"
         }
-        #else
         return "application/octet-stream"
-        #endif
     }
 }

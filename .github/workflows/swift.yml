@@ -78,27 +78,30 @@ jobs:
       - uses: actions/checkout@v6
       - name: Verify Swift version
         run: swift --version
-      # Scope the Linux build to the products SwiftAgents actually
-      # ships. `swift build --build-tests` pulls in SwiftMCP's
-      # `SwiftMCPAggregatorTool` build-tool target as a host
-      # executable, which races its own swift-syntax host build under
-      # Linux Swift 6.3.1 + SwiftPM (`error: no such module
+      # Build the products SwiftAgents actually ships, one at a time.
+      # `swift build --build-tests` (which is what a single
+      # `swift test --build-tests` would also trigger) pulls in
+      # SwiftMCP's `SwiftMCPAggregatorTool` build-tool target as a
+      # host executable, and under Linux Swift 6.3.1 + SwiftPM that
+      # races its own swift-syntax host build (`error: no such module
       # 'SwiftSyntax'`). The race doesn't reproduce on macOS or when
-      # building named products one at a time. SwiftAgents doesn't
-      # use the aggregator plugin, so building the products by name
-      # is equivalent verification.
+      # products are built one at a time. SwiftAgents doesn't use the
+      # aggregator plugin, so building the named products is
+      # equivalent verification.
       - name: Build (Linux)
         run: |
           swift build -v --product Providers
           swift build -v --product VectorStore
           swift build -v --product TerminalUI
           swift build -v --product Coder
-      # Tests skipped on Linux: macOS CI covers the test suite; some
-      # tests (`MIMETypeTests`) depend on UniformTypeIdentifiers tables
-      # that only ship on Apple platforms, so they'd need per-test
-      # `#if canImport(UniformTypeIdentifiers)` gates to run cleanly
-      # under linux-swift. Build verification is what matters for the
-      # Linux gate today.
+      # MIME tests previously failed on Linux because `URL.mimeType()`
+      # short-circuited to `application/octet-stream` without
+      # `UniformTypeIdentifiers`. That's now covered by the homegrown
+      # `UTType` shim in `Providers/Support/UTType+LinuxCompat.swift`,
+      # so we run the test suite here too.
+      - name: Test (Linux)
+        timeout-minutes: 5
+        run: swift test -v --filter ProvidersTests
 
   # Windows and Android jobs are intentionally not present. SwiftMCP
   # transitively depends on swift-nio, whose Windows port has open
