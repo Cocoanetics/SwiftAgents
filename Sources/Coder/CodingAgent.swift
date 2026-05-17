@@ -22,7 +22,6 @@ final class CodingAgent: Agent, @unchecked Sendable {
     let name = "Coder"
     let instructions: String
     let workingDirectory: String
-    private let gitIgnore: GitIgnore
     let tools: [Tool]
     let toolProviders: [MCPToolProviding]
 
@@ -30,7 +29,6 @@ final class CodingAgent: Agent, @unchecked Sendable {
     /// - Parameter config: RunConfig to use for sub-agent runs (passes model, etc.).
     init(workingDirectory: String, isSubAgent: Bool = false, config: RunConfig = RunConfig()) {
         self.workingDirectory = workingDirectory
-        gitIgnore = GitIgnore(workingDirectory: workingDirectory)
 
         let model = config.model ?? "gpt-4.1"
         tools = Tool.supportsApplyPatch(model: model) ? [.applyPatch] : []
@@ -282,157 +280,34 @@ final class CodingAgent: Agent, @unchecked Sendable {
         literal: Bool? = nil,
         context: Int? = nil,
         limit: Int? = nil
-    ) -> String {
-        let relativePath = relativize(path ?? ".")
-        let dir = resolve(relativePath)
-        let excludeDirs = Set(gitIgnore.excludeDirs)
-        let excludeFiles = Set(gitIgnore.excludeFiles)
-        let fileManager = FileManager.default
+    ) throws -> String {
+        let absolutePath = resolve(path ?? ".")
         let maxMatches = max(1, limit ?? 100)
-        let contextLines = max(0, context ?? 0)
+        let rgPath = try Self.locateBinary("rg")
 
-        let regexSource = literal == true
-            ? NSRegularExpression.escapedPattern(for: pattern)
-            : pattern
-        let options: NSRegularExpression.Options = ignoreCase == true ? [.caseInsensitive] : []
-        guard let regex = try? NSRegularExpression(pattern: regexSource, options: options) else {
-            return "Error: Invalid regex pattern: \(pattern)"
+        var args = ["-n", "--color=never", "--hidden", "--no-require-git"]
+        if ignoreCase == true { args.append("--ignore-case") }
+        if literal == true { args.append("--fixed-strings") }
+        if let context, context > 0 { args.append(contentsOf: ["-C", String(context)]) }
+        if let glob { args.append(contentsOf: ["--glob", glob]) }
+        args.append("--")
+        args.append(pattern)
+        args.append(absolutePath)
+
+        let result = try Self.runBinary(at: rgPath, arguments: args)
+        // rg exits 0 with matches, 1 with no matches, 2 on error.
+        if result.exitStatus == 1, result.stdout.isEmpty {
+            return "No matches found"
         }
-
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: dir, isDirectory: &isDirectory) else {
-            return "Error: Path not found: \(relativePath)"
+        if result.exitStatus >= 2 {
+            let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            throw CoderToolError.message(
+                detail.isEmpty ? "rg exited with code \(result.exitStatus)" : detail)
         }
-
-        var output = [String]()
-        var matchCount = 0
-        var totalBytes = 0
-        let byteCap = toolOutputByteCap
-        var previousFile: String?
-
-        func emit(filePath: String, kind: GrepLineKind, lineNumber: Int, line: String) -> Bool {
-            // Cap any single line so a binary or minified blob can't blow the byte budget alone.
-            let capped = line.count > 1024 ? String(line.prefix(1024)) + "…" : line
-            // grep convention: matches separated by `:`, context by `-`,
-            // a `--` between non-adjacent groups.
-            let separator: Character = kind == .match ? ":" : "-"
-            let prefix: String
-            if let previousFile, previousFile != filePath {
-                prefix = "--\n"
-            } else {
-                prefix = ""
-            }
-            previousFile = filePath
-            let line = "\(prefix)\(filePath)\(separator)\(lineNumber)\(separator)\(capped)"
-            let bytes = line.utf8.count + 1
-            if totalBytes + bytes > byteCap { return false }
-            output.append(line)
-            totalBytes += bytes
-            return true
-        }
-
-        if !isDirectory.boolValue {
-            let matches = searchFile(atPath: dir, regex: regex, contextLines: contextLines)
-            for entry in matches {
-                if entry.kind == .match { matchCount += 1 }
-                if matchCount > maxMatches { break }
-                if !emit(filePath: relativePath, kind: entry.kind,
-                         lineNumber: entry.lineNumber, line: entry.line) { break }
-            }
-        } else {
-            guard let enumerator = fileManager.enumerator(atPath: dir) else {
-                return "Error: Cannot read directory: \(relativePath)"
-            }
-
-            let globPattern = glob?.replacingOccurrences(of: "**/", with: "")
-
-            enumerate: while let entry = enumerator.nextObject() as? String {
-                let fileName = (entry as NSString).lastPathComponent
-
-                if enumerator.fileAttributes?[.type] as? FileAttributeType == .typeDirectory {
-                    if excludeDirs.contains(fileName) || fileName.hasPrefix(".") {
-                        enumerator.skipDescendants()
-                    }
-                    continue
-                }
-
-                if excludeFiles.contains(where: { fnmatch($0, fileName, 0) == 0 }) {
-                    continue
-                }
-
-                if let globPattern, fnmatch(globPattern, fileName, 0) != 0 {
-                    continue
-                }
-
-                let filePath = (dir as NSString).appendingPathComponent(entry)
-                let displayPath = relativePath == "."
-                    ? entry
-                    : (relativePath as NSString).appendingPathComponent(entry)
-                let matches = searchFile(atPath: filePath, regex: regex, contextLines: contextLines)
-
-                for hit in matches {
-                    if hit.kind == .match { matchCount += 1 }
-                    if matchCount > maxMatches { break enumerate }
-                    if !emit(filePath: displayPath, kind: hit.kind,
-                             lineNumber: hit.lineNumber, line: hit.line) {
-                        break enumerate
-                    }
-                }
-            }
-        }
-
-        if matchCount > maxMatches {
-            output.append("... (more matches truncated; limit=\(maxMatches))")
-        }
-        return output.isEmpty ? "No matches found" : output.joined(separator: "\n")
-    }
-
-    /// One emitted grep line — either a real match or a context line. The
-    /// distinction drives the `:` vs `-` separator real grep uses.
-    private enum GrepLineKind { case match, context }
-    private struct GrepHit {
-        let lineNumber: Int
-        let line: String
-        let kind: GrepLineKind
-    }
-
-    /// Search a single file for regex matches plus optional context. Returns
-    /// hits in line order so the caller can stream them straight to the
-    /// output buffer without resorting.
-    private func searchFile(
-        atPath path: String,
-        regex: NSRegularExpression,
-        contextLines: Int
-    ) -> [GrepHit] {
-        guard let data = FileManager.default.contents(atPath: path),
-              let content = String(data: data, encoding: .utf8) else { return [] }
-
-        let lines = content.components(separatedBy: "\n")
-        var matchedIndices: [Int] = []
-        for (index, line) in lines.enumerated() {
-            let range = NSRange(line.startIndex..., in: line)
-            if regex.firstMatch(in: line, range: range) != nil {
-                matchedIndices.append(index)
-            }
-        }
-        guard !matchedIndices.isEmpty else { return [] }
-
-        if contextLines == 0 {
-            return matchedIndices.map { GrepHit(lineNumber: $0 + 1, line: lines[$0], kind: .match) }
-        }
-
-        let matchSet = Set(matchedIndices)
-        var included = Set<Int>()
-        for index in matchedIndices {
-            let low = max(0, index - contextLines)
-            let high = min(lines.count - 1, index + contextLines)
-            for offset in low ... high { included.insert(offset) }
-        }
-        return included.sorted().map { index in
-            GrepHit(lineNumber: index + 1,
-                    line: lines[index],
-                    kind: matchSet.contains(index) ? .match : .context)
-        }
+        return Self.formatRgOutput(result.stdout,
+                                   relativizingFrom: absolutePath,
+                                   maxMatches: maxMatches,
+                                   byteCap: toolOutputByteCap)
     }
 
     /// Search for files by glob pattern. Returns matching file paths relative to the search
@@ -443,58 +318,49 @@ final class CodingAgent: Agent, @unchecked Sendable {
     /// - Parameter path: Directory to search in (default: current directory)
     /// - Parameter limit: Maximum number of results (default: 1000)
     @MCPTool
-    func find(pattern: String, path: String? = nil, limit: Int? = nil) -> String {
-        let relativePath = relativize(path ?? ".")
-        let dir = resolve(relativePath)
-        let excludeDirs = Set(gitIgnore.excludeDirs)
-        let fileManager = FileManager.default
+    func find(pattern: String, path: String? = nil, limit: Int? = nil) throws -> String {
+        let absolutePath = resolve(path ?? ".")
         let maxResults = max(1, limit ?? 1000)
+        let fdPath = try Self.locateBinary("fd")
 
-        guard let enumerator = fileManager.enumerator(atPath: dir) else {
-            return "Error: Cannot read directory: \(relativePath)"
-        }
-
-        // Strip **/ prefix since we already recurse
-        let effectivePattern = pattern.replacingOccurrences(of: "**/", with: "")
-        let matchAgainstPath = effectivePattern.contains("/")
-        var results = [String]()
-
-        while let entry = enumerator.nextObject() as? String {
-            let fileName = (entry as NSString).lastPathComponent
-
-            if enumerator.fileAttributes?[.type] as? FileAttributeType == .typeDirectory {
-                if excludeDirs.contains(fileName) || fileName.hasPrefix(".") {
-                    enumerator.skipDescendants()
-                    continue
-                }
-            }
-
-            let matchTarget = matchAgainstPath ? entry : fileName
-            if fnmatch(effectivePattern, matchTarget, 0) == 0 {
-                let resultPath = relativePath == "."
-                    ? entry
-                    : (relativePath as NSString).appendingPathComponent(entry)
-                results.append(resultPath)
-                if results.count >= maxResults { break }
+        var args = [
+            "--glob",
+            "--color=never",
+            "--hidden",
+            "--no-require-git",
+            "--max-results", String(maxResults)
+        ]
+        // fd matches against the basename by default; switch to
+        // full-path matching when the pattern contains `/`, and
+        // prepend `**/` so `src/**/*.spec.ts` actually matches
+        // anything (matches pi's reference invocation).
+        var effectivePattern = pattern
+        if pattern.contains("/") {
+            args.append("--full-path")
+            if !pattern.hasPrefix("/"), !pattern.hasPrefix("**/"), pattern != "**" {
+                effectivePattern = "**/" + pattern
             }
         }
+        args.append("--")
+        args.append(effectivePattern)
+        args.append(absolutePath)
 
-        return (results.isEmpty ? "No files found" : results.joined(separator: "\n"))
-            .truncatedForToolOutput(maxLines: maxResults)
-    }
-
-    /// Converts an absolute path to a path relative to the working directory. Passes through relative paths unchanged.
-    private func relativize(_ path: String) -> String {
-        guard path.hasPrefix("/") else { return path }
-        let prefix = workingDirectory.hasSuffix("/") ? workingDirectory : workingDirectory + "/"
-        if path.hasPrefix(prefix) {
-            let relative = String(path.dropFirst(prefix.count))
-            return relative.isEmpty ? "." : relative
+        let result = try Self.runBinary(at: fdPath, arguments: args)
+        if result.exitStatus >= 2 {
+            let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            throw CoderToolError.message(
+                detail.isEmpty ? "fd exited with code \(result.exitStatus)" : detail)
         }
-        if path == workingDirectory {
-            return "."
+        var lines = result.stdout.components(separatedBy: "\n")
+        if lines.last == "" { lines.removeLast() }
+        if lines.isEmpty { return "No files found" }
+        let relativized = lines.map { Self.relativize($0, against: absolutePath) }
+        let kept = Array(relativized.prefix(maxResults))
+        var output = kept.joined(separator: "\n")
+        if relativized.count > maxResults {
+            output += "\n... (\(relativized.count - maxResults) more files)"
         }
-        return path
+        return output.truncatedForToolOutput(maxLines: maxResults + 1)
     }
 
     // MARK: - Helpers
@@ -502,5 +368,182 @@ final class CodingAgent: Agent, @unchecked Sendable {
     func resolve(_ path: String) -> String {
         if path.hasPrefix("/") { return path }
         return (workingDirectory as NSString).appendingPathComponent(path)
+    }
+
+    // MARK: - Subprocess helpers (rg / fd shellouts)
+
+    /// Combined stdout/stderr/exit-status capture for a single
+    /// rg / fd run — same shape the grep / find tools post-process.
+    struct CapturedRun {
+        let stdout: String
+        let stderr: String
+        let exitStatus: Int32
+    }
+
+    /// Locate `name` (typically `rg` or `fd`) on the process's `PATH`.
+    /// Walks `$PATH` directly rather than spawning `which` so the
+    /// lookup stays a single syscall sweep with no fork. Throws a
+    /// CoderToolError carrying installation guidance when the binary
+    /// isn't reachable — message ends up in front of the model so it
+    /// doesn't quietly fall back to something dumb.
+    static func locateBinary(_ name: String) throws -> String {
+        let env = ProcessInfo.processInfo.environment
+        let pathList = env["PATH"] ?? "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
+        let fileManager = FileManager.default
+        for directory in pathList.split(separator: ":", omittingEmptySubsequences: true) {
+            let candidate = (String(directory) as NSString).appendingPathComponent(name)
+            if fileManager.isExecutableFile(atPath: candidate) {
+                return candidate
+            }
+        }
+        throw CoderToolError.message(missingBinaryHint(for: name))
+    }
+
+    /// Install guidance the model sees when `rg` / `fd` aren't on
+    /// PATH. Phrased so the agent can either tell the user how to
+    /// install the tool or pick a different approach.
+    private static func missingBinaryHint(for binary: String) -> String {
+        switch binary {
+            case "rg":
+                return """
+                    `rg` (ripgrep) is required by the grep tool but isn't on PATH.
+                      • macOS:   brew install ripgrep
+                      • Linux:   apt install ripgrep   (or your distro's package manager)
+                      • Source:  https://github.com/BurntSushi/ripgrep/releases
+                    """
+            case "fd":
+                return """
+                    `fd` is required by the find tool but isn't on PATH.
+                      • macOS:   brew install fd
+                      • Linux:   apt install fd-find    (binary is `fdfind` on Debian/Ubuntu — symlink to `fd`)
+                      • Source:  https://github.com/sharkdp/fd/releases
+                    """
+            default:
+                return "`\(binary)` is required but isn't on PATH."
+        }
+    }
+
+    /// Spawn `executable` with `arguments`, capturing stdout and
+    /// stderr on separate pipes so we can keep them distinct in the
+    /// post-processing layer. Throws when `Process.run()` itself
+    /// fails (typically permissions or unreadable binary); a non-zero
+    /// exit status is returned to the caller for tool-specific
+    /// interpretation (rg uses 1 for "no matches", which is success
+    /// shaped).
+    static func runBinary(at executable: String, arguments: [String]) throws -> CapturedRun {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        process.standardOutput = outPipe
+        process.standardError = errPipe
+
+        do {
+            try process.run()
+        } catch {
+            throw CoderToolError.message(
+                "failed to invoke \(executable): \(error.localizedDescription)")
+        }
+        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return CapturedRun(
+            stdout: String(data: outData, encoding: .utf8) ?? "",
+            stderr: String(data: errData, encoding: .utf8) ?? "",
+            exitStatus: process.terminationStatus)
+    }
+
+    /// Walk rg's `path:line:content` / `path-line-content` stream,
+    /// relativizing each path against the search root, capping single
+    /// lines at 1024 chars (per the tool description), and stopping
+    /// at `maxMatches` match lines (context lines don't count toward
+    /// the limit). Bounded by `byteCap` total bytes.
+    static func formatRgOutput(
+        _ rawStdout: String,
+        relativizingFrom searchRoot: String,
+        maxMatches: Int,
+        byteCap: Int
+    ) -> String {
+        var lines = rawStdout.components(separatedBy: "\n")
+        if lines.last == "" { lines.removeLast() }
+
+        var output: [String] = []
+        var totalBytes = 0
+        var matchCount = 0
+
+        for line in lines {
+            let isGroupBreak = line == "--"
+            let (relativized, isMatchLine) = isGroupBreak
+                ? (line, false)
+                : Self.rewriteRgLine(line, searchRoot: searchRoot)
+            let truncated: String
+            if isGroupBreak || relativized.count <= 1024 {
+                truncated = relativized
+            } else {
+                truncated = String(relativized.prefix(1024)) + "…"
+            }
+            let bytes = truncated.utf8.count + 1
+            if totalBytes + bytes > byteCap { break }
+            if isMatchLine {
+                if matchCount >= maxMatches { break }
+                matchCount += 1
+            }
+            output.append(truncated)
+            totalBytes += bytes
+        }
+
+        var didTruncate = output.count < lines.count
+        if !didTruncate, matchCount >= maxMatches { didTruncate = true }
+        if didTruncate {
+            output.append("... (more matches truncated; limit=\(maxMatches))")
+        }
+        return output.isEmpty ? "No matches found" : output.joined(separator: "\n")
+    }
+
+    /// Split a single rg output line into `(path)(sep)(line)(sep)(content)`,
+    /// rewrite the absolute `path` to be relative to `searchRoot`, then
+    /// reassemble. Returns `(rewritten, isMatchLine)` — `:` separator
+    /// means a real match; `-` means a context line.
+    private static func rewriteRgLine(_ line: String, searchRoot: String) -> (String, Bool) {
+        // rg's format is `<path><sep><lineno><sep><content>` where `<sep>`
+        // is `:` for match lines and `-` for context lines. We only need
+        // to rewrite the leading <path> chunk; the rest passes through
+        // untouched.
+        let separators: [Character] = [":", "-"]
+        for separator in separators {
+            // Find the first separator that's followed by an all-digit
+            // run terminated by the same separator — that's the
+            // <path><sep><lineno><sep> boundary, vs. a `:` that's just
+            // part of the path or content.
+            var search = line.startIndex
+            while let sepIdx = line[search...].firstIndex(of: separator) {
+                let afterSep = line.index(after: sepIdx)
+                guard let nextSep = line[afterSep...].firstIndex(of: separator) else { break }
+                let between = line[afterSep ..< nextSep]
+                if !between.isEmpty, between.allSatisfy(\.isNumber) {
+                    let pathPart = String(line[line.startIndex ..< sepIdx])
+                    let rest = String(line[sepIdx...])
+                    let relPath = relativize(pathPart, against: searchRoot)
+                    return (relPath + rest, separator == ":")
+                }
+                search = afterSep
+            }
+        }
+        return (line, false)
+    }
+
+    /// Make `path` relative to `root` for display. Falls through to
+    /// the original string when `path` isn't under `root` (e.g. the
+    /// user passed an explicit file outside the workdir).
+    static func relativize(_ path: String, against root: String) -> String {
+        let prefix = root.hasSuffix("/") ? root : root + "/"
+        if path.hasPrefix(prefix) {
+            let trimmed = String(path.dropFirst(prefix.count))
+            return trimmed.isEmpty ? "." : trimmed
+        }
+        if path == root { return "." }
+        return path
     }
 }
