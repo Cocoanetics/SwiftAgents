@@ -198,7 +198,7 @@ final class CodingAgent: Agent, @unchecked Sendable {
         return lines.isEmpty ? "(empty directory)" : lines.joined(separator: "\n").truncatedForToolOutput()
     }
 
-    /// Search files for a pattern. Searches recursively, respecting .gitignore.
+    /// Search files for a pattern. Searches recursively.
     /// - Parameter pattern: Search pattern (regex)
     /// - Parameter path: Directory or file to search (default: working directory)
     /// - Parameter glob: Filter by file name pattern, e.g. "*.swift" or "*.ts". Do NOT use path patterns like "**/*".
