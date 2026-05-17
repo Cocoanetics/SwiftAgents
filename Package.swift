@@ -45,7 +45,17 @@ let package = Package(
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
 		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.4.5"),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
-		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0")
+		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
+		// SwiftMCP's swift-syntax constraint is intentionally wide
+		// (`"602.0.0-latest"..<"604.0.0"`) so it works under Swift 6.2
+		// hosts too. Without a lower bound from us, SPM picks the
+		// floor (602.0.0) — which doesn't build under Linux Swift 6.3
+		// (`swift build --build-tests` chokes building
+		// `SwiftMCPAggregatorTool` with "no such module 'SwiftSyntax'").
+		// Pin to 603 here so the Linux CI resolver picks the version
+		// that actually builds; macOS CI already tolerates either.
+		.package(url: "https://github.com/swiftlang/swift-syntax.git",
+		         "603.0.0" ..< "604.0.0")
 	],
 	targets: [
 		.target(
