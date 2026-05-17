@@ -148,13 +148,27 @@ struct Coder: AsyncParsableCommand {
         try? Dotenv.configure(atPath: envPath)
         #endif
 
-        // Re-initialize trace exporter now that env vars are loaded
-        if let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] {
-            let openAI = OpenAI(apiKey: apiKey)
-            await TraceProvider.shared.setProcessors([
-                BatchTraceProcessor(exporter: BackendSpanExporter(openAI: openAI))
-            ])
+        // Fail fast when no OpenAI key is available — otherwise the
+        // REPL prints its banner, accepts a prompt, then dies on the
+        // first turn with "Missing API key for provider: OpenAI"
+        // (a confusing experience). The check runs AFTER the .env
+        // load so a key in `<workDir>/.env` is honoured.
+        let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
+        guard !apiKey.isEmpty else {
+            FileHandle.standardError.write(Data("""
+                error: OPENAI_API_KEY is not set.
+                  • Export it in your shell:  export OPENAI_API_KEY=sk-...
+                  • Or drop it into a `.env` file in the working directory.
+
+                """.utf8))
+            throw ExitCode(1)
         }
+
+        // Re-initialize trace exporter now that env vars are loaded.
+        let openAI = OpenAI(apiKey: apiKey)
+        await TraceProvider.shared.setProcessors([
+            BatchTraceProcessor(exporter: BackendSpanExporter(openAI: openAI))
+        ])
 
         let agent = CodingAgent(workingDirectory: workDir, config: RunConfig(model: model))
         let terminal = TerminalHandler()
