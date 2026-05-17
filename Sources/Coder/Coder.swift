@@ -25,6 +25,25 @@ private func isBullet(_ buf: String, at idx: String.Index) -> Bool {
 private func flushMarkdown(_ buffer: String, terminal: TerminalHandler, inCodeBlock: inout Bool) -> String {
     var buf = buffer
 
+    // Hold back trailing 1-2 backticks (partial fence). Stream tokens
+    // routinely split a `` ``` `` fence between two chunks (`` `` `` in
+    // one delta, `` ` `` in the next). Without this guard the partial
+    // ticks get processed by the loops below and leak into the visible
+    // output — outside a code block they're consumed as an empty
+    // inline-code marker and the next chunk's `\n<lang>` lands as
+    // plain text; inside a code block they're dim-printed verbatim
+    // and the closing fence ends up visible. We hold them back so
+    // they recombine into a real `` ``` `` on the next call.
+    //
+    // Only 1 or 2 trailing ticks are partial — 3+ form a real fence
+    // and belong to the fence loop below; 0 means no work to do.
+    var heldBack = ""
+    let trailingTicks = buf.reversed().prefix(while: { $0 == "`" }).count
+    if (1 ... 2).contains(trailingTicks) {
+        heldBack = String(buf.suffix(trailingTicks))
+        buf.removeLast(trailingTicks)
+    }
+
     // Handle triple-backtick fences — strip them and toggle code block state
     while let range = buf.range(of: "```") {
         // Output text before the fence
@@ -40,7 +59,7 @@ private func flushMarkdown(_ buffer: String, terminal: TerminalHandler, inCodeBl
                 buf = String(buf[buf.index(after: newline)...])
             } else {
                 // Fence at end of buffer, wait for more
-                return "```"
+                return "```" + heldBack
             }
         } else {
             // Closing fence — skip trailing newline if present
@@ -58,7 +77,7 @@ private func flushMarkdown(_ buffer: String, terminal: TerminalHandler, inCodeBl
         if !buf.isEmpty {
             terminal.output(buf.dim, addLineFeed: false)
         }
-        return ""
+        return heldBack
     }
 
     let markers = ["**", "`", "*"]
@@ -89,7 +108,7 @@ private func flushMarkdown(_ buffer: String, terminal: TerminalHandler, inCodeBl
                 terminal.output(buf, addLineFeed: false)
                 buf = ""
             }
-            return buf
+            return buf + heldBack
         }
 
         let afterOpen = openRange.upperBound
@@ -121,7 +140,7 @@ private func flushMarkdown(_ buffer: String, terminal: TerminalHandler, inCodeBl
             if !before.isEmpty {
                 terminal.output(before, addLineFeed: false)
             }
-            return String(buf[openRange.lowerBound...])
+            return String(buf[openRange.lowerBound...]) + heldBack
         }
     }
 }
