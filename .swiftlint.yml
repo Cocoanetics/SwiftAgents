@@ -1,6 +1,9 @@
 included:
   - Sources
   - Tests
+  # Coder moved from Sources/Coder to Examples/Coder but is still a SPM
+  # product — keep it under the same lint rules as the package sources.
+  - Examples/Coder
 
 excluded:
   # Test fixtures (JSON / PNG / text payloads bundled as test resources).
@@ -9,6 +12,9 @@ excluded:
   - .swiftpm
   - "**/.build"
   - "**/.swiftpm"
+  # Imported example app — uses its own style. `--force-exclude` in the
+  # pre-commit hook honors this list when the app's files are staged.
+  - Examples/RealtimeVoiceAgent
 
 # 4-space indentation is enforced by `.editorconfig` (read by Xcode and most
 # editors) and by running `swiftformat --indent 4` locally before committing.
