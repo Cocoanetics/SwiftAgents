@@ -160,7 +160,13 @@ final class ConversationViewModel: ObservableObject {
 
     func stopConversation() async {
         guard canStop else { return }
-        await callKitController.endCall()
+        if callKitController.hasActiveCall {
+            await callKitController.endCall()
+        } else {
+            // Fallback path (CallKit unentitled) never set a CXCall, so
+            // endCall() would no-op. Tear the in-app session down directly.
+            await stopConversationSession()
+        }
     }
 
     func togglePreferredOutputRoute() {
