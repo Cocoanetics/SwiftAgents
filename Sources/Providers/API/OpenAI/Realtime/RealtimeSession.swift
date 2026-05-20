@@ -44,8 +44,8 @@ public enum RealtimeSessionError: LocalizedError {
 }
 
 public actor RealtimeSession {
-    public let events: AsyncThrowingStream<RealtimeSessionEvent, Error>
-    public let history: RealtimeHistory
+    public nonisolated let events: AsyncThrowingStream<RealtimeSessionEvent, Error>
+    public nonisolated let history: RealtimeHistory
 
     private let eventContinuation: AsyncThrowingStream<RealtimeSessionEvent, Error>.Continuation
     private let model: any RealtimeModel

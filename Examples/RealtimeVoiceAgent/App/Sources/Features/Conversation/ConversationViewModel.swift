@@ -22,11 +22,11 @@ final class ConversationViewModel: ObservableObject {
     private let backgroundTaskController = BackgroundTaskController()
     private let audioCoordinator = AudioStreamCoordinator()
     private let spokenTextTracker = SpokenTextTracker()
-    private let service: OpenAIRealtimeService
     private let toolRegistry: LocalToolRegistry
     private let callKitController: CallKitController
     private let isUITestCallKitMode: Bool
 
+    private var session: RealtimeSession?
     private var eventsTask: Task<Void, Never>?
     private var activeUserPlaceholderID: String?
     private var pendingUserInsertionIndex: Int?
@@ -38,6 +38,14 @@ final class ConversationViewModel: ObservableObject {
     private var isConversationSessionConfigured = false
     private var isCallKitAudioSessionActivated = false
     private var hasStartedAudioEngine = false
+    /// Tracks `call_id` → tool name so the `hangup` tool can trigger
+    /// `pendingHangup` after its result lands (`FunctionCallOutput` has only
+    /// the call id, not the name).
+    private var pendingToolNames: [String: String] = [:]
+    /// Latest assistant-audio item id and content index — captured from
+    /// `.audioDelta` so user barge-in can truncate the right item.
+    private var currentAudioItemID: String?
+    private var currentAudioContentIndex: Int = 0
 
     init(
         configuration: AppConfiguration,
@@ -53,7 +61,6 @@ final class ConversationViewModel: ObservableObject {
             openclawToken: configuration.openclawToken
         )
         self.toolRegistry = toolRegistry
-        self.service = OpenAIRealtimeService(configuration: configuration, toolRegistry: toolRegistry)
 
         // --- CallKit lifecycle (matches Apple's Speakerbox sample) ---
         //
@@ -89,10 +96,6 @@ final class ConversationViewModel: ObservableObject {
                 await self?.startConversation(handle: handle)
             }
         }
-
-        bindEvents()
-
-        // transcriptEntries = OpenAIRealtimeService.loadTranscriptEntries()
 
         Task { [weak self] in
             guard let self else { return }
@@ -213,11 +216,33 @@ final class ConversationViewModel: ObservableObject {
             appendStatus("Configuring audio session.")
             audioCoordinator.setManualRouteOverrideEnabled(!usesSystemRouteControls)
 
+            // Build the session up-front (constructor doesn't open the socket)
+            // so the audio coordinator's input closure can capture it.
+            connectionState = .connecting
+            let token = try await resolveAuthToken()
+            appendStatus("Auth resolved: \(configuration.authModeDescription).")
+            let agent = BasicRealtimeAgent(
+                name: "RVA",
+                model: configuration.model,
+                instructions: configuration.instructions,
+                toolProvider: [toolRegistry],
+                sessionConfiguration: makeRealtimeSessionConfiguration()
+            )
+            let model = OpenAIRealtimeWebSocketModel(
+                openAI: OpenAI(apiKey: token),
+                model: configuration.model
+            )
+            let session = RealtimeSession(agent: agent, model: model, modelIdentifier: configuration.model)
+            self.session = session
+
             // Configure the audio session but do NOT start call audio here.
             // Call audio should not be started until the audio session is activated
             // by the system, after having its priority elevated (didActivate).
-            let audioDiagnostics = try await audioCoordinator.configure { [service] data in
-                await service.appendInputAudioChunk(data)
+            // `commit: false, requestResponse: false` because server VAD handles
+            // both segmentation and response-creation on speech_stopped.
+            let audioDiagnostics = try await audioCoordinator.configure { [weak self] data in
+                guard let session = await self?.session else { return }
+                try? await session.sendAudio(data, commit: false, requestResponse: false)
             }
             isConversationSessionConfigured = true
             preferredOutputRoute = audioCoordinator.preferredOutputRoute
@@ -229,16 +254,68 @@ final class ConversationViewModel: ObservableObject {
             tryStartAudioEngineIfReady()
 
             appendStatus("Opening realtime transport.")
-            try await service.connect()
+            eventsTask = Task { [weak self] in
+                guard let self else { return }
+                do {
+                    for try await event in session.events {
+                        self.handle(event)
+                    }
+                } catch {
+                    self.handleSessionFailure(error.localizedDescription)
+                }
+            }
+            try await session.connect()
             appendStatus("Realtime transport connected.")
         } catch {
             resetCallStartupState()
-            await service.disconnect()
+            eventsTask?.cancel()
+            eventsTask = nil
+            if let session {
+                await session.disconnect()
+            }
+            self.session = nil
             audioCoordinator.stop()
             connectionState = .failed(error.localizedDescription)
             appendStatus("Failed to start: \(error.localizedDescription)")
             throw error
         }
+    }
+
+    private func resolveAuthToken() async throws -> String {
+        if let endpoint = configuration.realtimeTokenEndpoint {
+            return try await OpenAI.fetchEphemeralAPIKey(from: endpoint)
+        }
+        guard let apiKey = configuration.apiKey else {
+            throw NSError(
+                domain: "RealtimeVoiceAgent",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Missing realtime credentials."]
+            )
+        }
+        return apiKey
+    }
+
+    private func makeRealtimeSessionConfiguration() -> RealtimeSessionConfiguration {
+        let turnDetection: RealtimeSessionConfiguration.Audio.Input.TurnDetection? =
+            configuration.useServerVAD
+                ? .init(type: "semantic_vad", createResponse: true, interruptResponse: true)
+                : nil
+        return RealtimeSessionConfiguration(
+            audio: .init(
+                input: .init(
+                    format: .init(type: "audio/pcm", rate: 24_000),
+                    turnDetection: turnDetection,
+                    transcription: .init(model: configuration.transcriptionModel),
+                    noiseReduction: .init(type: "near_field")
+                ),
+                output: .init(
+                    format: .init(type: "audio/pcm", rate: 24_000),
+                    voice: configuration.voice
+                )
+            ),
+            instructions: configuration.instructions,
+            outputModalities: [.audio]
+        )
     }
 
     /// Phase 2: Start the audio engine only once both configuration and CallKit activation have happened.
@@ -289,11 +366,41 @@ final class ConversationViewModel: ObservableObject {
             return
         }
 
+        connectionState = .disconnecting
         audioCoordinator.stop()
+        audioCoordinator.silenceFiller.stop()
         currentOutputRoute = .phone
-        await service.disconnect()
+
+        eventsTask?.cancel()
+        eventsTask = nil
+        if let session {
+            await session.disconnect()
+        }
+        session = nil
+        pendingToolNames.removeAll()
+        currentAudioItemID = nil
+
+        isAwaitingUserTranscript = false
+        removeEmptyUserPlaceholderIfNeeded()
+        pendingUserInsertionIndex = nil
         backgroundTaskController.end()
+        callKitController.reportCallEndedIfNeeded(reason: .remoteEnded)
+        connectionState = .disconnected
         appendStatus("Voice call ended.")
+    }
+
+    /// Cleanup path triggered by a server-side error or a thrown event-stream
+    /// error — used to live in the `.state(.failed)` arm of the event handler.
+    private func handleSessionFailure(_ message: String) {
+        audioCoordinator.silenceFiller.stop()
+        audioCoordinator.stop()
+        isAwaitingUserTranscript = false
+        removeEmptyUserPlaceholderIfNeeded()
+        pendingUserInsertionIndex = nil
+        backgroundTaskController.end()
+        appendStatus(message)
+        callKitController.reportCallEndedIfNeeded(reason: .failed)
+        connectionState = .failed(message)
     }
 
     private func resetCallStartupState() {
@@ -328,121 +435,154 @@ final class ConversationViewModel: ObservableObject {
         }
     }
 
-    private func bindEvents() {
-        eventsTask = Task { [weak self] in
-            guard let self else { return }
-
-            for await event in service.events {
-                self.handle(event)
-            }
-        }
-    }
-
-    private func handle(_ event: RealtimeServiceEvent) {
+    private func handle(_ event: RealtimeSessionEvent) {
         switch event {
-        case .state(let state):
-            connectionState = state
-
-            switch state {
-            case .connected:
+        case .sessionCreated, .sessionUpdated:
+            if connectionState != .connected {
+                connectionState = .connected
                 appendStatus("Realtime session connected.")
-            case .disconnected:
-                audioCoordinator.silenceFiller.stop()
-                isAwaitingUserTranscript = false
-                removeEmptyUserPlaceholderIfNeeded()
-                pendingUserInsertionIndex = nil
-                backgroundTaskController.end()
-                callKitController.reportCallEndedIfNeeded(reason: .remoteEnded)
-            case .failed(let message):
-                audioCoordinator.silenceFiller.stop()
-                isAwaitingUserTranscript = false
-                removeEmptyUserPlaceholderIfNeeded()
-                pendingUserInsertionIndex = nil
-                audioCoordinator.stop()
-                backgroundTaskController.end()
-                appendStatus(message)
-                callKitController.reportCallEndedIfNeeded(reason: .failed)
-            default:
-                break
-            }
-
-        case .responseActive(let isActive):
-            hasActiveAssistantResponse = isActive
-            if isSceneInBackground {
-                if isActive {
-                    backgroundTaskController.begin(name: "RealtimeVoiceAgentResponseCompletion")
-                } else {
-                    backgroundTaskController.end()
-                }
-            }
-
-        case .transcript(let delta):
-            applyTranscript(delta)
-
-        case .userSpeechDetected(let isSpeaking):
-            isAwaitingUserTranscript = isSpeaking && shouldShowUserSpeechPlaceholder
-            if isSpeaking {
-                ensureUserSpeechPlaceholder()
-            }
-
-        case .toolCallBegan:
-            audioCoordinator.silenceFiller.start(immediate: true)
-
-        case .audioOutput(let chunk):
-            audioCoordinator.silenceFiller.stop()
-            audioCoordinator.enqueueOutputPCM16(chunk.data, itemID: chunk.itemID, contentIndex: chunk.contentIndex)
-            startPlaybackSync()
-
-        case .flushPlayback:
-            audioCoordinator.flushPlayback()
-            // Don't finalize here — audio is still playing from the buffer.
-            // The sync timer will detect when playback catches up and finalize.
-
-        case .interruptPlayback(let interrupt):
-            audioCoordinator.silenceFiller.stop()
-            let progress = audioCoordinator.playbackProgress
-            audioCoordinator.clearPlayback()
-            stopPlaybackSync()
-            if pendingHangup {
-                pendingHangup = false
-                appendStatus("User barged in — cancelling pending hangup.")
-            }
-            truncatedItemIDs.insert(interrupt.itemID)
-
-            // Freeze the transcript at exactly what was spoken
-            let trackedEntryID = spokenTextTracker.entryID
-            let spokenText = spokenTextTracker.interrupt()
-
-            if let entryID = trackedEntryID,
-               let index = transcriptEntries.firstIndex(where: { $0.id == entryID }) {
-                if let spokenText {
-                    transcriptEntries[index].text = spokenText
-                }
-                transcriptEntries[index].isFinal = true
-                transcriptEntries[index].updatedAt = Date()
-                appendStatus("Interrupted: kept \(spokenText?.count ?? 0) chars of buffer")
-            }
-
-            if let progress, !interrupt.itemID.isEmpty {
-                let audioEndMs = Int(progress.playedMs)
-                Task {
-                    await service.truncateItem(
-                        id: interrupt.itemID,
-                        contentIndex: interrupt.contentIndex,
-                        audioEndMs: audioEndMs
+                if configuration.realtimeTokenEndpoint == nil, configuration.apiKey != nil {
+                    appendStatus(
+                        "Using a bundled API key. Replace it with a backend-issued ephemeral token before shipping."
                     )
                 }
             }
 
-        case .hangupRequested:
-            appendStatus("Hangup requested by agent. Waiting for playback to finish.")
-            pendingHangup = true
+        case .responseCreated:
+            setResponseActive(true)
 
-        case .log(let message):
-            appendStatus(message)
+        case .responseCompleted:
+            setResponseActive(false)
+            audioCoordinator.flushPlayback()
 
-        @unknown default:
+        case let .audioDelta(payload):
+            currentAudioItemID = payload.itemId
+            currentAudioContentIndex = payload.contentIndex
+            guard let data = payload.delta else { return }
+            audioCoordinator.silenceFiller.stop()
+            audioCoordinator.enqueueOutputPCM16(data, itemID: payload.itemId, contentIndex: payload.contentIndex)
+            startPlaybackSync()
+
+        case let .inputAudioTranscriptDelta(payload):
+            applyTranscript(itemID: payload.itemId, role: .user, text: payload.delta, isFinal: false, replace: false)
+
+        case let .inputAudioTranscriptDone(payload):
+            applyTranscript(itemID: payload.itemId, role: .user, text: payload.transcript, isFinal: true, replace: true)
+
+        case let .outputAudioTranscriptDelta(payload):
+            applyTranscript(itemID: payload.itemId, role: .assistant, text: payload.delta, isFinal: false, replace: false)
+
+        case let .outputAudioTranscriptDone(payload):
+            applyTranscript(itemID: payload.itemId, role: .assistant, text: payload.transcript, isFinal: true, replace: true)
+
+        case let .textDelta(payload):
+            applyTranscript(itemID: payload.itemId, role: .assistant, text: payload.delta, isFinal: false, replace: false)
+
+        case let .textDone(payload):
+            applyTranscript(itemID: payload.itemId, role: .assistant, text: payload.text, isFinal: true, replace: true)
+
+        case let .toolCalled(call):
+            pendingToolNames[call.callId] = call.name
+            audioCoordinator.silenceFiller.start(immediate: true)
+            applyTranscript(
+                itemID: "tool-\(call.callId)",
+                role: .tool,
+                text: "Running \(call.name)…",
+                isFinal: false,
+                replace: true
+            )
+            appendStatus("Tool call requested: \(call.name) args=\(call.arguments)")
+
+        case let .toolOutput(output):
+            let name = pendingToolNames.removeValue(forKey: output.callId) ?? "tool"
+            let displayText = name == output.output ? output.output : "\(name): \(output.output)"
+            applyTranscript(
+                itemID: "tool-\(output.callId)",
+                role: .tool,
+                text: displayText,
+                isFinal: true,
+                replace: true
+            )
+            appendStatus("Tool result ready: \(name) -> \(output.output)")
+            if name == "hangup" {
+                appendStatus("Hangup requested by agent. Waiting for playback to finish.")
+                pendingHangup = true
+            }
+
+        case .inputSpeechStarted:
+            isAwaitingUserTranscript = shouldShowUserSpeechPlaceholder
+            if isAwaitingUserTranscript {
+                ensureUserSpeechPlaceholder()
+            }
+            handleBargeIn()
+
+        case .inputSpeechStopped:
+            isAwaitingUserTranscript = false
+
+        case let .error(detail):
+            let code = detail.code.map { " [\($0)]" } ?? ""
+            appendStatus("Realtime error\(code): \(detail.message)")
+            if detail.code == "response_cancel_not_active" {
+                appendStatus("Ignoring benign cancel error (no assistant response in flight).")
+            } else {
+                handleSessionFailure(detail.message)
+            }
+
+        case .raw, .audioDone, .historyChange:
             break
+        }
+    }
+
+    private func setResponseActive(_ isActive: Bool) {
+        hasActiveAssistantResponse = isActive
+        guard isSceneInBackground else { return }
+        if isActive {
+            backgroundTaskController.begin(name: "RealtimeVoiceAgentResponseCompletion")
+        } else {
+            backgroundTaskController.end()
+        }
+    }
+
+    /// User started speaking while the assistant was talking — stop local
+    /// playback, freeze the transcript at what was actually spoken, ask the
+    /// server to truncate the in-flight item, and cancel the active response.
+    private func handleBargeIn() {
+        audioCoordinator.silenceFiller.stop()
+        let progress = audioCoordinator.playbackProgress
+        let itemID = currentAudioItemID ?? ""
+        let contentIndex = currentAudioContentIndex
+        audioCoordinator.clearPlayback()
+        stopPlaybackSync()
+        if pendingHangup {
+            pendingHangup = false
+            appendStatus("User barged in — cancelling pending hangup.")
+        }
+        truncatedItemIDs.insert(itemID)
+
+        let trackedEntryID = spokenTextTracker.entryID
+        let spokenText = spokenTextTracker.interrupt()
+        if let entryID = trackedEntryID,
+           let index = transcriptEntries.firstIndex(where: { $0.id == entryID }) {
+            if let spokenText {
+                transcriptEntries[index].text = spokenText
+            }
+            transcriptEntries[index].isFinal = true
+            transcriptEntries[index].updatedAt = Date()
+            appendStatus("Interrupted: kept \(spokenText?.count ?? 0) chars of buffer")
+        }
+
+        if let progress, !itemID.isEmpty, let session {
+            let audioEndMs = Int(progress.playedMs)
+            Task {
+                try? await session.interruptPlayback(
+                    itemID: itemID,
+                    contentIndex: contentIndex,
+                    audioEndMilliseconds: audioEndMs
+                )
+            }
+        }
+        if let session {
+            Task { try? await session.cancelResponse() }
         }
     }
 
@@ -453,13 +593,21 @@ final class ConversationViewModel: ObservableObject {
         return lastUserEntry.isFinal
     }
 
-    private func applyTranscript(_ delta: TranscriptDelta) {
+    private func applyTranscript(
+        itemID: String,
+        role: TranscriptRole,
+        text: String,
+        fullOutput: String? = nil,
+        isFinal: Bool,
+        replace: Bool
+    ) {
+        guard !text.isEmpty else { return }
         let now = Date()
 
         // Drop late deltas for items that were already truncated by interruption
-        if truncatedItemIDs.contains(delta.itemID) { return }
+        if truncatedItemIDs.contains(itemID) { return }
 
-        if delta.role == .user {
+        if role == .user {
             isAwaitingUserTranscript = false
         } else {
             removeEmptyUserPlaceholderIfNeeded()
@@ -469,142 +617,125 @@ final class ConversationViewModel: ObservableObject {
 
         // If the tracker is already following this item, always buffer there
         // (even after response.done — audio may still be playing)
-        if spokenTextTracker.itemID == delta.itemID {
-            if delta.replace {
-                spokenTextTracker.replaceWithFinal(delta.text)
+        if spokenTextTracker.itemID == itemID {
+            if replace {
+                spokenTextTracker.replaceWithFinal(text)
             } else {
-                spokenTextTracker.appendDelta(delta.text)
+                spokenTextTracker.appendDelta(text)
             }
             return
         }
 
         // New assistant entry while audio is active — start tracking
-        if delta.role == .assistant && (hasActiveAssistantResponse || audioCoordinator.currentItemID != nil) {
+        if role == .assistant && (hasActiveAssistantResponse || audioCoordinator.currentItemID != nil) {
             // Existing entry for a different assistant item (no tracker) — update directly
-            if let existingIndex = transcriptEntries.firstIndex(where: { $0.sourceItemIDs.contains(delta.itemID) }) {
-                do {
-                    transcriptEntries[existingIndex].text = delta.replace
-                        ? replaceLastParagraph(in: transcriptEntries[existingIndex].text, with: delta.text)
-                        : transcriptEntries[existingIndex].text + delta.text
-                    transcriptEntries[existingIndex].isFinal = delta.isFinal
-                    transcriptEntries[existingIndex].updatedAt = now
-                }
+            if let existingIndex = transcriptEntries.firstIndex(where: { $0.sourceItemIDs.contains(itemID) }) {
+                transcriptEntries[existingIndex].text = replace
+                    ? replaceLastParagraph(in: transcriptEntries[existingIndex].text, with: text)
+                    : transcriptEntries[existingIndex].text + text
+                transcriptEntries[existingIndex].isFinal = isFinal
+                transcriptEntries[existingIndex].updatedAt = now
                 return
             }
 
             // New assistant entry — create it with empty text, start tracking
             let newID = UUID().uuidString
-            do {
-                transcriptEntries.append(
-                    TranscriptEntry(
-                        id: newID,
-                        sourceItemIDs: [delta.itemID],
-                        role: .assistant,
-                        text: "",
-                        isFinal: false,
-                        updatedAt: now
-                    )
+            transcriptEntries.append(
+                TranscriptEntry(
+                    id: newID,
+                    sourceItemIDs: [itemID],
+                    role: .assistant,
+                    text: "",
+                    isFinal: false,
+                    updatedAt: now
                 )
-            }
-            spokenTextTracker.begin(entryID: newID, itemID: delta.itemID)
-            spokenTextTracker.appendDelta(delta.text)
+            )
+            spokenTextTracker.begin(entryID: newID, itemID: itemID)
+            spokenTextTracker.appendDelta(text)
             return
         }
 
         // --- Non-tracked assistant deltas (e.g. text-only, no audio) ---
         // --- User / Tool / System entries: original logic ---
 
-        if let existingIndex = transcriptEntries.firstIndex(where: { $0.sourceItemIDs.contains(delta.itemID) }) {
-            // If the tracker WAS tracking this item but response ended, apply the final text
-            do {
-                transcriptEntries[existingIndex].text = delta.replace
-                    ? replaceLastParagraph(in: transcriptEntries[existingIndex].text, with: delta.text)
-                    : transcriptEntries[existingIndex].text + delta.text
-                transcriptEntries[existingIndex].isFinal = delta.isFinal
-                transcriptEntries[existingIndex].updatedAt = now
-                if let fullOutput = delta.fullOutput {
-                    transcriptEntries[existingIndex].fullOutput = fullOutput
-                }
+        if let existingIndex = transcriptEntries.firstIndex(where: { $0.sourceItemIDs.contains(itemID) }) {
+            transcriptEntries[existingIndex].text = replace
+                ? replaceLastParagraph(in: transcriptEntries[existingIndex].text, with: text)
+                : transcriptEntries[existingIndex].text + text
+            transcriptEntries[existingIndex].isFinal = isFinal
+            transcriptEntries[existingIndex].updatedAt = now
+            if let fullOutput {
+                transcriptEntries[existingIndex].fullOutput = fullOutput
             }
             return
         }
 
-        if delta.role == .user,
+        if role == .user,
            let provisionalIndex = transcriptEntries.lastIndex(where: { $0.role == .user && !$0.isFinal }) {
             if transcriptEntries[provisionalIndex].id == activeUserPlaceholderID {
-                do {
-                    if provisionalIndex > 0,
-                       transcriptEntries[provisionalIndex - 1].role == .user,
-                       transcriptEntries[provisionalIndex - 1].isFinal {
-                        transcriptEntries[provisionalIndex - 1].sourceItemIDs.append(delta.itemID)
-                        transcriptEntries[provisionalIndex - 1].text += "\n\n" + delta.text
-                        transcriptEntries[provisionalIndex - 1].isFinal = delta.isFinal
-                        transcriptEntries[provisionalIndex - 1].updatedAt = now
-                        transcriptEntries.remove(at: provisionalIndex)
-                    } else {
-                        transcriptEntries[provisionalIndex].sourceItemIDs = [delta.itemID]
-                        transcriptEntries[provisionalIndex].text = delta.text
-                        transcriptEntries[provisionalIndex].isFinal = delta.isFinal
-                        transcriptEntries[provisionalIndex].updatedAt = now
-                    }
+                if provisionalIndex > 0,
+                   transcriptEntries[provisionalIndex - 1].role == .user,
+                   transcriptEntries[provisionalIndex - 1].isFinal {
+                    transcriptEntries[provisionalIndex - 1].sourceItemIDs.append(itemID)
+                    transcriptEntries[provisionalIndex - 1].text += "\n\n" + text
+                    transcriptEntries[provisionalIndex - 1].isFinal = isFinal
+                    transcriptEntries[provisionalIndex - 1].updatedAt = now
+                    transcriptEntries.remove(at: provisionalIndex)
+                } else {
+                    transcriptEntries[provisionalIndex].sourceItemIDs = [itemID]
+                    transcriptEntries[provisionalIndex].text = text
+                    transcriptEntries[provisionalIndex].isFinal = isFinal
+                    transcriptEntries[provisionalIndex].updatedAt = now
                 }
                 activeUserPlaceholderID = nil
                 return
             }
 
-            do {
-                transcriptEntries[provisionalIndex].text = delta.replace || delta.isFinal
-                    ? delta.text
-                    : transcriptEntries[provisionalIndex].text + delta.text
-                transcriptEntries[provisionalIndex].isFinal = delta.isFinal
-                transcriptEntries[provisionalIndex].updatedAt = now
-            }
+            transcriptEntries[provisionalIndex].text = replace || isFinal
+                ? text
+                : transcriptEntries[provisionalIndex].text + text
+            transcriptEntries[provisionalIndex].isFinal = isFinal
+            transcriptEntries[provisionalIndex].updatedAt = now
             return
         }
 
-        if delta.role == .user,
+        if role == .user,
            let pendingUserInsertionIndex {
             let entry = TranscriptEntry(
                 id: UUID().uuidString,
-                sourceItemIDs: [delta.itemID],
+                sourceItemIDs: [itemID],
                 role: .user,
-                text: delta.text,
-                isFinal: delta.isFinal,
+                text: text,
+                isFinal: isFinal,
                 updatedAt: now
             )
-            do {
-                transcriptEntries.insert(entry, at: min(pendingUserInsertionIndex, transcriptEntries.count))
-            }
+            transcriptEntries.insert(entry, at: min(pendingUserInsertionIndex, transcriptEntries.count))
             self.pendingUserInsertionIndex = nil
             return
         }
 
-        if delta.role == .user,
+        if role == .user,
            let lastIndex = transcriptEntries.indices.last,
            transcriptEntries[lastIndex].role == .user,
            transcriptEntries[lastIndex].isFinal {
-            do {
-                transcriptEntries[lastIndex].sourceItemIDs.append(delta.itemID)
-                transcriptEntries[lastIndex].text += "\n\n" + delta.text
-                transcriptEntries[lastIndex].isFinal = delta.isFinal
-                transcriptEntries[lastIndex].updatedAt = now
-            }
+            transcriptEntries[lastIndex].sourceItemIDs.append(itemID)
+            transcriptEntries[lastIndex].text += "\n\n" + text
+            transcriptEntries[lastIndex].isFinal = isFinal
+            transcriptEntries[lastIndex].updatedAt = now
             return
         }
 
-        do {
-            transcriptEntries.append(
-                TranscriptEntry(
-                    id: UUID().uuidString,
-                    sourceItemIDs: [delta.itemID],
-                    role: delta.role,
-                    text: delta.text,
-                    fullOutput: delta.fullOutput,
-                    isFinal: delta.isFinal,
-                    updatedAt: now
-                )
+        transcriptEntries.append(
+            TranscriptEntry(
+                id: UUID().uuidString,
+                sourceItemIDs: [itemID],
+                role: role,
+                text: text,
+                fullOutput: fullOutput,
+                isFinal: isFinal,
+                updatedAt: now
             )
-        }
+        )
     }
 
     private func ensureUserSpeechPlaceholder() {
@@ -724,8 +855,9 @@ final class ConversationViewModel: ObservableObject {
     }
 
     private func persistConversationHistory() {
-        Task { [service] in
-            let items = await service.historySnapshot()
+        guard let session else { return }
+        Task {
+            let items = await session.historySnapshot()
             guard !items.isEmpty else { return }
             do {
                 try RealtimeHistory.save(items, to: Self.historyFileURL)
