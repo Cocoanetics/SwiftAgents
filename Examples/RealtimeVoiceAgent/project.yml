@@ -8,6 +8,9 @@ settings:
     SWIFT_VERSION: 5.10
     PRODUCT_NAME: RealtimeVoiceAgent
 packages:
+  # Local path to the SwiftAgents package at the repo root, two levels up.
+  SwiftAgents:
+    path: ../..
   SwiftMCP:
     url: https://github.com/Cocoanetics/SwiftMCP
     branch: main
@@ -19,6 +22,8 @@ targets:
     sources:
       - path: App/Sources
     dependencies:
+      - package: SwiftAgents
+        product: Providers
       - package: SwiftMCP
     info:
       path: App/Info.plist

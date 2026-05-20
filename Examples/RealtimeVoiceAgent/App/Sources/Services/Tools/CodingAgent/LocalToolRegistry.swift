@@ -681,76 +681,10 @@ actor LocalToolRegistry {
         return "Showing \(title)"
     }
 
-    // MARK: - Realtime API Bridge
-
-    /// Convert `@MCPTool` metadata into JSON payloads for the OpenAI Realtime API session config.
-    func realtimeToolPayloads() -> [JSONValue] {
-        mcpToolMetadata.sorted { $0.name < $1.name }.map { meta in
-            realtimePayload(for: meta)
-        }
-    }
-
-    /// Execute a tool by name with a JSON argument string from the realtime API.
-    func execute(name: String, argumentsJSONString: String) async -> ToolExecutionResult {
-        do {
-            let arguments: [String: JSONValue]
-            if argumentsJSONString.isEmpty || argumentsJSONString == "{}" {
-                arguments = [:]
-            } else {
-                let data = Data(argumentsJSONString.utf8)
-                arguments = try JSONDecoder().decode([String: JSONValue].self, from: data)
-            }
-            let result = try await callTool(name, arguments: arguments)
-            return ToolExecutionResult(name: name, output: .object(["result": .string(String(describing: result))]))
-        } catch {
-            return ToolExecutionResult(
-                name: name,
-                output: .object([
-                    "error": .string(error.localizedDescription),
-                    "result": .string("Tool execution failed.")
-                ])
-            )
-        }
-    }
-
     /// The app's Documents directory URL.
     var documentsURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-    }
-
-    // MARK: - Private
-
-    private func realtimePayload(for meta: MCPToolMetadata) -> JSONValue {
-        var properties: [String: JSONValue] = [:]
-        var required: [JSONValue] = []
-
-        for param in meta.parameters {
-            properties[param.name] = jsonSchemaToJSONValue(param.schema)
-            if param.isRequired {
-                required.append(.string(param.name))
-            }
-        }
-
-        return .object([
-            "type": .string("function"),
-            "name": .string(meta.name),
-            "description": .string(meta.description ?? ""),
-            "parameters": .object([
-                "type": .string("object"),
-                "properties": .object(properties),
-                "required": .array(required)
-            ])
-        ])
-    }
-
-    /// Bridge SwiftMCP's `JSONSchema` to `JSONValue` via JSON round-trip.
-    private func jsonSchemaToJSONValue(_ schema: JSONSchema) -> JSONValue {
-        guard let data = try? JSONEncoder().encode(schema),
-              let value = try? JSONDecoder().decode(JSONValue.self, from: data) else {
-            return .object(["type": .string("string")])
-        }
-        return value
     }
 
     // MARK: - Path Sandboxing
@@ -791,16 +725,5 @@ actor LocalToolRegistry {
         var errorDescription: String? {
             switch self { case .message(let msg): return msg }
         }
-    }
-}
-
-// MARK: - Tool Execution Result
-
-struct ToolExecutionResult: Sendable {
-    let name: String
-    let output: JSONValue
-
-    var summary: String {
-        output["result"]?.stringValue ?? output["message"]?.stringValue ?? String(describing: output)
     }
 }

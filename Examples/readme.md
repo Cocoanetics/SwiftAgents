@@ -32,6 +32,10 @@ open RealtimeVoiceAgent.xcodeproj
 
 The generated `.xcodeproj` and `Config/Local.xcconfig` are gitignored. `project.yml` is the source of truth.
 
-### Status
+### How it uses SwiftAgents
 
-The app currently depends on [SwiftMCP](https://github.com/Cocoanetics/SwiftMCP) directly and reaches the Realtime API through its own `OpenAIRealtimeService`. The `App/Sources/Integrations/AgentCorp/` folder is a placeholder boundary; wiring it to the package's `Providers` realtime client is a separate follow-up.
+The app declares a local-path SPM dep on `SwiftAgents` in [`project.yml`](RealtimeVoiceAgent/project.yml) and consumes the `Providers` product. The realtime stack is wired through the package end-to-end:
+
+- [`RVARealtimeAgent`](RealtimeVoiceAgent/App/Sources/Services/Realtime/RVARealtimeAgent.swift) conforms to `Providers.RealtimeAgent`, declares the `LocalToolRegistry` actor as its `toolProvider`, and builds the `RealtimeSessionConfiguration` (audio formats, semantic VAD, voice, transcription model) from `AppConfiguration`.
+- [`LocalToolRegistry`](RealtimeVoiceAgent/App/Sources/Services/Tools/CodingAgent/LocalToolRegistry.swift) is an `@MCPServer` actor whose methods are `@MCPTool`-annotated, so it satisfies `MCPToolProviding` automatically — the package's `RealtimeSession` discovers the tools, surfaces them to the model in `session.update`, and dispatches calls back via `callTool`.
+- [`OpenAIRealtimeService`](RealtimeVoiceAgent/App/Sources/Services/Realtime/OpenAIRealtimeService.swift) is now a thin adapter: it resolves auth (embedded key or ephemeral token endpoint), constructs `OpenAIRealtimeWebSocketModel` + `RealtimeSession`, and maps the package's typed `RealtimeSessionEvent` stream into the existing UI-shaped `RealtimeServiceEvent` enum the SwiftUI layer consumes.
