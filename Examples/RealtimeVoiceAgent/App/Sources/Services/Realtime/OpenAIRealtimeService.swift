@@ -237,24 +237,23 @@ actor OpenAIRealtimeService {
                 eventContinuation.yield(.state(.failed(detail.message)))
             }
 
+        case .inputSpeechStarted:
+            eventContinuation.yield(.userSpeechDetected(true))
+            let interrupt = PlaybackInterrupt(
+                itemID: currentAudioItemID ?? "",
+                contentIndex: currentAudioContentIndex
+            )
+            eventContinuation.yield(.interruptPlayback(interrupt))
+            Task { await self.cancelCurrentResponse() }
+
+        case .inputSpeechStopped:
+            eventContinuation.yield(.userSpeechDetected(false))
+
         case let .raw(server):
-            // The package doesn't surface speech_started/speech_stopped or
-            // response.created as typed events — read them off the raw stream.
-            switch server.type {
-            case "response.created":
+            // response.created isn't yet surfaced as a typed event — read it
+            // off the raw stream so the UI can flip into "responseActive".
+            if server.type == "response.created" {
                 eventContinuation.yield(.responseActive(true))
-            case "input_audio_buffer.speech_started":
-                eventContinuation.yield(.userSpeechDetected(true))
-                let interrupt = PlaybackInterrupt(
-                    itemID: currentAudioItemID ?? "",
-                    contentIndex: currentAudioContentIndex
-                )
-                eventContinuation.yield(.interruptPlayback(interrupt))
-                Task { await self.cancelCurrentResponse() }
-            case "input_audio_buffer.speech_stopped":
-                eventContinuation.yield(.userSpeechDetected(false))
-            default:
-                break
             }
 
         case .audioDone, .historyChange:

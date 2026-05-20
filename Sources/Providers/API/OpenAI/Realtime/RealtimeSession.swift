@@ -12,6 +12,8 @@ public enum RealtimeSessionEvent: Sendable {
     case audioDone(RealtimeServerEvent.OutputAudioDoneEvent)
     case inputAudioTranscriptDelta(RealtimeServerEvent.InputAudioTranscriptionDeltaEvent)
     case inputAudioTranscriptDone(RealtimeServerEvent.InputAudioTranscriptionCompletedEvent)
+    case inputSpeechStarted(RealtimeServerEvent.InputAudioBufferSpeechStartedEvent)
+    case inputSpeechStopped(RealtimeServerEvent.InputAudioBufferSpeechStoppedEvent)
     case outputAudioTranscriptDelta(RealtimeServerEvent.OutputAudioTranscriptDeltaEvent)
     case outputAudioTranscriptDone(RealtimeServerEvent.OutputAudioTranscriptDoneEvent)
     case toolCalled(OutputItem.FunctionCall)
@@ -386,6 +388,12 @@ public actor RealtimeSession {
                 }
                 eventContinuation.yield(.inputAudioTranscriptDone(payload))
                 await recordTranscriptionSpan(transcript: payload.transcript)
+
+            case let .inputAudioBufferSpeechStarted(payload):
+                eventContinuation.yield(.inputSpeechStarted(payload))
+
+            case let .inputAudioBufferSpeechStopped(payload):
+                eventContinuation.yield(.inputSpeechStopped(payload))
 
             case .responseCreated:
                 pendingResponseRequests = max(0, pendingResponseRequests - 1)
