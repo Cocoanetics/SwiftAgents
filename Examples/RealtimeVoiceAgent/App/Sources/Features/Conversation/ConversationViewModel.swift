@@ -1,5 +1,6 @@
 import CallKit
 import OSLog
+import Providers
 import SwiftUI
 
 @MainActor
@@ -723,19 +724,25 @@ final class ConversationViewModel: ObservableObject {
     }
 
     private func persistConversationHistory() {
-        let turns = transcriptEntries.compactMap { entry -> (role: String, text: String)? in
-            guard entry.isFinal, !entry.text.isEmpty else { return nil }
-            switch entry.role {
-            case .assistant: return ("assistant", entry.text)
-            case .user:      return ("user", entry.text)
-            case .tool:      return ("tool", entry.text)
-            case .system:    return nil
+        Task { [service] in
+            let items = await service.historySnapshot()
+            guard !items.isEmpty else { return }
+            do {
+                try RealtimeHistory.save(items, to: Self.historyFileURL)
+                await MainActor.run {
+                    self.appendStatus("Persisted \(items.count) conversation items to history.")
+                }
+            } catch {
+                await MainActor.run {
+                    self.appendStatus("Failed to persist history: \(error.localizedDescription)")
+                }
             }
         }
-        guard !turns.isEmpty else { return }
-        OpenAIRealtimeService.saveHistory(turns: turns)
-        appendStatus("Persisted \(turns.count) conversation turns to history.")
     }
+
+    private static let historyFileURL: URL = FileManager.default
+        .urls(for: .documentDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("conversation_history.json")
 
     private func removeTrailingPlaceholders() {
         // Remove empty/unfinal bubbles at the end (typing dots for assistant or user)

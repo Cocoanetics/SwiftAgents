@@ -10,7 +10,7 @@ import Foundation
 import FoundationNetworking
 #endif
 
-public class OpenAI: API, @unchecked Sendable {
+open class OpenAI: API, @unchecked Sendable {
     /// Initializes OpenAI API. If now API key is provided, then we're looking for OPENAI_API_KEY in the environment
     override public init(apiKey: String? = nil, endpointURL: URL = .openAI, versionPath: String = "v1") {
         super.init(
@@ -149,7 +149,7 @@ public class OpenAI: API, @unchecked Sendable {
         return try await processStream(asyncBytes: asyncBytes, response: response)
     }
 
-    override func createUrlRequest(
+    override open func createUrlRequest(
         httpMethod: String = "GET",
         path: String,
         body: Codable? = nil,

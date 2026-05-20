@@ -68,6 +68,28 @@ public actor RealtimeHistory {
         orderedItemIDs.compactMap { itemsByID[$0] }
     }
 
+    /// Writes the given items to `url` as a JSON array. Symmetric with `load(from:)`.
+    public static func save(_ items: [RealtimeConversationItem], to url: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(items)
+        try data.write(to: url, options: .atomic)
+    }
+
+    /// Reads items previously written by `save(_:to:)`. Returns `[]` if the file
+    /// doesn't exist; throws on a corrupt payload.
+    public static func load(from url: URL) throws -> [RealtimeConversationItem] {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return []
+        }
+        let data = try Data(contentsOf: url)
+        guard !data.isEmpty else { return [] }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode([RealtimeConversationItem].self, from: data)
+    }
+
     private func insert(itemID: String, after previousItemID: String?) {
         guard !orderedItemIDs.contains(itemID) else {
             return

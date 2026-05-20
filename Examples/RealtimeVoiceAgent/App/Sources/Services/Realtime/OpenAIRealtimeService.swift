@@ -136,6 +136,14 @@ actor OpenAIRealtimeService {
         currentAudioItemID = nil
     }
 
+    /// Current session history items — forwards to the underlying
+    /// `RealtimeSession.historySnapshot()`. Used by the ViewModel for
+    /// persisting conversation history via `RealtimeHistory.save(_:to:)`.
+    func historySnapshot() async -> [RealtimeConversationItem] {
+        guard let session else { return [] }
+        return await session.historySnapshot()
+    }
+
     // MARK: - Inbound
 
     private func consumeEvents(from session: RealtimeSession) async {
@@ -306,106 +314,4 @@ actor OpenAIRealtimeService {
         throw ServiceError.missingCredentials
     }
 
-    // MARK: - Conversation history (JSONL persistence)
-
-    /// Loads saved conversation turns as `TranscriptEntry` values for display in the UI.
-    static func loadTranscriptEntries() -> [TranscriptEntry] {
-        let url = historyFileURL
-        guard FileManager.default.fileExists(atPath: url.path),
-              let data = try? Data(contentsOf: url),
-              !data.isEmpty,
-              let content = String(data: data, encoding: .utf8) else {
-            return []
-        }
-
-        let lines = content.components(separatedBy: "\n").filter { !$0.isEmpty }
-        var entries: [TranscriptEntry] = []
-
-        for (index, line) in lines.enumerated() {
-            guard let lineData = line.data(using: .utf8),
-                  let event = try? JSONDecoder().decode(JSONValue.self, from: lineData),
-                  let item = event["item"],
-                  let roleString = item["role"]?.stringValue,
-                  let content = item["content"]?.arrayValue,
-                  let text = content.first?["text"]?.stringValue else { continue }
-
-            let role: TranscriptRole
-            let displayText: String
-            if roleString == "assistant" {
-                role = .assistant
-                displayText = text
-            } else if text.hasPrefix("[tool] ") {
-                role = .tool
-                displayText = String(text.dropFirst(7))
-            } else {
-                role = .user
-                displayText = text
-            }
-
-            entries.append(TranscriptEntry(
-                id: "history-\(index)",
-                sourceItemIDs: ["history-\(index)"],
-                role: role,
-                text: displayText,
-                isFinal: true,
-                updatedAt: .distantPast
-            ))
-        }
-
-        return entries
-    }
-
-    /// Writes the full conversation history to the JSONL file, replacing any previous content.
-    /// Tool turns are stored as user messages prefixed with `[tool] ` so the model gets context.
-    static func saveHistory(turns: [(role: String, text: String)]) {
-        let encoder = JSONEncoder()
-        var lines = ""
-
-        for turn in turns {
-            let apiRole: String
-            let contentType: String
-            let text: String
-
-            switch turn.role {
-            case "assistant":
-                apiRole = "assistant"
-                contentType = "output_text"
-                text = turn.text
-            case "tool":
-                apiRole = "user"
-                contentType = "input_text"
-                text = "[tool] \(turn.text)"
-            default:
-                apiRole = "user"
-                contentType = "input_text"
-                text = turn.text
-            }
-
-            let event = JSONValue.object([
-                "type": .string("conversation.item.create"),
-                "item": .object([
-                    "type": .string("message"),
-                    "role": .string(apiRole),
-                    "content": .array([
-                        .object([
-                            "type": .string(contentType),
-                            "text": .string(text)
-                        ])
-                    ])
-                ])
-            ])
-
-            if let data = try? encoder.encode(event),
-               let line = String(data: data, encoding: .utf8) {
-                lines += line + "\n"
-            }
-        }
-
-        try? lines.write(to: historyFileURL, atomically: true, encoding: .utf8)
-    }
-
-    private static var historyFileURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("conversation_history.jsonl")
-    }
 }

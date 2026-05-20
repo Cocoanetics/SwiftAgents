@@ -1,7 +1,32 @@
 import EventKit
 import Foundation
+import Providers
 import SwiftMCP
 import UIKit
+
+/// `OpenAI` subclass that adds OpenClaw's `x-openclaw-session-key` header to
+/// every request — the gateway uses it for server-side multi-turn continuity.
+private final class OpenClawAPI: OpenAI {
+    private let sessionKey: String
+
+    init(apiKey: String, endpointURL: URL, sessionKey: String) {
+        self.sessionKey = sessionKey
+        super.init(apiKey: apiKey, endpointURL: endpointURL, versionPath: "v1")
+    }
+
+    override func createUrlRequest(
+        httpMethod: String = "GET",
+        path: String,
+        body: Codable? = nil,
+        queryItems: [URLQueryItem]? = nil
+    ) throws -> URLRequest {
+        var request = try super.createUrlRequest(
+            httpMethod: httpMethod, path: path, body: body, queryItems: queryItems
+        )
+        request.setValue(sessionKey, forHTTPHeaderField: "x-openclaw-session-key")
+        return request
+    }
+}
 
 /// Local tools for the realtime voice assistant.
 ///
@@ -75,21 +100,11 @@ actor LocalToolRegistry {
     /// - Returns: The text response from OpenClaw.
     @MCPTool
     func messageOpenClaw(message: String, files: [String]? = nil) async -> String {
-        guard let endpoint = openclawEndpoint, let token = openclawToken else {
+        guard let endpoint = openclawEndpoint,
+              let token = openclawToken,
+              let endpointURL = URL(string: endpoint) else {
             return "Error: OpenClaw endpoint or token not configured in Config/Local.xcconfig."
         }
-
-        let model = UserDefaults.standard.string(forKey: "selectedModel") ?? "openclaw/default"
-
-        guard let url = URL(string: "\(endpoint)/v1/chat/completions") else {
-            return "Error: Invalid endpoint URL."
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(clawSessionKey, forHTTPHeaderField: "x-openclaw-session-key")
 
         var content = message
         if let files, !files.isEmpty {
@@ -103,34 +118,18 @@ actor LocalToolRegistry {
             }
         }
 
-        let body: [String: Any] = [
-            "model": model,
-            "messages": [
-                ["role": "user", "content": content]
-            ]
-        ]
-
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else {
-            return "Error: Failed to encode request."
-        }
-        request.httpBody = httpBody
+        let model = UserDefaults.standard.string(forKey: "selectedModel") ?? "openclaw/default"
+        let api = OpenClawAPI(apiKey: token, endpointURL: endpointURL, sessionKey: clawSessionKey)
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-                return "Error: Server returned HTTP \(code)."
-            }
-
-            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let choices = json["choices"] as? [[String: Any]],
-                  let first = choices.first,
-                  let msg = first["message"] as? [String: Any],
-                  let content = msg["content"] as? String else {
+            let response = try await api.createChatCompletion(
+                model: model,
+                messages: [ChatMessage(role: .user, content: .text(content))]
+            )
+            guard case let .text(text) = response.choices.first?.message.content else {
                 return "Error: Unexpected response format."
             }
-
-            return content
+            return text
         } catch {
             return "Error: \(error.localizedDescription)"
         }
