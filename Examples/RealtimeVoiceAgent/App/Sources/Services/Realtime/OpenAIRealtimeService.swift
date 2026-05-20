@@ -249,14 +249,10 @@ actor OpenAIRealtimeService {
         case .inputSpeechStopped:
             eventContinuation.yield(.userSpeechDetected(false))
 
-        case let .raw(server):
-            // response.created isn't yet surfaced as a typed event — read it
-            // off the raw stream so the UI can flip into "responseActive".
-            if server.type == "response.created" {
-                eventContinuation.yield(.responseActive(true))
-            }
+        case .responseCreated:
+            eventContinuation.yield(.responseActive(true))
 
-        case .audioDone, .historyChange:
+        case .raw, .audioDone, .historyChange:
             break
         }
     }
