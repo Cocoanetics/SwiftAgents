@@ -9,8 +9,9 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+import SwiftMCP
 
-public class OpenAI: API, @unchecked Sendable {
+open class OpenAI: API, @unchecked Sendable {
     /// Initializes OpenAI API. If now API key is provided, then we're looking for OPENAI_API_KEY in the environment
     override public init(apiKey: String? = nil, endpointURL: URL = .openAI, versionPath: String = "v1") {
         super.init(
@@ -149,7 +150,7 @@ public class OpenAI: API, @unchecked Sendable {
         return try await processStream(asyncBytes: asyncBytes, response: response)
     }
 
-    override func createUrlRequest(
+    override open func createUrlRequest(
         httpMethod: String = "GET",
         path: String,
         body: Codable? = nil,
@@ -164,5 +165,40 @@ public class OpenAI: API, @unchecked Sendable {
         }
 
         return request
+    }
+
+    /// Fetches an ephemeral OpenAI API key from a backend mint endpoint. Mobile
+    /// and other client apps should mint short-lived tokens server-side rather
+    /// than embedding a long-lived key in the bundle (per OpenAI's guidance).
+    ///
+    /// The endpoint may return the token either as raw text in the response
+    /// body, or as a JSON object containing one of `client_secret.value`,
+    /// `value`, or `token` — covering the common backend shapes.
+    public static func fetchEphemeralAPIKey(
+        from url: URL,
+        urlSession: URLSession = .shared
+    ) async throws -> String {
+        let (data, response) = try await urlSession.data(from: url)
+
+        if let httpResponse = response as? HTTPURLResponse,
+           !(200 ..< 300).contains(httpResponse.statusCode) {
+            throw APIError.serverError("Token endpoint returned HTTP \(httpResponse.statusCode)")
+        }
+
+        if let raw = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !raw.isEmpty,
+           !raw.hasPrefix("{") {
+            return raw
+        }
+
+        let payload = try JSONDecoder().decode(JSONValue.self, from: data)
+        let nested = payload["client_secret"]?["value"]?.stringValue
+        let flat = payload["value"]?.stringValue ?? payload["token"]?.stringValue
+        if let token = nested ?? flat {
+            return token
+        }
+
+        throw APIError.invalidRequest("Token endpoint payload missing client_secret/value/token field.")
     }
 }

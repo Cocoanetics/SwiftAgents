@@ -1,0 +1,16 @@
+PRODUCT_NAME = RealtimeVoiceAgent
+SWIFT_VERSION = 5.10
+IPHONEOS_DEPLOYMENT_TARGET = 26.0
+
+OPENAI_API_KEY =
+OPENAI_REALTIME_TOKEN_ENDPOINT =
+OPENAI_REALTIME_WEBSOCKET_URL = wss:/$()/api.openai.com/v1/realtime
+
+OPENCLAW_ENDPOINT =
+OPENCLAW_TOKEN =
+OPENAI_REALTIME_MODEL = gpt-realtime
+OPENAI_REALTIME_VOICE = marin
+OPENAI_REALTIME_TRANSCRIPTION_MODEL = gpt-4o-mini-transcribe
+OPENAI_REALTIME_USE_SERVER_VAD = YES
+OPENAI_REALTIME_INSTRUCTIONS = You are a concise realtime voice assistant running on an iPhone. Keep spoken replies short, confirm tool usage briefly, and use local tools when they help.
+

@@ -18,7 +18,7 @@ public extension URL {
     static let googleAI = URL(string: "https://generativelanguage.googleapis.com")!
 }
 
-public class API: @unchecked Sendable {
+open class API: @unchecked Sendable {
     let apiKey: String?
     let endpointURL: URL
     let session: URLSession
@@ -309,7 +309,7 @@ public class API: @unchecked Sendable {
 
     // MARK: - Helpers
 
-    func createUrlRequest(
+    open func createUrlRequest(
         httpMethod: String = "GET",
         path: String,
         body: Codable? = nil,

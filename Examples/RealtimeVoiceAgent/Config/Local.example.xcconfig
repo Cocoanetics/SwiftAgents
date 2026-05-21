@@ -1,0 +1,21 @@
+// Copy this file to Config/Local.xcconfig and fill in your own values.
+// For a real mobile deployment, prefer OPENAI_REALTIME_TOKEN_ENDPOINT over
+// embedding an API key in the app bundle.
+
+// NOTE: xcconfig treats `//` as a comment (even inside quotes), so URLs here
+// omit the scheme. The app prepends `https://` to OPENCLAW_ENDPOINT and
+// `wss://` to OPENAI_REALTIME_WEBSOCKET_URL at load time — just host + path.
+
+OPENAI_API_KEY = sk-proj-REPLACE_ME
+OPENAI_REALTIME_TOKEN_ENDPOINT =
+OPENAI_REALTIME_WEBSOCKET_URL = api.openai.com/v1/realtime
+
+// Optional: OpenClaw gateway (enables the Settings screen and messageOpenClaw tool)
+OPENCLAW_ENDPOINT =
+OPENCLAW_TOKEN =
+OPENAI_REALTIME_MODEL = gpt-realtime
+OPENAI_REALTIME_VOICE = marin
+OPENAI_REALTIME_TRANSCRIPTION_MODEL = gpt-4o-mini-transcribe
+OPENAI_REALTIME_USE_SERVER_VAD = YES
+OPENAI_REALTIME_INSTRUCTIONS = You are a concise realtime voice assistant running on an iPhone. Keep spoken replies short, confirm tool usage briefly, and use local tools when they help.
+

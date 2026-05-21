@@ -28,6 +28,23 @@ if [ -n "$dirty" ]; then
   exit 1
 fi
 
-swiftlint lint --fix --quiet --force-exclude "${staged[@]}"
+# SwiftLint exits 1 with "No lintable files found" when every staged file
+# matches `excluded:` in .swiftlint.yml (e.g. all changes are under
+# Examples/RealtimeVoiceAgent). That's not a failure — the hook handed it
+# files and it correctly excluded them. Swallow that one specific case.
+run_swiftlint() {
+  local out
+  if out=$(swiftlint lint "$@" 2>&1); then
+    [ -n "$out" ] && printf '%s\n' "$out"
+    return 0
+  fi
+  if [[ "$out" == "Error: No lintable files found"* ]]; then
+    return 0
+  fi
+  printf '%s\n' "$out" >&2
+  return 1
+}
+
+run_swiftlint --fix --quiet --force-exclude "${staged[@]}"
 git add -- "${staged[@]}"
-swiftlint lint --strict --quiet --force-exclude "${staged[@]}"
+run_swiftlint --strict --quiet --force-exclude "${staged[@]}"

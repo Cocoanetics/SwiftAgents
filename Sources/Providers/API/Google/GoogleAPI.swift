@@ -253,7 +253,7 @@ public class GoogleAPI: API, @unchecked Sendable {
 
     // MARK: - Helpers
 
-    override func createUrlRequest(
+    override open func createUrlRequest(
         httpMethod: String = "GET",
         path: String,
         body: Codable? = nil,

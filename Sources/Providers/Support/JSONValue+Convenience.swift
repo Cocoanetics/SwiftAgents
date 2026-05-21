@@ -5,6 +5,18 @@ import FoundationNetworking
 import SwiftMCP
 
 public extension JSONValue {
+    /// Read a value out of a `.object(...)` by key. Returns nil for non-objects.
+    subscript(key: String) -> JSONValue? {
+        dictionaryValue?[key]
+    }
+
+    /// Read a value out of an `.array(...)` by index. Returns nil for non-arrays
+    /// or out-of-bounds indices.
+    subscript(index: Int) -> JSONValue? {
+        guard let array = arrayValue, array.indices.contains(index) else { return nil }
+        return array[index]
+    }
+
     init(_ value: [String: Any]) {
         self = .object(value.mapValues(JSONValue.init(jsonObject:)))
     }

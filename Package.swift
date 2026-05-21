@@ -83,7 +83,7 @@ let package = Package(
 					condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS])
 				)
 			],
-			path: "Sources/Coder"
+			path: "Examples/Coder"
 		),
 		.testTarget(
 			name: "ProvidersTests",

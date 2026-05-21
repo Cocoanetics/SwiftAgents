@@ -39,6 +39,8 @@ public struct RealtimeServerEvent: Sendable {
         case conversationItemInputAudioTranscriptionDelta(InputAudioTranscriptionDeltaEvent)
         // swiftlint:disable:next identifier_name
         case conversationItemInputAudioTranscriptionCompleted(InputAudioTranscriptionCompletedEvent)
+        case inputAudioBufferSpeechStarted(InputAudioBufferSpeechStartedEvent)
+        case inputAudioBufferSpeechStopped(InputAudioBufferSpeechStoppedEvent)
         case responseCreated(ResponseEvent)
         case responseDone(ResponseEvent)
         case responseOutputItemAdded(ResponseOutputItemEvent)
@@ -108,6 +110,20 @@ public struct RealtimeServerEvent: Sendable {
                     type: eventType,
                     eventId: payload.eventId,
                     object: .conversationItemInputAudioTranscriptionCompleted(payload)
+                )
+            case "input_audio_buffer.speech_started":
+                let payload = try decodePayload(InputAudioBufferSpeechStartedEvent.self)
+                return .init(
+                    type: eventType,
+                    eventId: payload.eventId,
+                    object: .inputAudioBufferSpeechStarted(payload)
+                )
+            case "input_audio_buffer.speech_stopped":
+                let payload = try decodePayload(InputAudioBufferSpeechStoppedEvent.self)
+                return .init(
+                    type: eventType,
+                    eventId: payload.eventId,
+                    object: .inputAudioBufferSpeechStopped(payload)
                 )
             case "response.created":
                 let payload = try decodePayload(ResponseEvent.self)
@@ -217,6 +233,23 @@ public extension RealtimeServerEvent {
         public let itemId: String
         public let contentIndex: Int
         public let transcript: String
+    }
+
+    /// Server VAD detected the start of user speech in the input audio buffer.
+    /// `audioStartMs` is the offset (in ms) from the buffer start; `itemId` is
+    /// the user message item the server is creating to capture this turn.
+    struct InputAudioBufferSpeechStartedEvent: Codable, Sendable {
+        public let eventId: String
+        public let audioStartMs: Int
+        public let itemId: String
+    }
+
+    /// Server VAD detected the end of user speech. `audioEndMs` is the offset
+    /// (in ms) where speech stopped; `itemId` matches the speech_started event.
+    struct InputAudioBufferSpeechStoppedEvent: Codable, Sendable {
+        public let eventId: String
+        public let audioEndMs: Int
+        public let itemId: String
     }
 
     struct ResponseEvent: Codable, Sendable {

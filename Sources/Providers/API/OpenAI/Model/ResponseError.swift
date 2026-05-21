@@ -12,8 +12,15 @@ public struct ErrorResponse: Codable, Sendable {
 }
 
 public struct ErrorDetail: Codable, Sendable {
-    let message: String
-    let type: String
-    let param: String?
-    let code: String?
+    public let message: String
+    public let type: String
+    public let param: String?
+    public let code: String?
+
+    public init(message: String, type: String, param: String? = nil, code: String? = nil) {
+        self.message = message
+        self.type = type
+        self.param = param
+        self.code = code
+    }
 }

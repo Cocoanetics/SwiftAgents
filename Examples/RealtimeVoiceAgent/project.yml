@@ -1,0 +1,115 @@
+name: RealtimeVoiceAgent
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    PRODUCT_NAME: RealtimeVoiceAgent
+packages:
+  # Local path to the SwiftAgents package at the repo root, two levels up.
+  SwiftAgents:
+    path: ../..
+  SwiftMCP:
+    url: https://github.com/Cocoanetics/SwiftMCP
+    branch: main
+targets:
+  RealtimeVoiceAgent:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: App/Sources
+    dependencies:
+      - package: SwiftAgents
+        product: Providers
+      - package: SwiftMCP
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: com.oliver.experiments.RealtimeVoiceAgent.call
+            CFBundleURLSchemes:
+              - realtimevoiceagent
+        NSCalendarsFullAccessUsageDescription: RealtimeVoiceAgent needs calendar access to read and manage your events.
+        NSMicrophoneUsageDescription: RealtimeVoiceAgent needs microphone access for live voice conversations.
+        NSRemindersFullAccessUsageDescription: RealtimeVoiceAgent needs reminders access to read and manage your reminders.
+        OPENAI_API_KEY: $(OPENAI_API_KEY)
+        OPENCLAW_ENDPOINT: $(OPENCLAW_ENDPOINT)
+        OPENCLAW_TOKEN: $(OPENCLAW_TOKEN)
+        OPENAI_REALTIME_INSTRUCTIONS: $(OPENAI_REALTIME_INSTRUCTIONS)
+        OPENAI_REALTIME_MODEL: $(OPENAI_REALTIME_MODEL)
+        OPENAI_REALTIME_TOKEN_ENDPOINT: $(OPENAI_REALTIME_TOKEN_ENDPOINT)
+        OPENAI_REALTIME_TRANSCRIPTION_MODEL: $(OPENAI_REALTIME_TRANSCRIPTION_MODEL)
+        OPENAI_REALTIME_USE_SERVER_VAD: $(OPENAI_REALTIME_USE_SERVER_VAD)
+        OPENAI_REALTIME_VOICE: $(OPENAI_REALTIME_VOICE)
+        OPENAI_REALTIME_WEBSOCKET_URL: $(OPENAI_REALTIME_WEBSOCKET_URL)
+        UIBackgroundModes:
+          - audio
+          - voip
+        UILaunchScreen: {}
+    configFiles:
+      Debug: Config/Debug.xcconfig
+      Release: Config/Release.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oliver.experiments.RealtimeVoiceAgent
+        TARGETED_DEVICE_FAMILY: 1
+        GENERATE_INFOPLIST_FILE: NO
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_STYLE: Automatic
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        DEVELOPMENT_TEAM: Z7L2YCUH45
+
+  RealtimeVoiceAgentTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Tests/RealtimeVoiceAgentTests
+    dependencies:
+      - target: RealtimeVoiceAgent
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oliver.experiments.RealtimeVoiceAgentTests
+        PRODUCT_NAME: RealtimeVoiceAgentTests
+        PRODUCT_MODULE_NAME: RealtimeVoiceAgentTests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: Z7L2YCUH45
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/RealtimeVoiceAgent.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RealtimeVoiceAgent"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+  RealtimeVoiceAgentUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Tests/RealtimeVoiceAgentUITests
+    dependencies:
+      - target: RealtimeVoiceAgent
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oliver.experiments.RealtimeVoiceAgentUITests
+        PRODUCT_NAME: RealtimeVoiceAgentUITests
+        PRODUCT_MODULE_NAME: RealtimeVoiceAgentUITests
+        TEST_TARGET_NAME: RealtimeVoiceAgent
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: Z7L2YCUH45
+schemes:
+  RealtimeVoiceAgent:
+    build:
+      targets:
+        RealtimeVoiceAgent: all
+        RealtimeVoiceAgentTests: [test]
+        RealtimeVoiceAgentUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - name: RealtimeVoiceAgentTests
+        - name: RealtimeVoiceAgentUITests

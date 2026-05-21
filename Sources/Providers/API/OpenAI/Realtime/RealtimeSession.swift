@@ -12,10 +12,13 @@ public enum RealtimeSessionEvent: Sendable {
     case audioDone(RealtimeServerEvent.OutputAudioDoneEvent)
     case inputAudioTranscriptDelta(RealtimeServerEvent.InputAudioTranscriptionDeltaEvent)
     case inputAudioTranscriptDone(RealtimeServerEvent.InputAudioTranscriptionCompletedEvent)
+    case inputSpeechStarted(RealtimeServerEvent.InputAudioBufferSpeechStartedEvent)
+    case inputSpeechStopped(RealtimeServerEvent.InputAudioBufferSpeechStoppedEvent)
     case outputAudioTranscriptDelta(RealtimeServerEvent.OutputAudioTranscriptDeltaEvent)
     case outputAudioTranscriptDone(RealtimeServerEvent.OutputAudioTranscriptDoneEvent)
     case toolCalled(OutputItem.FunctionCall)
     case toolOutput(FunctionCallOutput)
+    case responseCreated(RealtimeResponse)
     case responseCompleted(RealtimeResponse)
     case error(ErrorDetail)
 }
@@ -41,8 +44,8 @@ public enum RealtimeSessionError: LocalizedError {
 }
 
 public actor RealtimeSession {
-    public let events: AsyncThrowingStream<RealtimeSessionEvent, Error>
-    public let history: RealtimeHistory
+    public nonisolated let events: AsyncThrowingStream<RealtimeSessionEvent, Error>
+    public nonisolated let history: RealtimeHistory
 
     private let eventContinuation: AsyncThrowingStream<RealtimeSessionEvent, Error>.Continuation
     private let model: any RealtimeModel
@@ -387,9 +390,16 @@ public actor RealtimeSession {
                 eventContinuation.yield(.inputAudioTranscriptDone(payload))
                 await recordTranscriptionSpan(transcript: payload.transcript)
 
-            case .responseCreated:
+            case let .inputAudioBufferSpeechStarted(payload):
+                eventContinuation.yield(.inputSpeechStarted(payload))
+
+            case let .inputAudioBufferSpeechStopped(payload):
+                eventContinuation.yield(.inputSpeechStopped(payload))
+
+            case let .responseCreated(payload):
                 pendingResponseRequests = max(0, pendingResponseRequests - 1)
                 activeResponses += 1
+                eventContinuation.yield(.responseCreated(payload.response))
 
             case let .responseDone(payload):
                 await handleResponseDone(payload)
