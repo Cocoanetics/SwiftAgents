@@ -1,0 +1,828 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0A2A7C2361C81AC462DD28DF /* EventKit+StringConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A352FA0A1BAF766B8386BF /* EventKit+StringConversion.swift */; };
+		11213844A0FAC1BCF4F06392 /* CallKitController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82CCFEBEDE22EBCC0AF24716 /* CallKitController.swift */; };
+		1705E174D514FAB12036A2E4 /* ConnectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F798B9D9485B2FDC8687F0 /* ConnectionState.swift */; };
+		18049A33A583684BEF4F330D /* ConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D229621A9D5E3CF4F5588F87 /* ConversationView.swift */; };
+		1B4B6241A0B56156C2B8E041 /* ReminderHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C23755945D70A91D26DB439 /* ReminderHandler.swift */; };
+		291E3FBBA7FC1F81D09D3CC3 /* AudioSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEAE5EBAAC52BB29AF9B2787 /* AudioSessionController.swift */; };
+		2BC098932072732C5CF4BFED /* EKWeekday+Retroactive.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BD3DFABA19CF630DC80A2E /* EKWeekday+Retroactive.swift */; };
+		31C6756F19B7F0202C302478 /* SilenceFiller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72FAD201EB8C4140C4AB0BCD /* SilenceFiller.swift */; };
+		366F09C97CC8ECA448E51809 /* ReminderError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB8D942A7D40EA66F19EEF97 /* ReminderError.swift */; };
+		456E2750B74296FE82D0D392 /* CalendarError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E245CA09C715E9EC201C63 /* CalendarError.swift */; };
+		4865A448F8102F2C40A298C1 /* TranscriptEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11597125DFDE7F5C593137E5 /* TranscriptEntry.swift */; };
+		563B085E8594AAE903A503C2 /* LocalToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56794A35E58B563857E8A000 /* LocalToolRegistry.swift */; };
+		5E2470BF31BD942585D16CF5 /* CalendarHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87B87EEE6866A993824B7DC7 /* CalendarHandler.swift */; };
+		777B6B2C4A05D46621BDA5AD /* BackgroundTaskController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88DF2DFFF3F69025DBD27835 /* BackgroundTaskController.swift */; };
+		8A9EFAF2CC0CEF4499098CC1 /* SwiftMCP in Frameworks */ = {isa = PBXBuildFile; productRef = BA063424437A25DF4F09D1A4 /* SwiftMCP */; };
+		8FA9B4CAB6956CC33F40A9A3 /* GitIgnore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D690332E424787899B3D38DC /* GitIgnore.swift */; };
+		9865A684667C03798060C9CC /* ConversationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6663A570DED0A76BC8FB8BD3 /* ConversationViewModel.swift */; };
+		9B00CB12EFE69CA620B225B3 /* RecurrenceRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CCA507C1928C8B6849DE690 /* RecurrenceRule.swift */; };
+		9B99C4325748595A1EFD0BAB /* RealtimeVoiceAgentApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3164BF7A60CF5E952DDFDBDF /* RealtimeVoiceAgentApp.swift */; };
+		9FE780CB00F0C197B35B2C39 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8229DF92A55460DECEE3162 /* SettingsView.swift */; };
+		AFDC9E5F87A79657BD75C4D1 /* RecurrenceEnd.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70293BAE7B70E8F894F999AD /* RecurrenceEnd.swift */; };
+		B34640DF4F8E95042FD54A4F /* Providers in Frameworks */ = {isa = PBXBuildFile; productRef = F222323D67CF64624516987E /* Providers */; };
+		B44B695E15E99EB7CB267443 /* AudioSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF2E8F403EC2C769C31B966 /* AudioSyncTests.swift */; };
+		C8D85B60D2E44EFB5BEA64C6 /* EKEventStore+async.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8AA944538B12364D4A8FD1C /* EKEventStore+async.swift */; };
+		D0C339FFA5802648BA4AEAF0 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37A926546B36DDCAB4912C9 /* AppConfiguration.swift */; };
+		DDA8B2F2ECA2B75E2B629B54 /* AudioStreamCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 065934E45A7EAAFB4FE54243 /* AudioStreamCoordinator.swift */; };
+		E7AD41C1736434554C82523C /* SpokenTextTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47CFB6140FDF768CED36D7CE /* SpokenTextTracker.swift */; };
+		EE56BED4DC6524057D672B92 /* String+Truncation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3496D7694950075B772548C /* String+Truncation.swift */; };
+		F3636215A294886FFF6E218D /* RealtimeVoiceAgentUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A124B8F282B798F9DD1DA097 /* RealtimeVoiceAgentUITests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		319C4A45850666D8507C198D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CDC8F441C36C568707BE234A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EF5852F866D06FDAB31A4F6D;
+			remoteInfo = RealtimeVoiceAgent;
+		};
+		683FA7AA99E7EE4E7F7E802A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CDC8F441C36C568707BE234A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EF5852F866D06FDAB31A4F6D;
+			remoteInfo = RealtimeVoiceAgent;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		04E245CA09C715E9EC201C63 /* CalendarError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarError.swift; sourceTree = "<group>"; };
+		065934E45A7EAAFB4FE54243 /* AudioStreamCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioStreamCoordinator.swift; sourceTree = "<group>"; };
+		0C5E730A372C6485E8108F83 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		11597125DFDE7F5C593137E5 /* TranscriptEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptEntry.swift; sourceTree = "<group>"; };
+		1C23755945D70A91D26DB439 /* ReminderHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHandler.swift; sourceTree = "<group>"; };
+		3164BF7A60CF5E952DDFDBDF /* RealtimeVoiceAgentApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeVoiceAgentApp.swift; sourceTree = "<group>"; };
+		36F798B9D9485B2FDC8687F0 /* ConnectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionState.swift; sourceTree = "<group>"; };
+		47CFB6140FDF768CED36D7CE /* SpokenTextTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpokenTextTracker.swift; sourceTree = "<group>"; };
+		56794A35E58B563857E8A000 /* LocalToolRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalToolRegistry.swift; sourceTree = "<group>"; };
+		6663A570DED0A76BC8FB8BD3 /* ConversationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationViewModel.swift; sourceTree = "<group>"; };
+		6CCA507C1928C8B6849DE690 /* RecurrenceRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurrenceRule.swift; sourceTree = "<group>"; };
+		70293BAE7B70E8F894F999AD /* RecurrenceEnd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurrenceEnd.swift; sourceTree = "<group>"; };
+		72FAD201EB8C4140C4AB0BCD /* SilenceFiller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceFiller.swift; sourceTree = "<group>"; };
+		776ACB22AB3DF93979C3D9C7 /* RealtimeVoiceAgentTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RealtimeVoiceAgentTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		82CCFEBEDE22EBCC0AF24716 /* CallKitController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallKitController.swift; sourceTree = "<group>"; };
+		84A352FA0A1BAF766B8386BF /* EventKit+StringConversion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EventKit+StringConversion.swift"; sourceTree = "<group>"; };
+		87B87EEE6866A993824B7DC7 /* CalendarHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarHandler.swift; sourceTree = "<group>"; };
+		88DF2DFFF3F69025DBD27835 /* BackgroundTaskController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskController.swift; sourceTree = "<group>"; };
+		A124B8F282B798F9DD1DA097 /* RealtimeVoiceAgentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeVoiceAgentUITests.swift; sourceTree = "<group>"; };
+		A8AA944538B12364D4A8FD1C /* EKEventStore+async.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EKEventStore+async.swift"; sourceTree = "<group>"; };
+		B37A926546B36DDCAB4912C9 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
+		BAB6302C92AFD39EF5B863E8 /* RealtimeVoiceAgentUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RealtimeVoiceAgentUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BAF2E8F403EC2C769C31B966 /* AudioSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSyncTests.swift; sourceTree = "<group>"; };
+		C1BD3DFABA19CF630DC80A2E /* EKWeekday+Retroactive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EKWeekday+Retroactive.swift"; sourceTree = "<group>"; };
+		C3496D7694950075B772548C /* String+Truncation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Truncation.swift"; sourceTree = "<group>"; };
+		D2087E7A2E7FCA0F4EB7F8C8 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		D229621A9D5E3CF4F5588F87 /* ConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationView.swift; sourceTree = "<group>"; };
+		D4C49F76D22A7365E767A378 /* RealtimeVoiceAgent.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = RealtimeVoiceAgent.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D690332E424787899B3D38DC /* GitIgnore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitIgnore.swift; sourceTree = "<group>"; };
+		DEAE5EBAAC52BB29AF9B2787 /* AudioSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionController.swift; sourceTree = "<group>"; };
+		E1D362F7C399D0B0A24AC514 /* SwiftAgents */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwiftAgents; path = ../..; sourceTree = SOURCE_ROOT; };
+		E8229DF92A55460DECEE3162 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FB8D942A7D40EA66F19EEF97 /* ReminderError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderError.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		53821A9653B326564582553C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B34640DF4F8E95042FD54A4F /* Providers in Frameworks */,
+				8A9EFAF2CC0CEF4499098CC1 /* SwiftMCP in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		01239DB5EDB45B5AB76107EB /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				D2087E7A2E7FCA0F4EB7F8C8 /* Debug.xcconfig */,
+				0C5E730A372C6485E8108F83 /* Release.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		07556513E8F1829EB621C842 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				2C324D6C222C6B815ECA20B6 /* App */,
+				4A9BB8336E1FC5ED065395FC /* Features */,
+				69A87B815EB5885CE61CCC5D /* Models */,
+				185620F8406895B476DD25F6 /* Services */,
+				3AC71D13762518057C7187EB /* Support */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		0B0B8BEA3FDCBC67A247A722 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				07556513E8F1829EB621C842 /* Sources */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		185620F8406895B476DD25F6 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				1F9159BD0B9AA3A557DFC3CD /* Audio */,
+				9C0D6BD3EF1B8BEE3720FEE0 /* CallKit */,
+				5ED6F3D8EF55BE6D2316B5B4 /* Configuration */,
+				58443B58C1A452438EBF7C93 /* Tools */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		1AF7CA3770D3E233A1587890 /* Conversation */ = {
+			isa = PBXGroup;
+			children = (
+				D229621A9D5E3CF4F5588F87 /* ConversationView.swift */,
+				6663A570DED0A76BC8FB8BD3 /* ConversationViewModel.swift */,
+			);
+			path = Conversation;
+			sourceTree = "<group>";
+		};
+		1F9159BD0B9AA3A557DFC3CD /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				DEAE5EBAAC52BB29AF9B2787 /* AudioSessionController.swift */,
+				065934E45A7EAAFB4FE54243 /* AudioStreamCoordinator.swift */,
+				72FAD201EB8C4140C4AB0BCD /* SilenceFiller.swift */,
+				47CFB6140FDF768CED36D7CE /* SpokenTextTracker.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		2037E86DFD1062B6FE67641D /* RealtimeVoiceAgentTests */ = {
+			isa = PBXGroup;
+			children = (
+				BAF2E8F403EC2C769C31B966 /* AudioSyncTests.swift */,
+			);
+			path = RealtimeVoiceAgentTests;
+			sourceTree = "<group>";
+		};
+		21CEFE6436AD715B21218A94 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				E8229DF92A55460DECEE3162 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		2C324D6C222C6B815ECA20B6 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				3164BF7A60CF5E952DDFDBDF /* RealtimeVoiceAgentApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		3455FB6DBC6D52FC9491D4DB /* CodingAgent */ = {
+			isa = PBXGroup;
+			children = (
+				D690332E424787899B3D38DC /* GitIgnore.swift */,
+				56794A35E58B563857E8A000 /* LocalToolRegistry.swift */,
+				C3496D7694950075B772548C /* String+Truncation.swift */,
+			);
+			path = CodingAgent;
+			sourceTree = "<group>";
+		};
+		3AC71D13762518057C7187EB /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				88DF2DFFF3F69025DBD27835 /* BackgroundTaskController.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		45ED88A17DA09B190CA140F2 /* RealtimeVoiceAgentUITests */ = {
+			isa = PBXGroup;
+			children = (
+				A124B8F282B798F9DD1DA097 /* RealtimeVoiceAgentUITests.swift */,
+			);
+			path = RealtimeVoiceAgentUITests;
+			sourceTree = "<group>";
+		};
+		4A9BB8336E1FC5ED065395FC /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				1AF7CA3770D3E233A1587890 /* Conversation */,
+				21CEFE6436AD715B21218A94 /* Settings */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		4C925FD060550E2AF6FEAC21 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D4C49F76D22A7365E767A378 /* RealtimeVoiceAgent.app */,
+				776ACB22AB3DF93979C3D9C7 /* RealtimeVoiceAgentTests.xctest */,
+				BAB6302C92AFD39EF5B863E8 /* RealtimeVoiceAgentUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4EAD8E577962754288934241 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				2037E86DFD1062B6FE67641D /* RealtimeVoiceAgentTests */,
+				45ED88A17DA09B190CA140F2 /* RealtimeVoiceAgentUITests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		58443B58C1A452438EBF7C93 /* Tools */ = {
+			isa = PBXGroup;
+			children = (
+				6C650440BD05D150A8586110 /* Calendar */,
+				3455FB6DBC6D52FC9491D4DB /* CodingAgent */,
+				E72393065A6099BB05611205 /* Extensions */,
+				D8A5A935A9A0BD7719980C0F /* Reminders */,
+			);
+			path = Tools;
+			sourceTree = "<group>";
+		};
+		5ED6F3D8EF55BE6D2316B5B4 /* Configuration */ = {
+			isa = PBXGroup;
+			children = (
+				B37A926546B36DDCAB4912C9 /* AppConfiguration.swift */,
+			);
+			path = Configuration;
+			sourceTree = "<group>";
+		};
+		69A87B815EB5885CE61CCC5D /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				36F798B9D9485B2FDC8687F0 /* ConnectionState.swift */,
+				11597125DFDE7F5C593137E5 /* TranscriptEntry.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		6C650440BD05D150A8586110 /* Calendar */ = {
+			isa = PBXGroup;
+			children = (
+				04E245CA09C715E9EC201C63 /* CalendarError.swift */,
+				87B87EEE6866A993824B7DC7 /* CalendarHandler.swift */,
+				70293BAE7B70E8F894F999AD /* RecurrenceEnd.swift */,
+				6CCA507C1928C8B6849DE690 /* RecurrenceRule.swift */,
+			);
+			path = Calendar;
+			sourceTree = "<group>";
+		};
+		89785CFC39AE95AD518E6204 = {
+			isa = PBXGroup;
+			children = (
+				0B0B8BEA3FDCBC67A247A722 /* App */,
+				01239DB5EDB45B5AB76107EB /* Config */,
+				E209A24379D6D4D743CC7A63 /* Packages */,
+				4EAD8E577962754288934241 /* Tests */,
+				4C925FD060550E2AF6FEAC21 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		9C0D6BD3EF1B8BEE3720FEE0 /* CallKit */ = {
+			isa = PBXGroup;
+			children = (
+				82CCFEBEDE22EBCC0AF24716 /* CallKitController.swift */,
+			);
+			path = CallKit;
+			sourceTree = "<group>";
+		};
+		D8A5A935A9A0BD7719980C0F /* Reminders */ = {
+			isa = PBXGroup;
+			children = (
+				FB8D942A7D40EA66F19EEF97 /* ReminderError.swift */,
+				1C23755945D70A91D26DB439 /* ReminderHandler.swift */,
+			);
+			path = Reminders;
+			sourceTree = "<group>";
+		};
+		E209A24379D6D4D743CC7A63 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				E1D362F7C399D0B0A24AC514 /* SwiftAgents */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		E72393065A6099BB05611205 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				A8AA944538B12364D4A8FD1C /* EKEventStore+async.swift */,
+				C1BD3DFABA19CF630DC80A2E /* EKWeekday+Retroactive.swift */,
+				84A352FA0A1BAF766B8386BF /* EventKit+StringConversion.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0F6BCF03EC7C1FA5E6ED8424 /* RealtimeVoiceAgentUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D3D3EAAE45F7B9D1A8EFB56F /* Build configuration list for PBXNativeTarget "RealtimeVoiceAgentUITests" */;
+			buildPhases = (
+				2544216ED4A8CD2463DE0F56 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				55AC7DEDC365FFB74ED32C3C /* PBXTargetDependency */,
+			);
+			name = RealtimeVoiceAgentUITests;
+			packageProductDependencies = (
+			);
+			productName = RealtimeVoiceAgentUITests;
+			productReference = BAB6302C92AFD39EF5B863E8 /* RealtimeVoiceAgentUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		351D1938E1198C3C322ED47C /* RealtimeVoiceAgentTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EE3B3A9F99C5B7E142D23384 /* Build configuration list for PBXNativeTarget "RealtimeVoiceAgentTests" */;
+			buildPhases = (
+				9FD7ECE703F049FA75D6BF46 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				825ADED267A3387B728984C9 /* PBXTargetDependency */,
+			);
+			name = RealtimeVoiceAgentTests;
+			packageProductDependencies = (
+			);
+			productName = RealtimeVoiceAgentTests;
+			productReference = 776ACB22AB3DF93979C3D9C7 /* RealtimeVoiceAgentTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		EF5852F866D06FDAB31A4F6D /* RealtimeVoiceAgent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 11A5EC5E4331D95C4BE26D25 /* Build configuration list for PBXNativeTarget "RealtimeVoiceAgent" */;
+			buildPhases = (
+				DCFE7A45437E2F33A7B961AA /* Sources */,
+				53821A9653B326564582553C /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RealtimeVoiceAgent;
+			packageProductDependencies = (
+				F222323D67CF64624516987E /* Providers */,
+				BA063424437A25DF4F09D1A4 /* SwiftMCP */,
+			);
+			productName = RealtimeVoiceAgent;
+			productReference = D4C49F76D22A7365E767A378 /* RealtimeVoiceAgent.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CDC8F441C36C568707BE234A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					0F6BCF03EC7C1FA5E6ED8424 = {
+						DevelopmentTeam = Z7L2YCUH45;
+						ProvisioningStyle = Automatic;
+						TestTargetID = EF5852F866D06FDAB31A4F6D;
+					};
+					351D1938E1198C3C322ED47C = {
+						DevelopmentTeam = Z7L2YCUH45;
+						ProvisioningStyle = Automatic;
+					};
+					EF5852F866D06FDAB31A4F6D = {
+						DevelopmentTeam = Z7L2YCUH45;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = BE88C44A90E336F94327DB75 /* Build configuration list for PBXProject "RealtimeVoiceAgent" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 89785CFC39AE95AD518E6204;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3829C99C559631450FF11EFE /* XCRemoteSwiftPackageReference "SwiftMCP" */,
+				165269A7DD172DE08EA18CAF /* XCLocalSwiftPackageReference "../.." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 4C925FD060550E2AF6FEAC21 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				EF5852F866D06FDAB31A4F6D /* RealtimeVoiceAgent */,
+				351D1938E1198C3C322ED47C /* RealtimeVoiceAgentTests */,
+				0F6BCF03EC7C1FA5E6ED8424 /* RealtimeVoiceAgentUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2544216ED4A8CD2463DE0F56 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F3636215A294886FFF6E218D /* RealtimeVoiceAgentUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9FD7ECE703F049FA75D6BF46 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B44B695E15E99EB7CB267443 /* AudioSyncTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCFE7A45437E2F33A7B961AA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0C339FFA5802648BA4AEAF0 /* AppConfiguration.swift in Sources */,
+				291E3FBBA7FC1F81D09D3CC3 /* AudioSessionController.swift in Sources */,
+				DDA8B2F2ECA2B75E2B629B54 /* AudioStreamCoordinator.swift in Sources */,
+				777B6B2C4A05D46621BDA5AD /* BackgroundTaskController.swift in Sources */,
+				456E2750B74296FE82D0D392 /* CalendarError.swift in Sources */,
+				5E2470BF31BD942585D16CF5 /* CalendarHandler.swift in Sources */,
+				11213844A0FAC1BCF4F06392 /* CallKitController.swift in Sources */,
+				1705E174D514FAB12036A2E4 /* ConnectionState.swift in Sources */,
+				18049A33A583684BEF4F330D /* ConversationView.swift in Sources */,
+				9865A684667C03798060C9CC /* ConversationViewModel.swift in Sources */,
+				C8D85B60D2E44EFB5BEA64C6 /* EKEventStore+async.swift in Sources */,
+				2BC098932072732C5CF4BFED /* EKWeekday+Retroactive.swift in Sources */,
+				0A2A7C2361C81AC462DD28DF /* EventKit+StringConversion.swift in Sources */,
+				8FA9B4CAB6956CC33F40A9A3 /* GitIgnore.swift in Sources */,
+				563B085E8594AAE903A503C2 /* LocalToolRegistry.swift in Sources */,
+				9B99C4325748595A1EFD0BAB /* RealtimeVoiceAgentApp.swift in Sources */,
+				AFDC9E5F87A79657BD75C4D1 /* RecurrenceEnd.swift in Sources */,
+				9B00CB12EFE69CA620B225B3 /* RecurrenceRule.swift in Sources */,
+				366F09C97CC8ECA448E51809 /* ReminderError.swift in Sources */,
+				1B4B6241A0B56156C2B8E041 /* ReminderHandler.swift in Sources */,
+				9FE780CB00F0C197B35B2C39 /* SettingsView.swift in Sources */,
+				31C6756F19B7F0202C302478 /* SilenceFiller.swift in Sources */,
+				E7AD41C1736434554C82523C /* SpokenTextTracker.swift in Sources */,
+				EE56BED4DC6524057D672B92 /* String+Truncation.swift in Sources */,
+				4865A448F8102F2C40A298C1 /* TranscriptEntry.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		55AC7DEDC365FFB74ED32C3C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EF5852F866D06FDAB31A4F6D /* RealtimeVoiceAgent */;
+			targetProxy = 683FA7AA99E7EE4E7F7E802A /* PBXContainerItemProxy */;
+		};
+		825ADED267A3387B728984C9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EF5852F866D06FDAB31A4F6D /* RealtimeVoiceAgent */;
+			targetProxy = 319C4A45850666D8507C198D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0AB340E0E1953975488DDFE9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = D2087E7A2E7FCA0F4EB7F8C8 /* Debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z7L2YCUH45;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oliver.experiments.RealtimeVoiceAgent;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		389E2F821284959F184E1DA9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z7L2YCUH45;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oliver.experiments.RealtimeVoiceAgentTests;
+				PRODUCT_MODULE_NAME = RealtimeVoiceAgentTests;
+				PRODUCT_NAME = RealtimeVoiceAgentTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RealtimeVoiceAgent.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RealtimeVoiceAgent";
+			};
+			name = Release;
+		};
+		7F28DB105E9A32F9BD8EB352 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = RealtimeVoiceAgent;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.1;
+			};
+			name = Release;
+		};
+		83157767896AA0DD6453E33C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z7L2YCUH45;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oliver.experiments.RealtimeVoiceAgentUITests;
+				PRODUCT_MODULE_NAME = RealtimeVoiceAgentUITests;
+				PRODUCT_NAME = RealtimeVoiceAgentUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = RealtimeVoiceAgent;
+			};
+			name = Release;
+		};
+		8CEB83B5DDFB5D9EF6904790 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z7L2YCUH45;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oliver.experiments.RealtimeVoiceAgentUITests;
+				PRODUCT_MODULE_NAME = RealtimeVoiceAgentUITests;
+				PRODUCT_NAME = RealtimeVoiceAgentUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = RealtimeVoiceAgent;
+			};
+			name = Debug;
+		};
+		ABB16B416A7B5C0A99123E87 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0C5E730A372C6485E8108F83 /* Release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z7L2YCUH45;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oliver.experiments.RealtimeVoiceAgent;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		DABD0440E6494992F5F1EB20 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = RealtimeVoiceAgent;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.1;
+			};
+			name = Debug;
+		};
+		FEDEDB22AB81D9516CBF943A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z7L2YCUH45;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oliver.experiments.RealtimeVoiceAgentTests;
+				PRODUCT_MODULE_NAME = RealtimeVoiceAgentTests;
+				PRODUCT_NAME = RealtimeVoiceAgentTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RealtimeVoiceAgent.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RealtimeVoiceAgent";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		11A5EC5E4331D95C4BE26D25 /* Build configuration list for PBXNativeTarget "RealtimeVoiceAgent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0AB340E0E1953975488DDFE9 /* Debug */,
+				ABB16B416A7B5C0A99123E87 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BE88C44A90E336F94327DB75 /* Build configuration list for PBXProject "RealtimeVoiceAgent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DABD0440E6494992F5F1EB20 /* Debug */,
+				7F28DB105E9A32F9BD8EB352 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D3D3EAAE45F7B9D1A8EFB56F /* Build configuration list for PBXNativeTarget "RealtimeVoiceAgentUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8CEB83B5DDFB5D9EF6904790 /* Debug */,
+				83157767896AA0DD6453E33C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EE3B3A9F99C5B7E142D23384 /* Build configuration list for PBXNativeTarget "RealtimeVoiceAgentTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FEDEDB22AB81D9516CBF943A /* Debug */,
+				389E2F821284959F184E1DA9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		165269A7DD172DE08EA18CAF /* XCLocalSwiftPackageReference "../.." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3829C99C559631450FF11EFE /* XCRemoteSwiftPackageReference "SwiftMCP" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Cocoanetics/SwiftMCP";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BA063424437A25DF4F09D1A4 /* SwiftMCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3829C99C559631450FF11EFE /* XCRemoteSwiftPackageReference "SwiftMCP" */;
+			productName = SwiftMCP;
+		};
+		F222323D67CF64624516987E /* Providers */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Providers;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = CDC8F441C36C568707BE234A /* Project object */;
+}
