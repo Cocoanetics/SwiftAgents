@@ -6,9 +6,6 @@ xcuserdata/
 *.xcuserstate
 Package.resolved
 
-# XcodeGen-generated artifacts (Examples/RealtimeVoiceAgent uses project.yml
-# as the source of truth — run `xcodegen generate` to materialise the project).
-*.xcodeproj
 DerivedData/
 
 # Secrets — never commit
