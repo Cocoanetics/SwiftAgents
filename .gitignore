@@ -5,6 +5,7 @@ build/
 xcuserdata/
 *.xcuserstate
 Package.resolved
+.claude
 
 # XcodeGen-generated artifacts (Examples/RealtimeVoiceAgent uses project.yml
 # as the source of truth — run `xcodegen generate` to materialise the project).

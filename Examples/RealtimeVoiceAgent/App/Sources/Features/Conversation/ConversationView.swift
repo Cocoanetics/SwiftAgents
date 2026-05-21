@@ -216,7 +216,8 @@ private struct InfoView: View {
                     Text(viewModel.documentsPath)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    if let url = viewModel.documentsURL {
+                    
+                    if viewModel.documentsURL != nil {
                         Button {
                             showingShareSheet = true
                         } label: {

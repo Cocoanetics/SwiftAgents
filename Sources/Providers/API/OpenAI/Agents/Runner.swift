@@ -17,7 +17,7 @@ private enum GuardrailOutcome<OutputType: Sendable> {
 }
 
 /** Main runner for executing agent workflows
-
+ 
  This struct handles the execution of agent workflows, managing the interaction
  between agents, tools, and the OpenAI API.
  */
@@ -358,8 +358,10 @@ public actor Runner {
             var roundReasoning: String?
 
             do {
-                var response: Response = if let openAI = api as? OpenAI {
-                    try await withSpan { resultSpan in
+                let response: Response
+
+                if let openAI = api as? OpenAI {
+                    response = try await withSpan { resultSpan in
                         // set it without response up front, in case of error
                         resultSpan.spanData = ResponseSpanData(input: turnState.nextInput)
 
@@ -385,7 +387,7 @@ public actor Runner {
                     }
                 } else {
                     // Fallback for APIs that only support chat completion style
-                    try await withSpan { resultSpan in
+                    response = try await withSpan { resultSpan in
                         let messages = turnState.nextInput.toChatMessage()
                         turnState.chatHistory.append(contentsOf: messages)
 
@@ -512,13 +514,13 @@ public actor Runner {
                     switch outputItem {
                         case let .functionCall(functionCall):
                             if let handoff = agent.handoffs.first(where: { $0.toolName == functionCall.name }),
-                                let targetAgent = handoff.targetAgent {
+                               let targetAgent = handoff.targetAgent {
                                 do {
                                     if handoff.inputType.self == Void.self {
                                         try await handoff.callPerform(input: ())
                                     } else {
                                         if let payload = functionCall.arguments.data(using: .utf8),
-                                            let codableType = handoff.inputType as? Decodable.Type {
+                                           let codableType = handoff.inputType as? Decodable.Type {
                                             let typedInput = try JSONDecoder().decode(codableType, from: payload)
                                             try await handoff.callPerform(input: typedInput)
                                         }
@@ -673,7 +675,7 @@ public actor Runner {
             case let .functionCall(call):
                 // Try to decode arguments as JSON, fallback to string
                 let args = if let data = call.arguments.data(using: .utf8),
-                    let obj = try? JSONSerialization.jsonObject(with: data) {
+                              let obj = try? JSONSerialization.jsonObject(with: data) {
                     JSONValue(jsonObject: obj)
                 } else {
                     JSONValue(call.arguments)

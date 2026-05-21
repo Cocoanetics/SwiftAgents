@@ -6,7 +6,7 @@ import UIKit
 
 /// `OpenAI` subclass that adds OpenClaw's `x-openclaw-session-key` header to
 /// every request — the gateway uses it for server-side multi-turn continuity.
-private final class OpenClawAPI: OpenAI {
+private final class OpenClawAPI: OpenAI, @unchecked Sendable {
     private let sessionKey: String
 
     init(apiKey: String, endpointURL: URL, sessionKey: String) {
