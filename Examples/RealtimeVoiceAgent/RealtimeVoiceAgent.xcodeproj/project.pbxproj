@@ -58,7 +58,6 @@
 /* Begin PBXFileReference section */
 		04E245CA09C715E9EC201C63 /* CalendarError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarError.swift; sourceTree = "<group>"; };
 		065934E45A7EAAFB4FE54243 /* AudioStreamCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioStreamCoordinator.swift; sourceTree = "<group>"; };
-		0AE7FB2DDF3FC17DB936DA2B /* amazing-fermat-07ae59 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "amazing-fermat-07ae59"; path = ../..; sourceTree = SOURCE_ROOT; };
 		0C5E730A372C6485E8108F83 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		11597125DFDE7F5C593137E5 /* TranscriptEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptEntry.swift; sourceTree = "<group>"; };
 		1C23755945D70A91D26DB439 /* ReminderHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHandler.swift; sourceTree = "<group>"; };
@@ -87,6 +86,7 @@
 		D4C49F76D22A7365E767A378 /* RealtimeVoiceAgent.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = RealtimeVoiceAgent.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D690332E424787899B3D38DC /* GitIgnore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitIgnore.swift; sourceTree = "<group>"; };
 		DEAE5EBAAC52BB29AF9B2787 /* AudioSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionController.swift; sourceTree = "<group>"; };
+		E1D362F7C399D0B0A24AC514 /* SwiftAgents */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwiftAgents; path = ../..; sourceTree = SOURCE_ROOT; };
 		E8229DF92A55460DECEE3162 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FB8D942A7D40EA66F19EEF97 /* ReminderError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderError.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -312,7 +312,7 @@
 		E209A24379D6D4D743CC7A63 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				0AE7FB2DDF3FC17DB936DA2B /* amazing-fermat-07ae59 */,
+				E1D362F7C399D0B0A24AC514 /* SwiftAgents */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
