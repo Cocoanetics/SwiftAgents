@@ -21,8 +21,15 @@ public actor Providers {
             let loweredName = name?.lowercased(),
                 loweredName.contains("gemini") {
             "google"
+        } else if rawProvider.lowercased() == "openai",
+            let loweredName = name?.lowercased(),
+                loweredName.contains("claude") {
+            // Bare "claude-*" model id without an explicit "anthropic/" prefix.
+            "anthropic"
         } else if rawProvider.lowercased() == "gemini" {
             "google"
+        } else if rawProvider.lowercased() == "claude" {
+            "anthropic"
         } else {
             rawProvider
         }
@@ -50,6 +57,15 @@ public actor Providers {
             }
             apis["google"] = google
             return google
+        }
+        // Create Anthropic if requested
+        if normalizedProvider.lowercased() == "anthropic" {
+            let anthropic = Anthropic()
+            guard anthropic.apiKey != nil else {
+                throw ProviderError.missingAPIKey("Anthropic")
+            }
+            apis["anthropic"] = anthropic
+            return anthropic
         }
         // Create Ollama if requested (local LLM)
         if normalizedProvider.lowercased() == "local" || normalizedProvider.lowercased() == "ollama" {

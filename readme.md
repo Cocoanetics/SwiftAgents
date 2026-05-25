@@ -8,7 +8,7 @@ Early. Split out from the private AgentCorp project so the public agent surface 
 
 ## Products
 
-- **`Providers`** — LLM provider clients (OpenAI Responses + Chat + Embeddings + Assistants + Realtime + Image Generation, Google Gemini, Ollama) plus the `Agent` / `Runner` / `Tool` runtime built on top of them. The Tool DSL is powered by [SwiftMCP](https://github.com/Cocoanetics/SwiftMCP); `applyDiff` handles V4A-style patches. The runtime will eventually split into its own `Agents` target; for now everything lives here.
+- **`Providers`** — LLM provider clients (OpenAI Responses + Chat + Embeddings + Assistants + Realtime + Image Generation, Google Gemini, Anthropic Messages, Ollama) plus the `Agent` / `Runner` / `Tool` runtime built on top of them. The Tool DSL is powered by [SwiftMCP](https://github.com/Cocoanetics/SwiftMCP); `applyDiff` handles V4A-style patches. The runtime will eventually split into its own `Agents` target; for now everything lives here.
 - **`TerminalUI`** — ANSI colours, slash-command parser, terminal handler. Used by the bundled CLI; reusable by other tools.
 - **`Coder`** — an in-process coding-agent CLI (executable target). Tool surface: `bash`, `read`, `write`, `edit`, `ls`, plus `apply_patch` for models that support it. Reference implementation of an `Agent` against the Responses API.
 
@@ -30,10 +30,11 @@ Tests and the bundled CLI look for these environment variables (typically loaded
 
 | Variable | Used by |
 | --- | --- |
-| `OPENAI_API_KEY` | OpenAI client + integration tests |
-| `GEMINI_API_KEY` | Google client + integration tests |
-| `OLLAMA_URL`     | Ollama client (defaults to `127.0.0.1:11434`) |
-| `LM_STUDIO_URL`  | Optional local-OpenAI-compatible endpoint |
+| `OPENAI_API_KEY`    | OpenAI client + integration tests |
+| `GEMINI_API_KEY`    | Google client + integration tests |
+| `ANTHROPIC_API_KEY` | Anthropic client + integration tests |
+| `OLLAMA_URL`        | Ollama client (defaults to `127.0.0.1:11434`) |
+| `LM_STUDIO_URL`     | Optional local-OpenAI-compatible endpoint |
 
 A `.env.example` is provided; copy it to `.env` and fill in your keys. `.env` is gitignored.
 

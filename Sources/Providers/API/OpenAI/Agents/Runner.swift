@@ -45,8 +45,9 @@ public actor Runner {
         var currentAgent: A = agent
 
         repeat {
-            let model = config.model ?? currentAgent.model ?? "gpt-4.1"
-            let api = try await Providers.shared.api(for: model)
+            let modelSpec = config.model ?? currentAgent.model ?? "gpt-4.1"
+            let api = try await Providers.shared.api(for: modelSpec)
+            let model = modelSpec.modelNameWithoutProviderPrefix
 
             // Reset these for each agent in the workflow
             var currentNextInput = nextInput
