@@ -40,14 +40,20 @@ extension Anthropic {
 
                 do {
                     for try await line in asyncBytes.lines {
-                        if let range = line.range(of: "event: ") {
-                            currentEvent = String(line[range.upperBound...])
+                        // SSE framing has each field starting at column 0:
+                        // `event: NAME`, `data: JSON`, blank separator, or
+                        // `: comment`. Match by prefix only — substring
+                        // matching would misinterpret model output that
+                        // happens to contain the literal `event: ` or
+                        // `data: ` inside a JSON `data:` payload.
+                        if line.hasPrefix("event: ") {
+                            currentEvent = String(line.dropFirst("event: ".count))
                             continue
                         }
-                        guard let range = line.range(of: "data: ") else {
+                        guard line.hasPrefix("data: ") else {
                             continue
                         }
-                        let jsonString = line[range.upperBound...]
+                        let jsonString = line.dropFirst("data: ".count)
                         guard let jsonData = String(jsonString).data(using: .utf8) else {
                             continue
                         }
@@ -124,6 +130,12 @@ extension Anthropic {
         /// text/tool-arg deltas back to the right output item.
         var currentBlockIndex: Int?
         var currentBlockKind: BlockKind?
+        /// Stable id we'll attach to the eventual `output_item.done` event
+        /// AND to every delta we yield for this block. For tool_use this is
+        /// Anthropic's `toolu_…` id; for text/thinking we mint a fresh UUID
+        /// when the block opens so consumers can join deltas to the done
+        /// event by `itemId`.
+        var currentItemId: String = ""
         var currentText: String = ""
         var currentToolUseId: String = ""
         var currentToolName: String = ""
@@ -163,6 +175,9 @@ extension Anthropic {
         func openBlock(index: Int, kind: BlockKind, toolUseId: String = "", toolName: String = "") {
             currentBlockIndex = index
             currentBlockKind = kind
+            // tool_use blocks carry Anthropic's id; for text/thinking we
+            // synthesise one so every event in the block shares the same id.
+            currentItemId = kind == .toolUse ? toolUseId : UUID().uuidString
             currentText = ""
             currentToolUseId = toolUseId
             currentToolName = toolName
@@ -180,6 +195,7 @@ extension Anthropic {
             defer {
                 currentBlockIndex = nil
                 currentBlockKind = nil
+                currentItemId = ""
                 currentText = ""
                 currentToolUseId = ""
                 currentToolName = ""
@@ -190,7 +206,7 @@ extension Anthropic {
             switch currentBlockKind {
                 case .text:
                     let message = OutputItem.MessageOutput(
-                        id: UUID().uuidString,
+                        id: currentItemId,
                         role: .assistant,
                         status: .completed,
                         content: [.outputText(OutputItem.OutputText(text: currentText, annotations: []))]
@@ -202,8 +218,8 @@ extension Anthropic {
                 case .toolUse:
                     let arguments = currentToolArguments.isEmpty ? "{}" : currentToolArguments
                     let item = OutputItem.functionCall(OutputItem.FunctionCall(
-                        id: currentToolUseId,
-                        callId: currentToolUseId,
+                        id: currentItemId,
+                        callId: currentItemId,
                         name: currentToolName,
                         arguments: arguments,
                         status: .completed
@@ -213,7 +229,7 @@ extension Anthropic {
 
                 case .thinking:
                     let item = OutputItem.reasoning(OutputItem.ReasoningOutput(
-                        id: UUID().uuidString,
+                        id: currentItemId,
                         status: .completed,
                         summary: [OutputItem.SummaryItem(type: "summary", text: currentThinking)]
                     ))
@@ -339,7 +355,7 @@ extension Anthropic {
                                         openBlockText += text
                                         if let id = state.currentBlockIndex {
                                             let info = ResponsesStreamEvent.OutputTextDeltaInfo(
-                                                itemId: state.messageId,
+                                                itemId: state.currentItemId,
                                                 outputIndex: id,
                                                 contentIndex: 0,
                                                 delta: text
@@ -356,7 +372,7 @@ extension Anthropic {
                                         }
                                         if let id = state.currentBlockIndex {
                                             let info = ResponsesStreamEvent.FunctionCallArgumentsDeltaInfo(
-                                                itemId: state.messageId,
+                                                itemId: state.currentItemId,
                                                 outputIndex: id,
                                                 delta: json
                                             )
@@ -370,7 +386,7 @@ extension Anthropic {
                                         openBlockThinking += thinking
                                         if let id = state.currentBlockIndex {
                                             let info = ResponsesStreamEvent.ReasoningTextDeltaInfo(
-                                                itemId: state.messageId,
+                                                itemId: state.currentItemId,
                                                 outputIndex: id,
                                                 contentIndex: 0,
                                                 delta: thinking
