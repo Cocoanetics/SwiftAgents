@@ -43,7 +43,11 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.4.5"),
+		// Pinned below 1.4.7 because that release made `mcpToolMetadata`
+		// async, which breaks the synchronous call sites in
+		// `Array+MCPToolProviding.swift` and `MCPToolProviding+ToolDescription.swift`.
+		// Lift this once those callers are migrated to `await`.
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP", "1.4.5" ..< "1.4.7"),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0")
 	],
