@@ -32,8 +32,9 @@ public actor Runner {
         decoder.dateDecodingStrategy = config.dateDecodingStrategy
 
         if TraceContext.currentTrace == nil {
-            // no current trace context, so we start one with default name
-            return try await withTrace(name: "Agent Workflow") {
+            let spec = config.model ?? agent.model ?? "gpt-4.1"
+            let name = Runner.workflowName(base: config.workFlowName, modelSpec: spec)
+            return try await withTrace(name: name) {
                 return try await run(agent: agent, input: input, maxTurns: maxTurns, config: config)
             }
         }
@@ -361,7 +362,9 @@ public actor Runner {
             do {
                 let response: Response
 
-                if let openAI = api as? OpenAI {
+                // Responses API only lives at api.openai.com; LM Studio &
+                // other OpenAI-compatible self-hosts fall through to chat.
+                if let openAI = api as? OpenAI, openAI.endpointURL == URL.openAI {
                     response = try await withSpan { resultSpan in
                         // set it without response up front, in case of error
                         resultSpan.spanData = ResponseSpanData(input: turnState.nextInput)
