@@ -479,4 +479,150 @@ extension Anthropic {
             }
         }
     }
+
+    // MARK: - Anthropic events → ChatCompletion Chunks
+
+    /// Converts the Anthropic SSE stream into the OpenAI-shaped chat-completion
+    /// `Chunk` stream that callers of `createChatCompletionStream` consume.
+    ///
+    /// Mapping:
+    ///
+    /// - `message_start`            → first chunk with `delta.role = .assistant`
+    /// - `content_block_delta` text → chunk with `delta.content = <piece>`
+    /// - `content_block_start` /
+    ///   `content_block_delta` JSON → tool-call deltas (one slot per Anthropic
+    ///                                content block index, with `id`/`name`
+    ///                                emitted on start and accumulated argument
+    ///                                fragments on each subsequent delta)
+    /// - `message_delta`            → final chunk with `finishReason` derived
+    ///                                from Anthropic's `stop_reason`
+    /// - `message_stop`             → closes the stream
+    static func makeChatCompletionChunks(
+        from anthropicStream: AsyncThrowingStream<AnthropicStreamEvent, Error>,
+        model: String
+    ) -> AsyncThrowingStream<Chunk, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                struct OpenToolUse { var id: String; var name: String }
+                // Anthropic content blocks carry an index; we reuse it as the
+                // OpenAI tool-call index so multi-tool turns slot cleanly.
+                var openToolUses: [Int: OpenToolUse] = [:]
+                var messageId = ""
+                var resolvedModel = model
+                let created = Date()
+                var sentRole = false
+                var finishReason: FinishReason?
+
+                func emit(delta: Chunk.Choice.Delta, finishReason: FinishReason? = nil) {
+                    let choice = Chunk.Choice(index: 0, delta: delta, finishReason: finishReason)
+                    let chunk = Chunk(
+                        id: messageId,
+                        object: "chat.completion.chunk",
+                        created: created,
+                        model: resolvedModel,
+                        choices: [choice]
+                    )
+                    continuation.yield(chunk)
+                }
+
+                do {
+                    for try await event in anthropicStream {
+                        switch event {
+                            case let .messageStart(start):
+                                messageId = start.message.id
+                                if !start.message.model.isEmpty {
+                                    resolvedModel = start.message.model
+                                }
+                                if !sentRole {
+                                    emit(delta: Chunk.Choice.Delta(
+                                        role: .assistant,
+                                        content: nil,
+                                        toolCalls: nil
+                                    ))
+                                    sentRole = true
+                                }
+
+                            case let .contentBlockStart(start):
+                                if case let .toolUse(toolUse) = start.contentBlock {
+                                    openToolUses[start.index] = OpenToolUse(
+                                        id: toolUse.id,
+                                        name: toolUse.name
+                                    )
+                                    let toolCall = ToolCallDelta(
+                                        index: start.index,
+                                        id: toolUse.id,
+                                        type: "function",
+                                        function: FunctionCallDelta(name: toolUse.name, arguments: "")
+                                    )
+                                    emit(delta: Chunk.Choice.Delta(
+                                        role: nil,
+                                        content: nil,
+                                        toolCalls: [toolCall]
+                                    ))
+                                } else if case let .text(textBlock) = start.contentBlock, !textBlock.text.isEmpty {
+                                    emit(delta: Chunk.Choice.Delta(
+                                        role: nil,
+                                        content: textBlock.text,
+                                        toolCalls: nil
+                                    ))
+                                }
+
+                            case let .contentBlockDelta(delta):
+                                switch delta.delta {
+                                    case let .textDelta(text):
+                                        emit(delta: Chunk.Choice.Delta(
+                                            role: nil,
+                                            content: text,
+                                            toolCalls: nil
+                                        ))
+                                    case let .inputJsonDelta(json):
+                                        let toolCall = ToolCallDelta(
+                                            index: delta.index,
+                                            id: nil,
+                                            type: nil,
+                                            function: FunctionCallDelta(name: nil, arguments: json)
+                                        )
+                                        emit(delta: Chunk.Choice.Delta(
+                                            role: nil,
+                                            content: nil,
+                                            toolCalls: [toolCall]
+                                        ))
+                                    case .thinkingDelta, .signatureDelta, .unknown:
+                                        // Reasoning isn't part of the OpenAI
+                                        // chat-completion wire format — we drop
+                                        // these. Agent consumers that need
+                                        // thinking should use the Responses
+                                        // surface (createResponseStream).
+                                        break
+                                }
+
+                            case .contentBlockStop:
+                                continue
+
+                            case let .messageDelta(messageDelta):
+                                finishReason = chatFinishReason(from: messageDelta.delta.stopReason) ?? finishReason
+
+                            case .messageStop:
+                                emit(
+                                    delta: Chunk.Choice.Delta(role: nil, content: nil, toolCalls: nil),
+                                    finishReason: finishReason ?? .stop
+                                )
+                                continuation.finish()
+                                return
+
+                            case .ping, .unknown:
+                                continue
+
+                            case let .error(detail):
+                                continuation.finish(throwing: APIError.apiError(detail.message))
+                                return
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
 }

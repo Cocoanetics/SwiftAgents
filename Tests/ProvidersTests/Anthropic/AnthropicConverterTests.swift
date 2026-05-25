@@ -239,4 +239,114 @@ struct AnthropicConverterTests {
         #expect(Anthropic.chatFinishReason(from: .toolUse) == .toolCalls)
         #expect(Anthropic.chatFinishReason(from: .refusal) == .contentFilter)
     }
+
+    // MARK: - Anthropic stream → Chat Completion Chunks
+
+    @Test("Anthropic text deltas become chat-completion content deltas")
+    func chatCompletionChunkTextDeltas() async throws {
+        let events: [AnthropicStreamEvent] = [
+            .messageStart(.init(
+                type: "message_start",
+                message: AnthropicMessagesResponse(
+                    id: "msg_stream_1",
+                    model: "claude-haiku-4-5",
+                    content: [],
+                    stopReason: nil,
+                    stopSequence: nil,
+                    usage: nil
+                )
+            )),
+            .contentBlockStart(.init(type: "content_block_start", index: 0, contentBlock: .text(.init(text: "")))),
+            .contentBlockDelta(.init(type: "content_block_delta", index: 0, delta: .textDelta("Hello"))),
+            .contentBlockDelta(.init(type: "content_block_delta", index: 0, delta: .textDelta(" world"))),
+            .contentBlockStop(.init(type: "content_block_stop", index: 0)),
+            .messageDelta(.init(
+                type: "message_delta",
+                delta: .init(stopReason: .endTurn, stopSequence: nil),
+                usage: nil
+            )),
+            .messageStop
+        ]
+
+        let chunks = try await collectChatChunks(from: events, model: "claude-haiku-4-5")
+        let assembledContent = chunks.flatMap { chunk in
+            chunk.choices.compactMap(\.delta.content)
+        }.joined()
+        #expect(assembledContent == "Hello world")
+
+        // First chunk should carry the role; final chunk should carry finishReason.
+        let roleChunk = try #require(chunks.first { $0.choices.contains { $0.delta.role == .assistant } })
+        _ = roleChunk
+        let finishingChunk = try #require(chunks.last)
+        #expect(finishingChunk.choices.first?.finishReason == .stop)
+        #expect(chunks.allSatisfy { $0.id == "msg_stream_1" })
+    }
+
+    @Test("Anthropic tool_use blocks become chat-completion tool-call deltas")
+    func chatCompletionChunkToolDeltas() async throws {
+        let events: [AnthropicStreamEvent] = [
+            .messageStart(.init(
+                type: "message_start",
+                message: AnthropicMessagesResponse(
+                    id: "msg_tool_1",
+                    model: "claude-haiku-4-5",
+                    content: [],
+                    stopReason: nil,
+                    stopSequence: nil,
+                    usage: nil
+                )
+            )),
+            .contentBlockStart(.init(
+                type: "content_block_start",
+                index: 0,
+                contentBlock: .toolUse(.init(id: "toolu_42", name: "get_weather", input: .object([:])))
+            )),
+            .contentBlockDelta(.init(
+                type: "content_block_delta",
+                index: 0,
+                delta: .inputJsonDelta("{\"location\":")
+            )),
+            .contentBlockDelta(.init(
+                type: "content_block_delta",
+                index: 0,
+                delta: .inputJsonDelta("\"SF\"}")
+            )),
+            .contentBlockStop(.init(type: "content_block_stop", index: 0)),
+            .messageDelta(.init(
+                type: "message_delta",
+                delta: .init(stopReason: .toolUse, stopSequence: nil),
+                usage: nil
+            )),
+            .messageStop
+        ]
+
+        let chunks = try await collectChatChunks(from: events, model: "claude-haiku-4-5")
+        // Walk through the assembler with the chunks we produced — it's the
+        // canonical consumer of OpenAI-shaped streaming chunks and what the
+        // Runner uses, so if it produces the right tool call we know the
+        // wire format is compatible.
+        let assembler = ChatCompletionAssembler()
+        for chunk in chunks { assembler.processChunk(chunk) }
+        let response = assembler.response
+        let choice = try #require(response.choices.first)
+        let toolCalls = try #require(choice.message.toolCalls)
+        #expect(toolCalls.count == 1)
+        #expect(toolCalls[0].function?.name == "get_weather")
+        #expect(toolCalls[0].function?.arguments == "{\"location\":\"SF\"}")
+    }
+
+    private func collectChatChunks(
+        from events: [AnthropicStreamEvent],
+        model: String
+    ) async throws -> [Chunk] {
+        let (stream, continuation) = AsyncThrowingStream<AnthropicStreamEvent, Error>.makeStream()
+        for event in events { continuation.yield(event) }
+        continuation.finish()
+
+        var chunks: [Chunk] = []
+        for try await chunk in Anthropic.makeChatCompletionChunks(from: stream, model: model) {
+            chunks.append(chunk)
+        }
+        return chunks
+    }
 }

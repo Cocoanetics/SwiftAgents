@@ -155,32 +155,50 @@ public class Anthropic: API, @unchecked Sendable {
         return Anthropic.makeChatCompletionResponse(model: model, response: anthropicResponse)
     }
 
-    /// Streaming chat completions are not implemented for the chat-completion
-    /// surface — agents-SDK consumers should use `createResponseStream`
-    /// instead, which goes through the Anthropic Messages streaming endpoint.
+    /// Cross-provider Chat Completions streaming surface. Converts
+    /// OpenAI-shaped arguments into an Anthropic Messages streaming request,
+    /// then folds the SSE events back into OpenAI-shaped `Chunk`s so existing
+    /// chat-completion code paths (including the Agents SDK runner's
+    /// chat-completion fallback) get real per-token deltas instead of one
+    /// synthetic event at the end.
     override public func createChatCompletionStream(
-        model _: String,
-        messages _: [ChatMessage],
-        tools _: [ToolDescription]? = nil,
-        toolChoice _: ToolChoice? = nil,
+        model: String,
+        messages: [ChatMessage],
+        tools: [ToolDescription]? = nil,
+        toolChoice: ToolChoice? = nil,
         n _: Int = 1,
         streamOptions _: ChatCompletionRequest.StreamOptions? = nil,
-        stop _: [String]? = nil,
+        stop: [String]? = nil,
         store _: Bool? = nil,
-        temperature _: Double? = nil,
-        maxCompletionTokens _: Int? = nil,
+        temperature: Double? = nil,
+        maxCompletionTokens: Int? = nil,
         metadata _: [String: String]? = nil,
         parallelToolCalls _: Bool? = nil,
         presencePenalty _: Double = 0.0,
         responseFormat _: ChatCompletionRequest.ResponseFormat? = nil,
         frequencyPenalty _: Double = 0.0,
         logitBias _: [String: Int]? = nil,
-        user _: String? = nil
+        user: String? = nil
     ) async throws -> AsyncThrowingStream<Chunk, Error> {
-        throw APIError.otherError(
-            "unsupported",
-            "Anthropic chat-completion streaming is not implemented — use createResponseStream."
+        let (system, anthropicMessages) = Anthropic.convertChatMessages(messages)
+
+        let request = AnthropicMessagesRequest(
+            model: model,
+            messages: anthropicMessages,
+            maxTokens: maxCompletionTokens ?? defaultMaxTokens,
+            system: system,
+            temperature: temperature,
+            topP: nil,
+            topK: nil,
+            stopSequences: stop,
+            stream: true,
+            tools: Anthropic.convertToolDescriptions(tools),
+            toolChoice: Anthropic.convertToolChoice(toolChoice),
+            metadata: user.map { AnthropicMessagesRequest.Metadata(userId: $0) }
         )
+
+        let anthropicEvents = try await createMessageStream(request)
+        return Anthropic.makeChatCompletionChunks(from: anthropicEvents, model: model)
     }
 
     /// Calls `POST /v1/messages` and returns the parsed native response.

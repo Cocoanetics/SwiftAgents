@@ -10,9 +10,13 @@ extension Runner {
     ///
     /// This mirrors the Python Agents SDK's `Runner.run_streamed()` pattern.
     ///
-    /// - Note: Streaming is only supported for OpenAI-backed models using the
-    ///   Responses API. For non-OpenAI APIs, falls back to non-streaming
-    ///   `Runner.run()` and emits the final output as a single event.
+    /// - Note: For OpenAI-backed models we use the Responses streaming API.
+    ///   For providers that only expose the chat-completion shape (Anthropic,
+    ///   LM Studio, OpenAI-compatible endpoints, etc.) we stream via
+    ///   `api.createChatCompletionStream` and translate per-chunk deltas into
+    ///   `outputTextDelta` / `runItemEvent` events. Providers whose streaming
+    ///   isn't wired up yet fall back to non-streaming `Runner.run()` and emit
+    ///   the final output as a single event.
     public static func runStreamed(
         agent: some Agent,
         input: String,
@@ -35,6 +39,13 @@ extension Runner {
                     continuation: continuation,
                     resultRef: resultRef
                 )
+                // Only finish the stream once `_runStreamedLoop` has fully
+                // returned, which means the surrounding `withTrace` has
+                // already flushed its spans via onTraceEnd. If we finished
+                // earlier, the consumer's `for await ... in result.events`
+                // loop could exit (and the test process could terminate)
+                // while the BatchTraceProcessor is still mid-upload.
+                continuation.finish()
             } catch {
                 continuation.finish(throwing: error)
                 throw error
@@ -57,7 +68,12 @@ extension Runner {
         resultRef: RunResultStreaming
     ) async throws {
         if TraceContext.currentTrace == nil {
-            return try await withTrace(name: config.workFlowName) {
+            let modelSpec = config.model ?? agent.model ?? "gpt-4.1"
+            let workflowName = Runner.workflowName(
+                base: config.workFlowName,
+                modelSpec: modelSpec
+            )
+            return try await withTrace(name: workflowName) {
                 try await _runStreamedLoop(
                     agent: agent,
                     input: input,
@@ -71,34 +87,95 @@ extension Runner {
         }
 
         var currentAgent: A = agent
+        // Chat history accumulates across handoffs on the chat-completion
+        // fallback path so the receiving agent sees the prior agent's
+        // assistant message + the handoff tool result instead of restarting
+        // from the original user input.
+        var chatHistory: [ChatMessage] = []
 
         repeat {
             let modelSpec = config.model ?? currentAgent.model ?? "gpt-4.1"
             let api = try await Providers.shared.api(for: modelSpec)
             let model = modelSpec.modelNameWithoutProviderPrefix
 
-            // Only OpenAI's Responses API supports the incremental event
-            // stream the Agents SDK consumes here. Other providers (Anthropic,
-            // Google, Ollama, …) fall back to non-streaming `Runner.run`,
-            // which routes them through the chat-completion path and emits
-            // GenerationSpanData traces — see Runner.swift for the dispatch.
-            guard let openAI = api as? OpenAI else {
-                let runResult: RunResult<A.OutputType> = try await Runner.run(
-                    agent: currentAgent,
-                    input: input,
-                    maxTurns: maxTurns,
-                    config: config
-                )
+            // Only api.openai.com speaks the Responses streaming API the
+            // Agents SDK consumes natively. OpenAI-compatible endpoints
+            // (LM Studio, llama.cpp's openai server, etc.) get the
+            // `OpenAI` class for convenience but only implement
+            // `/v1/chat/completions` — route them through the
+            // chat-completion streaming surface instead.
+            guard let openAI = api as? OpenAI, openAI.endpointURL == URL.openAI else {
+                let chatResult: AgentResult<A.OutputType> = try await withSpan { agentSpan in
+                    var tools: [Tool] = currentAgent.createTools()
 
-                if let output = runResult.finalOutput as? String {
-                    continuation.yield(.runItemEvent(
-                        name: .messageOutputCreated,
-                        item: .message(output)
-                    ))
+                    for proxy in currentAgent.mcpServers {
+                        tools += try await withSpan { mcpListSpan in
+                            let serverName = await proxy.serverName
+                            let mcpTools = try await proxy.listTools()
+
+                            let myTools = mcpTools.map { mcpTool in
+                                let parameters: Parameters = if case let .object(object, _) = mcpTool.inputSchema {
+                                    Parameters(properties: object.properties)
+                                } else {
+                                    .none
+                                }
+                                return Tool.function(FunctionTool(
+                                    name: mcpTool.name,
+                                    description: mcpTool.description,
+                                    parameters: parameters,
+                                    strict: true
+                                ))
+                            }
+
+                            mcpListSpan.spanData = MCPListToolsSpanData(
+                                server: serverName,
+                                result: mcpTools.map(\.name)
+                            )
+                            return myTools
+                        }
+                    }
+
+                    agentSpan.spanData = AgentSpanData(
+                        name: currentAgent.name,
+                        handoffs: currentAgent.handoffs.compactMap { $0.targetAgent?.name },
+                        tools: tools.map(\.nameForAgentSpan),
+                        outputType: currentAgent.outputTypeForAgentSpan
+                    )
+
+                    return try await executeChatCompletionStreamedTurns(
+                        agent: currentAgent,
+                        tools: tools,
+                        maxTurns: maxTurns,
+                        model: model,
+                        api: api,
+                        input: input,
+                        chatHistory: &chatHistory,
+                        continuation: continuation
+                    )
                 }
 
-                continuation.finish()
-                return
+                switch chatResult {
+                    case .finalOutput:
+                        return
+                    case let .handOff(nextAgent):
+                        if let nextAgentTyped = nextAgent as? A {
+                            currentAgent = nextAgentTyped
+                            // Swap the system prompt in place so the new
+                            // agent sees its own instructions while keeping
+                            // the rest of the conversation (user input,
+                            // prior assistant turn, handoff tool result).
+                            if let first = chatHistory.first, first.role == .system {
+                                chatHistory[0] = ChatMessage(
+                                    role: .system,
+                                    content: .text(currentAgent.instructions)
+                                )
+                            }
+                            continuation.yield(.agentUpdated(name: currentAgent.name))
+                            continue
+                        } else {
+                            throw RunnerError.exceededMaxTurns
+                        }
+                }
             }
 
             let result: AgentResult<A.OutputType> = try await withSpan { agentSpan in
@@ -152,7 +229,6 @@ extension Runner {
 
             switch result {
                 case .finalOutput:
-                    continuation.finish()
                     return
                 case let .handOff(nextAgent):
                     if let nextAgentTyped = nextAgent as? A {
