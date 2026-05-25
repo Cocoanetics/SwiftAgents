@@ -48,11 +48,20 @@ enum APIKey {
         return ProcessInfo.processInfo.environment["GEMINI_API_KEY"]
     }
 
+    static var anthropic: String? {
+        loadEnvIfNeeded()
+        return ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]
+    }
+
     static var hasOpenAI: Bool {
         openAI != nil
     }
 
     static var hasGemini: Bool {
         gemini != nil
+    }
+
+    static var hasAnthropic: Bool {
+        anthropic != nil
     }
 }

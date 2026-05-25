@@ -73,10 +73,15 @@ extension Runner {
         var currentAgent: A = agent
 
         repeat {
-            let model = config.model ?? currentAgent.model ?? "gpt-4.1"
-            let api = try await Providers.shared.api(for: model)
+            let modelSpec = config.model ?? currentAgent.model ?? "gpt-4.1"
+            let api = try await Providers.shared.api(for: modelSpec)
+            let model = modelSpec.modelNameWithoutProviderPrefix
 
-            // Non-OpenAI fallback: use non-streaming Runner.run() and emit final output
+            // Only OpenAI's Responses API supports the incremental event
+            // stream the Agents SDK consumes here. Other providers (Anthropic,
+            // Google, Ollama, …) fall back to non-streaming `Runner.run`,
+            // which routes them through the chat-completion path and emits
+            // GenerationSpanData traces — see Runner.swift for the dispatch.
             guard let openAI = api as? OpenAI else {
                 let runResult: RunResult<A.OutputType> = try await Runner.run(
                     agent: currentAgent,

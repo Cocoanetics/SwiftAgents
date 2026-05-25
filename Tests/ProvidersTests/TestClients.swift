@@ -23,6 +23,11 @@ enum TestClients {
         return GoogleAPI(apiKey: key)
     }
 
+    static func anthropic() throws -> Anthropic {
+        let key = try #require(APIKey.anthropic, "ANTHROPIC_API_KEY is required for this test")
+        return Anthropic(apiKey: key)
+    }
+
     static func ollama() throws -> OllamaAPI {
         let raw = try #require(
             ProcessInfo.processInfo.environment["OLLAMA_URL"],
