@@ -308,6 +308,62 @@ struct LMStudioImageInputTests {
     }
 
     @Test(
+        "Trace event for an LM Studio run fires exactly once",
+        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+    )
+    func traceEventFiresOnce() async throws {
+        // Regression: `withTrace` (ConvenienceFunctions) and
+        // `TraceContext.withTrace` (TaskLocal setter) both fired
+        // onTraceStart, so the dashboard saw duplicate trace events
+        // per Runner.run. Removed the outer notification.
+        actor Spy: TracingExporter {
+            var captured: [[String: JSONValue]] = []
+            nonisolated func export(_ items: [[String: JSONValue]]) async {
+                await append(items)
+            }
+            func append(_ items: [[String: JSONValue]]) { captured.append(contentsOf: items) }
+            func snapshot() -> [[String: JSONValue]] { captured }
+        }
+        let spy = Spy()
+        await TraceProvider.shared.addProcessor(
+            BatchTraceProcessor(exporter: spy, scheduleDelay: 0.1)
+        )
+
+        // Random agent name so we can scope counting in case other tests
+        // ran in parallel and shipped their own traces through this spy.
+        let agentName = "LMStudioTraceCountAgent_\(UUID().uuidString)"
+        let agent = BasicAgent(
+            name: agentName,
+            model: "lmstudio/\(visionModel)",
+            instructions: "Answer with one word.",
+            modelSettings: ModelSettings(temperature: 0, maxCompletionTokens: 50)
+        )
+        _ = try await Runner.run(agent: agent, input: "Reply OK", maxTurns: 2)
+        try await Task.sleep(for: .milliseconds(500))
+
+        // Find the trace_id of OUR run by locating the agent span that
+        // carries our agent name, then count trace events with that id.
+        let captured = await spy.snapshot()
+        let encoder = JSONEncoder()
+        let agentSpanTraceID: String? = captured.lazy.compactMap { entry -> String? in
+            guard let data = try? encoder.encode(entry),
+                  let json = String(data: data, encoding: .utf8),
+                  json.contains(agentName) else { return nil }
+            if case let .string(traceID) = entry["trace_id"] ?? .null { return traceID }
+            return nil
+        }.first
+        let traceID = try #require(agentSpanTraceID, "no agent span for \(agentName)")
+        let count = captured.reduce(0) { acc, entry in
+            guard case let .string(object) = entry["object"] ?? .null,
+                  object == "trace",
+                  case let .string(id) = entry["id"] ?? .null,
+                  id == traceID else { return acc }
+            return acc + 1
+        }
+        #expect(count == 1, "expected exactly one trace event for our run, got \(count)")
+    }
+
+    @Test(
         "Plain-text LM Studio run also ships cleanly to OpenAI traces",
         .enabled(
             if: TestClients.hasLMStudio && APIKey.hasOpenAI,

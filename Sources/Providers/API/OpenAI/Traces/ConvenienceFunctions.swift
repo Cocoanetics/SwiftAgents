@@ -130,7 +130,6 @@ public func withTrace<T>(
     metadata: [String: String]? = nil,
     operation: () async throws -> T
 ) async throws -> T {
-    let isNewTrace = TraceContext.currentTrace == nil
     let traceToUse = TraceContext.currentTrace ?? Trace(
         id: traceID,
         workflowName: name,
@@ -138,10 +137,9 @@ public func withTrace<T>(
         metadata: metadata
     )
 
-    if isNewTrace {
-        await TraceProvider.shared.processorsActor.notifyProcessors { await $0.onTraceStart(traceToUse) }
-    }
-
+    // `TraceContext.withTrace` already fires onTraceStart / onTraceEnd
+    // when the id differs from the active task-local trace; don't
+    // double-fire here.
     var operationResult: T?
     var operationError: Error?
 
@@ -151,10 +149,6 @@ public func withTrace<T>(
         }
     } catch {
         operationError = error
-    }
-
-    if isNewTrace {
-        await TraceProvider.shared.processorsActor.notifyProcessors { await $0.onTraceEnd(traceToUse) }
     }
 
     if let errorToThrow = operationError {
