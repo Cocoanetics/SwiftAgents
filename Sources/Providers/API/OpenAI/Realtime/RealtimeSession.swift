@@ -1,5 +1,6 @@
 import Foundation
 import SwiftMCP
+import Tracing
 
 public enum RealtimeSessionEvent: Sendable {
     case raw(RealtimeServerEvent)

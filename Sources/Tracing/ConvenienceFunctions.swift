@@ -66,20 +66,8 @@ public func withSpan<T>(
             }
             operationResult = result
         }
-    } catch let error as RunnerError {
-        switch error {
-            case .exceededMaxTurns:
-                span.error = SpanError(message: "Exceeded maximum number of turns")
-        }
-
-        operationError = error
-    } catch let error as InputGuardrailTripwireTriggered {
-        let data: [String: JSONValue] = ["guardrail": JSONValue(error.guardrailName)]
-        span.error = SpanError(message: "Input guardrail tripwire triggered", data: data)
-        operationError = error
-    } catch let error as OutputGuardrailTripwireTriggered {
-        let data: [String: JSONValue] = ["guardrail": JSONValue(error.guardrailName)]
-        span.error = SpanError(message: "Output guardrail tripwire triggered", data: data)
+    } catch let error as TracedError {
+        span.error = SpanError(message: error.spanErrorMessage, data: error.spanErrorData)
         operationError = error
     } catch {
         // Capture error details in the span

@@ -9,6 +9,7 @@
 //  apply_patch dispatch, and the output-guardrail fan-out.
 
 import Foundation
+import Tracing
 import SwiftMCP
 
 /// Surfaced when the caller combines `session` with any of

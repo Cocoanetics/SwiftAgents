@@ -22,6 +22,10 @@ open class OpenAI: API, @unchecked Sendable {
             endpointURL: endpointURL,
             versionPath: versionPath
         )
+        // Auto-register an `OpenAITraceExporter` against the global
+        // `TraceProvider` the first time any OpenAI client is created with
+        // `OPENAI_API_KEY` in the environment. See `OpenAITracingAutoConfig`.
+        OpenAITracingAutoConfig.configureIfNeeded()
     }
 
     // MARK: - Embeddings

@@ -1,7 +1,5 @@
 import Foundation
 
-private let tracingLogsEnabled = ProcessInfo.processInfo.environment["TRACE_LOGS"] != nil
-
 /**
  The main trace provider that coordinates trace and span creation.
 
@@ -90,27 +88,13 @@ actor ProcessorsActor {
     }
 
     init() {
-        // Default to no processors — silent. The OpenAI backend
-        // exporter auto-wires when `OPENAI_API_KEY` is present at
-        // init time, so the common app-startup path "Just Works".
-        // Callers that want stdout tracing can opt in explicitly via
-        // `await TraceProvider.shared.setProcessors([
-        //     BatchTraceProcessor(exporter: ConsoleTraceExporter())
-        // ])` — previously we did that automatically when no API key
-        // was set, but that surprised every consumer (the `Coder`
-        // CLI without a key, the test suite, anything that imported
-        // `Providers`) with `[Exporter] Export …` lines on stdout.
-        if let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] {
-            let openAI = OpenAI(apiKey: apiKey)
-            processors = [BatchTraceProcessor(exporter: BackendSpanExporter(openAI: openAI))]
-            if tracingLogsEnabled {
-                NSLog("Started OpenAI Batch Trace Exporter")
-            }
-        } else {
-            if tracingLogsEnabled {
-                NSLog("No OPENAI_API_KEY environment variable found; trace processors disabled.")
-            }
-            processors = []
-        }
+        // Default to no processors. Provider-specific exporters (e.g.
+        // `OpenAITraceExporter`) live in their own targets and must be
+        // registered explicitly at app startup. Callers that want stdout
+        // tracing opt in via:
+        //     await TraceProvider.shared.setProcessors([
+        //         BatchTraceProcessor(exporter: ConsoleTraceExporter())
+        //     ])
+        processors = []
     }
 }

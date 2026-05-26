@@ -23,6 +23,7 @@
 //
 
 import Foundation
+import Tracing
 @testable import Providers
 import SwiftMCP
 import Testing
@@ -339,7 +340,7 @@ struct GeminiRunnerTests {
         let mine = entries.filter { $0.json.contains(traceID) }.map(\.entry)
         #expect(!mine.isEmpty)
 
-        // BackendSpanExporter does this on every flush. A 4xx here is
+        // OpenAITraceExporter does this on every flush. A 4xx here is
         // exactly why a run would fail to show up on platform.openai.com.
         let openAIKey = try #require(APIKey.openAI as String?)
         let openAI = OpenAI(apiKey: openAIKey)

@@ -24,6 +24,7 @@
 //     lookup against OpenAI.
 
 import Foundation
+import Tracing
 
 /// Per-`API` declaration of how the provider chains conversation state and
 /// how its response ids should appear in tracing. See file header for the

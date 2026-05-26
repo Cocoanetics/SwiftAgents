@@ -1,6 +1,7 @@
 import Foundation // For ProcessInfo
 @testable import Providers
 import SwiftMCP
+import Tracing
 import Testing // New import for Swift-Testing
 
 struct AgentGuardrailTest {

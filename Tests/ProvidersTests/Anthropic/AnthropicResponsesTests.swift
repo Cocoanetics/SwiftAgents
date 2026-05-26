@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Tracing
 @testable import Providers
 import SwiftMCP
 import Testing
@@ -159,7 +160,7 @@ struct AnthropicResponsesTests {
         #expect(!captured.isEmpty, "Expected the Runner to emit at least one trace/span")
 
         // Round-trip the captured spans through OpenAI's trace ingestion
-        // endpoint — this is the same call BackendSpanExporter makes.
+        // endpoint — this is the same call OpenAITraceExporter makes.
         let openAIKey = try #require(APIKey.openAI as String?)
         let openAI = OpenAI(apiKey: openAIKey)
         try await openAI.ingestTraces(captured)

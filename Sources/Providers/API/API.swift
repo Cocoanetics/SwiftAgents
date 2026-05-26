@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Tracing
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif

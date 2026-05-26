@@ -14,6 +14,7 @@
 //
 
 import Foundation
+import Tracing
 @testable import Providers
 import SwiftMCP
 import Testing
@@ -248,7 +249,7 @@ struct LMStudioImageInputTests {
     func tracesShipToOpenAI() async throws {
         // Same Spy pattern, but here we round-trip the captured spans
         // through `openAI.ingestTraces` — exactly what the
-        // BackendSpanExporter does in production. Catches LM-Studio-
+        // OpenAITraceExporter does in production. Catches LM-Studio-
         // specific span shapes that pass local assertions but get
         // rejected by OpenAI's traces backend.
         actor Spy: TracingExporter {
@@ -305,7 +306,7 @@ struct LMStudioImageInputTests {
         let mine = entries.filter { $0.json.contains(traceID) }.map(\.entry)
         #expect(!mine.isEmpty)
 
-        // The actual ingest call — this is what BackendSpanExporter does
+        // The actual ingest call — this is what OpenAITraceExporter does
         // every time the default-registered processor flushes. If it
         // throws, that's why traces don't appear on platform.openai.com.
         let openAIKey = try #require(APIKey.openAI as String?)
@@ -377,7 +378,7 @@ struct LMStudioImageInputTests {
         )
     )
     func plainTextRunShipsCleanly() async throws {
-        // The auto-registered BackendSpanExporter swallows errors with
+        // The auto-registered OpenAITraceExporter swallows errors with
         // `print(error)`. This test mirrors what it does — and asserts
         // ingest doesn't throw, AND that the workflow name carries the
         // provider so the user can find runs in the traces dashboard.
@@ -439,7 +440,7 @@ struct LMStudioImageInputTests {
                 "workflow names did not include 'lmstudio': \(workflowNames)")
 
         // Round-trip the scoped spans through OpenAI's ingest endpoint
-        // — what BackendSpanExporter does on every batch flush. A 4xx
+        // — what OpenAITraceExporter does on every batch flush. A 4xx
         // here is exactly why traces fail to appear on
         // platform.openai.com.
         let openAIKey = try #require(APIKey.openAI as String?)

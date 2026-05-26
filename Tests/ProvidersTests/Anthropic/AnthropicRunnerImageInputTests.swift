@@ -21,6 +21,7 @@
 //
 
 import Foundation
+import Tracing
 @testable import Providers
 import SwiftMCP
 import Testing
@@ -269,7 +270,7 @@ struct AnthropicRunnerImageInputTests {
         let mine = entries.filter { $0.json.contains(traceID) }.map(\.entry)
         #expect(!mine.isEmpty)
 
-        // Same ingest call BackendSpanExporter makes — proves the
+        // Same ingest call OpenAITraceExporter makes — proves the
         // payload won't be rejected when it lands on platform.openai.com.
         let openAIKey = try #require(APIKey.openAI as String?)
         let openAI = OpenAI(apiKey: openAIKey)
