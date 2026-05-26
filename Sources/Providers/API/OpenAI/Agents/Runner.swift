@@ -432,18 +432,19 @@ public actor Runner {
 
                 // Stateful dispatch: providers that declare server-side
                 // history (OpenAI Responses, LM Studio native chat) go
-                // through `ServerHistoryAPI`. We also bypass the stateful
-                // path when the agent needs structured output AND the
-                // provider's native path doesn't honor `json_schema`
-                // (LM Studio's `/api/v1/chat` is the current case) — the
-                // chat-completions branch below already wires the schema
-                // correctly via `response_format`.
+                // through `ServerHistoryAPI`. We bypass the stateful path
+                // when the turn needs something the native endpoint can't
+                // honor — structured output or tool calls in LM Studio's
+                // case — and let the chat-completions branch below handle
+                // it via `response_format` / `tools`.
                 let needsStructuredOutput: Bool = switch agent.outputType {
                     case .text: false
                     case .json, .jsonSchema: true
                 }
+                let needsToolCalls = !tools.isEmpty
                 let useStatefulPath = api.statePolicy.supportsServerSideHistory
                     && (!needsStructuredOutput || api.statePolicy.supportsStructuredOutput)
+                    && (!needsToolCalls || api.statePolicy.supportsToolCalls)
                 if useStatefulPath, let stateful = api as? ServerHistoryAPI {
                     response = try await withSpan { resultSpan in
                         // Placeholder span before the call so error paths

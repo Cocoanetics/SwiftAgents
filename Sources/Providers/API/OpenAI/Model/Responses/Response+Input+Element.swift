@@ -95,6 +95,20 @@ public extension Response.Input {
                 case let .functionCallOutput(output):
                     try singleContainer.encode(output)
 
+                case let .functionCall(call):
+                    // `OutputItem.FunctionCall` doesn't include `type` in
+                    // its own CodingKeys (it's tagged at the OutputItem
+                    // enum level), so we must add the discriminator here
+                    // for the Responses API to accept it as a replayed
+                    // input item.
+                    try singleContainer.encode(FunctionCallWire(
+                        id: call.id,
+                        callId: call.callId,
+                        name: call.name,
+                        arguments: call.arguments,
+                        status: call.status
+                    ))
+
                 case let .mcpApprovalResponse(input):
                     try singleContainer.encode(input)
 
@@ -117,6 +131,23 @@ public extension Response.Input {
                         debugDescription: "Encoding not implemented for this Response.Input.Element case"
                     )
                     throw EncodingError.invalidValue(self, context)
+            }
+        }
+
+        /// Wire shape for replaying a prior `function_call` output item as
+        /// an `Input.Element`. Tags `type` so the Responses API recognises
+        /// the discriminator; everything else mirrors
+        /// `OutputItem.FunctionCall`.
+        private struct FunctionCallWire: Encodable {
+            let id: String
+            let callId: String
+            let name: String
+            let arguments: String
+            let status: ResponseStatus?
+            let type: String = "function_call"
+
+            private enum CodingKeys: String, CodingKey {
+                case id, callId, name, arguments, status, type
             }
         }
 
