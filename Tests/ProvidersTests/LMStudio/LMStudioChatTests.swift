@@ -193,6 +193,11 @@ struct LMStudioChatTests {
         let lmstudio = LMStudio()
         #expect(lmstudio.statePolicy.supportsServerSideHistory == true)
         #expect(lmstudio.statePolicy.responseIdsAreOpenAIRoutable == false)
+        // LM Studio's native `/api/v1/chat` doesn't accept a schema; the
+        // runner must route structured-output turns through chat
+        // completions instead. Flag flipping back to true would silently
+        // re-introduce the "free-form text rejected by decoder" bug.
+        #expect(lmstudio.statePolicy.supportsStructuredOutput == false)
     }
 
     @Test("OpenAI declares openAIResponses state policy")

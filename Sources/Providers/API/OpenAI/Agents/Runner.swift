@@ -432,11 +432,19 @@ public actor Runner {
 
                 // Stateful dispatch: providers that declare server-side
                 // history (OpenAI Responses, LM Studio native chat) go
-                // through `ServerHistoryAPI`; everything else falls through
-                // to the chat-completions branch below. Supersedes main's
-                // narrower `endpointURL == .openAI` check — the policy on
-                // each provider now encodes the same distinction.
-                if api.statePolicy.supportsServerSideHistory, let stateful = api as? ServerHistoryAPI {
+                // through `ServerHistoryAPI`. We also bypass the stateful
+                // path when the agent needs structured output AND the
+                // provider's native path doesn't honor `json_schema`
+                // (LM Studio's `/api/v1/chat` is the current case) — the
+                // chat-completions branch below already wires the schema
+                // correctly via `response_format`.
+                let needsStructuredOutput: Bool = switch agent.outputType {
+                    case .text: false
+                    case .json, .jsonSchema: true
+                }
+                let useStatefulPath = api.statePolicy.supportsServerSideHistory
+                    && (!needsStructuredOutput || api.statePolicy.supportsStructuredOutput)
+                if useStatefulPath, let stateful = api as? ServerHistoryAPI {
                     response = try await withSpan { resultSpan in
                         // Placeholder span before the call so error paths
                         // still record something. For OpenAI-routable
@@ -507,11 +515,16 @@ public actor Runner {
                         ]
                         messages.append(contentsOf: Response.Input.array(sessionItems).toChatMessage())
 
-                        // Call chat completion on generic API
+                        // Call chat completion on generic API. Send `nil`
+                        // for `tools` when there aren't any — LM Studio
+                        // treats an empty `tools: []` as "enable lazy
+                        // grammar," which conflicts with structured-output
+                        // constraints.
+                        let chatTools = tools.toolDescriptions
                         let completion = try await api.createChatCompletion(
                             model: model,
                             messages: messages,
-                            tools: tools.toolDescriptions,
+                            tools: chatTools.isEmpty ? nil : chatTools,
                             n: nil,
                             stop: nil,
                             store: agent.modelSettings.store,
