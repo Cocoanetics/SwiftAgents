@@ -34,13 +34,11 @@ struct ConversationStateTrackerTests {
         #expect(await tracker.previousResponseId == "resp_first")
     }
 
-    @Test("LM Studio stateless sentinel does not clobber a real chain id")
-    func sentinelDoesNotClobber() async {
+    @Test("Empty response id does not clobber a real chain id")
+    func emptyIdDoesNotClobber() async {
         let tracker = ConversationStateTracker()
         await tracker.update(from: Self.makeResponse(id: "resp_real"))
-        await tracker.update(from: Self.makeResponse(
-            id: LMStudio.statelessIdPrefix + UUID().uuidString
-        ))
+        await tracker.update(from: Self.makeResponse(id: ""))
         #expect(await tracker.previousResponseId == "resp_real")
     }
 
@@ -63,14 +61,14 @@ struct ConversationStateTrackerTests {
         #expect(await tracker.previousResponseId == nil)
     }
 
-    @Test("setPreviousResponseId honours sentinel filtering")
-    func setPreviousResponseIdFilters() async {
+    @Test("setPreviousResponseId rejects empty strings")
+    func setPreviousResponseIdRejectsEmpty() async {
         let tracker = ConversationStateTracker()
         await tracker.setPreviousResponseId("resp_good")
         #expect(await tracker.previousResponseId == "resp_good")
 
-        // Trying to set a sentinel is rejected — prior real id remains.
-        await tracker.setPreviousResponseId(LMStudio.statelessIdPrefix + "x")
+        // An empty string is not a usable chain pointer — prior id stays.
+        await tracker.setPreviousResponseId("")
         #expect(await tracker.previousResponseId == "resp_good")
     }
 

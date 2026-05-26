@@ -44,10 +44,11 @@ struct LMStudioIntegrationTests {
             temperature: 0
         )
         #expect(!first.id.isEmpty)
-        // A real LM Studio response_id starts with `resp_`. If we got the
-        // sentinel back instead, server-side storage is disabled and the
-        // chain test below would degrade to no-op — fail loudly instead.
-        #expect(!first.id.hasPrefix(LMStudio.statelessIdPrefix))
+        // LM Studio returns standard `resp_…` ids on its OpenAI-compat
+        // Responses endpoint, identical in shape to OpenAI's. Asserting
+        // a real id is set ensures the chain test below has something
+        // to chain off.
+        #expect(first.id.hasPrefix("resp_"))
 
         let second = try await client.createResponse(
             input: .text("What colour did I mention?"),

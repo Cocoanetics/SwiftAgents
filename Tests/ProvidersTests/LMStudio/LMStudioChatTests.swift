@@ -2,9 +2,14 @@
 //  LMStudioChatTests.swift
 //  ProvidersTests
 //
-//  Offline tests for the LM Studio provider: wire-shape encoding/decoding,
-//  conversation-state policy, and the synthetic-id sentinel that protects
-//  the next turn from sending back an unstored response id.
+//  Offline tests for the LM Studio provider's policy + registry wiring.
+//  All wire-level behaviour comes straight from `OpenAI` since
+//  `LMStudio` is an OpenAI subclass pointed at the LM Studio server's
+//  OpenAI-compat endpoints (`/v1/responses` and `/v1/chat/completions`).
+//  Live interaction is covered by the suites under
+//  `LMStudioIntegrationTests`, `LMStudioStructuredOutputTests`,
+//  `LMStudioToolCallTests`, `LMStudioImageInputTests`, and
+//  `LMStudioStreamingTests`.
 //
 
 import Foundation
@@ -12,192 +17,21 @@ import Foundation
 import Testing
 
 struct LMStudioChatTests {
-    // MARK: - Decoding
-
-    @Test("Decodes the documented LM Studio response shape into a Response")
-    func decodesSimpleMessageResponse() throws {
-        let json = Data("""
-        {
-            "model_instance_id": "ibm/granite-4-micro",
-            "model": "ibm/granite-4-micro",
-            "output": [
-                {"type": "message", "id": "msg_1", "content": "That's great! Blue is a beautiful color."}
-            ],
-            "response_id": "resp_abc123xyz"
-        }
-        """.utf8)
-
+    @Test("LM Studio inherits from OpenAI so all wire methods come for free")
+    func lmStudioIsOpenAISubclass() {
         let lmstudio = LMStudio()
-        let decoded: LMStudioChatResponse = try lmstudio.decoder.decode(LMStudioChatResponse.self, from: json)
-
-        #expect(decoded.responseId == "resp_abc123xyz")
-        #expect(decoded.modelInstanceId == "ibm/granite-4-micro")
-        #expect(decoded.output.count == 1)
-
-        let response = decoded.toResponse(modelHint: "ibm/granite-4-micro", instructions: nil)
-        #expect(response.id == "resp_abc123xyz")
-        #expect(response.model == "ibm/granite-4-micro")
-        #expect(response.output.count == 1)
-
-        guard case let .message(messageOutput) = response.output.first else {
-            Issue.record("Expected message output, got \(String(describing: response.output.first))")
-            return
-        }
-        guard case let .outputText(text) = messageOutput.content.first else {
-            Issue.record("Expected outputText content")
-            return
-        }
-        #expect(text.text == "That's great! Blue is a beautiful color.")
+        #expect(lmstudio is OpenAI, "LMStudio must extend OpenAI to share createResponse / createChatCompletion")
     }
 
-    @Test("Reasoning items without an id decode without throwing")
-    func decodesReasoningWithoutId() throws {
-        // LM Studio emits reasoning summaries as a sparse object — no `id`,
-        // no `summary` field. The standard `OutputItem.ReasoningOutput`
-        // decoder requires `id`, so falling through to it used to throw
-        // on every turn that produced chain-of-thought.
-        let json = Data("""
-        {
-            "model_instance_id": "google/gemma-4-26b-a4b",
-            "output": [
-                {"type": "reasoning", "content": "User asked. Answer briefly."},
-                {"type": "message", "content": "OK"}
-            ],
-            "response_id": "resp_with_reasoning"
-        }
-        """.utf8)
-
+    @Test("LM Studio declares lmStudioOpenAICompat state policy")
+    func policyIsLMStudioOpenAICompat() {
         let lmstudio = LMStudio()
-        let decoded = try lmstudio.decoder.decode(LMStudioChatResponse.self, from: json)
-        let response = decoded.toResponse(modelHint: "google/gemma-4-26b-a4b", instructions: nil)
-
-        #expect(response.output.count == 2)
-        guard case let .reasoning(reasoningOutput) = response.output.first else {
-            Issue.record("Expected reasoning output, got \(String(describing: response.output.first))")
-            return
-        }
-        #expect(reasoningOutput.summary.first?.text == "User asked. Answer briefly.")
-    }
-
-    @Test("Falls back to OpenAI-shaped output when content is structured")
-    func decodesStructuredMessageResponse() throws {
-        let json = Data("""
-        {
-            "model_instance_id": "qwen3-coder",
-            "output": [
-                {
-                    "type": "message",
-                    "id": "msg_2",
-                    "role": "assistant",
-                    "status": "completed",
-                    "content": [
-                        {"type": "output_text", "text": "Hi there.", "annotations": []}
-                    ]
-                }
-            ],
-            "response_id": "resp_xyz"
-        }
-        """.utf8)
-
-        let lmstudio = LMStudio()
-        let decoded = try lmstudio.decoder.decode(LMStudioChatResponse.self, from: json)
-        let response = decoded.toResponse(modelHint: "qwen3-coder", instructions: nil)
-
-        guard case let .message(messageOutput) = response.output.first else {
-            Issue.record("Expected message output")
-            return
-        }
-        guard case let .outputText(text) = messageOutput.content.first else {
-            Issue.record("Expected outputText content")
-            return
-        }
-        #expect(text.text == "Hi there.")
-    }
-
-    @Test("Missing response_id (store: false) produces a sentinel id")
-    func sentinelIdWhenResponseIdMissing() throws {
-        let json = Data("""
-        {
-            "model_instance_id": "ibm/granite-4-micro",
-            "output": [
-                {"type": "message", "content": "One-off response, not stored."}
-            ]
-        }
-        """.utf8)
-
-        let lmstudio = LMStudio()
-        let decoded = try lmstudio.decoder.decode(LMStudioChatResponse.self, from: json)
-        let response = decoded.toResponse(modelHint: "ibm/granite-4-micro", instructions: nil)
-
-        #expect(response.id.hasPrefix(LMStudio.statelessIdPrefix))
-    }
-
-    // MARK: - Encoding
-
-    @Test("Request encodes only the current turn; previous_response_id chains")
-    func requestEncodesPreviousResponseId() throws {
-        let lmstudio = LMStudio()
-        let request = LMStudioChatRequest(
-            model: "ibm/granite-4-micro",
-            input: .text("What color did I just mention?"),
-            previousResponseId: "resp_abc123",
-            store: nil,
-            instructions: nil,
-            tools: nil,
-            toolChoice: nil,
-            temperature: nil,
-            topP: nil,
-            maxOutputTokens: nil,
-            metadata: nil
-        )
-
-        let data = try lmstudio.encoder.encode(request)
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-
-        #expect(json?["model"] as? String == "ibm/granite-4-micro")
-        #expect(json?["input"] as? String == "What color did I just mention?")
-        #expect(json?["previous_response_id"] as? String == "resp_abc123")
-        // Nil fields must not appear on the wire.
-        #expect(json?["store"] == nil)
-        #expect(json?["tools"] == nil)
-        #expect(json?["instructions"] == nil)
-    }
-
-    @Test("Request includes store: false when caller opts out of server history")
-    func requestEncodesStoreFalse() throws {
-        let lmstudio = LMStudio()
-        let request = LMStudioChatRequest(
-            model: "ibm/granite-4-micro",
-            input: .text("Tell me a joke."),
-            previousResponseId: nil,
-            store: false,
-            instructions: nil,
-            tools: nil,
-            toolChoice: nil,
-            temperature: nil,
-            topP: nil,
-            maxOutputTokens: nil,
-            metadata: nil
-        )
-
-        let data = try lmstudio.encoder.encode(request)
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-
-        #expect(json?["store"] as? Bool == false)
-    }
-
-    // MARK: - Policy
-
-    @Test("LM Studio declares lmStudioNative state policy")
-    func policyIsLMStudioNative() {
-        let lmstudio = LMStudio()
+        // Stateful path supported (LM Studio implements OpenAI Responses
+        // API including `previous_response_id` chaining), but response
+        // ids belong to the local server — not resolvable by OpenAI's
+        // trace dashboard, so spans must export as GenerationSpanData.
         #expect(lmstudio.statePolicy.supportsServerSideHistory == true)
         #expect(lmstudio.statePolicy.responseIdsAreOpenAIRoutable == false)
-        // LM Studio's native `/api/v1/chat` doesn't accept a schema; the
-        // runner must route structured-output turns through chat
-        // completions instead. Flag flipping back to true would silently
-        // re-introduce the "free-form text rejected by decoder" bug.
-        #expect(lmstudio.statePolicy.supportsStructuredOutput == false)
     }
 
     @Test("OpenAI declares openAIResponses state policy")
@@ -214,12 +48,10 @@ struct LMStudioChatTests {
         #expect(anthropic.statePolicy.responseIdsAreOpenAIRoutable == false)
     }
 
-    // MARK: - Providers registry
-
     @Test("Providers registry returns an LMStudio instance for the lmstudio name")
     func providersReturnsLMStudio() async throws {
         let providers = Providers()
-        let api = try await providers.api(for: "lmstudio/ibm/granite-4-micro")
+        let api = try await providers.api(for: "lmstudio/google/gemma-4-26b-a4b")
         #expect(api is LMStudio)
     }
 }

@@ -67,10 +67,12 @@ actor ConversationStateTracker {
 
     // MARK: - Helpers
 
-    /// True if `id` looks like something a server could resolve in a future
-    /// turn — i.e. not one of the synthetic sentinels SwiftAgents producers
-    /// hand back when `store: false` is in effect.
+    /// True if `id` looks like something a server could resolve in a
+    /// future turn. Currently just a non-empty check — LM Studio and
+    /// OpenAI both hand back well-formed `resp_…` ids through their
+    /// OpenAI-compat Responses endpoint, so no sentinel filtering is
+    /// needed.
     static func isChainableResponseId(_ id: String) -> Bool {
-        !id.hasPrefix(LMStudio.statelessIdPrefix)
+        !id.isEmpty
     }
 }

@@ -58,65 +58,22 @@ extension Runner {
     }
 
     /// Decides whether this turn should go through the provider's
-    /// stateful path or fall back to chat completions. Bundles the four
-    /// gating checks (server history, structured output, tool calls,
-    /// image input) so the Runner body stays focused on the per-turn
-    /// state machine. Only consults the session when the new input is
-    /// text-only AND the policy can't honor images — saves an extra
-    /// session read in the common case.
+    /// stateful path (Responses API) or fall back to chat completions.
+    /// Bypass the stateful path for structured-output turns when the
+    /// policy says the endpoint silently ignores the schema (LM Studio's
+    /// `/v1/responses` is the current case) — chat completions wires
+    /// `response_format` correctly so the model actually constrains.
     static func shouldUseStatefulPath(
         policy: ConversationStatePolicy,
-        outputType: TextFormat,
-        tools: [Tool],
-        nextInput: Response.Input,
-        session: Session
-    ) async throws -> Bool {
+        outputType: TextFormat
+    ) -> Bool {
         guard policy.supportsServerSideHistory else { return false }
-
         let needsStructuredOutput: Bool = switch outputType {
             case .text: false
             case .json, .jsonSchema: true
         }
         if needsStructuredOutput, !policy.supportsStructuredOutput { return false }
-        if !tools.isEmpty, !policy.supportsToolCalls { return false }
-
-        if inputContainsImage(nextInput) {
-            return policy.supportsImageInput
-        }
-        if !policy.supportsImageInput {
-            let items = try await session.getItems()
-            if sessionContainsImage(items) { return false }
-        }
         return true
-    }
-
-    /// True when the input contains any image part (URL or file id).
-    /// Used by the dispatch decision to route multimodal turns away from
-    /// stateful endpoints that don't accept Responses-API image content.
-    static func inputContainsImage(_ input: Response.Input) -> Bool {
-        switch input {
-            case .text:
-                return false
-            case let .array(elements):
-                return elements.contains(where: messageHasImage)
-        }
-    }
-
-    /// Same check applied to session items — a session populated with
-    /// prior image turns should keep routing through chat completions
-    /// even if the new turn itself is plain text.
-    static func sessionContainsImage(_ items: [Response.Input.Element]) -> Bool {
-        items.contains(where: messageHasImage)
-    }
-
-    private static func messageHasImage(_ element: Response.Input.Element) -> Bool {
-        guard case let .message(msg) = element else { return false }
-        return msg.content.contains { part in
-            switch part {
-                case .inputImage, .inputImageFileID: return true
-                case .inputText, .outputText: return false
-            }
-        }
     }
 
     /// Flattens a (possibly multimodal) `Response.Input` to a plain string
@@ -249,9 +206,13 @@ extension Runner {
 
     /// Best-effort conversion of `Response.Input` into the
     /// `[[String: JSONValue]]` message-dict shape used by `GenerationSpanData`.
-    /// Only the element kinds the runner actually sends (user/system text,
+    /// Element kinds the runner actually sends (user/system text + images,
     /// tool call outputs, function calls) are mapped; other shapes are
     /// dropped from the span rather than misrepresented.
+    ///
+    /// Content parts use OpenAI's trace-ingest taxonomy (`text` / `image`,
+    /// NOT `input_text` / `image_url`) so spans round-trip through
+    /// `openAI.ingestTraces` without rejection.
     static func inputToMessageDicts(_ input: Response.Input) -> [[String: JSONValue]] {
         switch input {
             case let .text(text):
@@ -263,13 +224,35 @@ extension Runner {
                 return elements.compactMap { element -> [String: JSONValue]? in
                     switch element {
                         case let .message(msg):
-                            let content = msg.content.compactMap { piece -> String? in
-                                if case let .inputText(text) = piece { return text }
-                                return nil
-                            }.joined(separator: "\n")
+                            let parts: [[String: JSONValue]] = msg.content.compactMap { piece in
+                                switch piece {
+                                    case let .inputText(text), let .outputText(text):
+                                        return ["type": JSONValue("text"), "text": JSONValue(text)]
+                                    case let .inputImage(url):
+                                        guard let url else { return nil }
+                                        return ["type": JSONValue("image"),
+                                                "image_url": JSONValue(url.absoluteString)]
+                                    case let .inputImageFileID(fileID):
+                                        return ["type": JSONValue("image"),
+                                                "file_id": JSONValue(fileID)]
+                                }
+                            }
+                            guard !parts.isEmpty else { return nil }
+                            // Collapse a single text part to a bare string
+                            // (matches what the chat-completions branch
+                            // emits for the same shape).
+                            if parts.count == 1,
+                               case let .string(type) = parts[0]["type"] ?? .null,
+                               type == "text",
+                               case let .string(text) = parts[0]["text"] ?? .null {
+                                return [
+                                    "role": JSONValue(msg.role.rawValue),
+                                    "content": JSONValue(text)
+                                ]
+                            }
                             return [
                                 "role": JSONValue(msg.role.rawValue),
-                                "content": JSONValue(content)
+                                "content": JSONValue(parts)
                             ]
                         case let .functionCallOutput(output):
                             return [

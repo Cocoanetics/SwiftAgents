@@ -2,18 +2,20 @@
 //  LMStudio.swift
 //  SwiftAgents
 //
-//  LM Studio provider. Talks to LM Studio's native stateful chat endpoint at
-//  `/api/v1/chat` rather than the OpenAI-compat layer at `/v1/chat/completions`.
-//  The native endpoint keeps conversation state server-side and accepts a
-//  `previous_response_id` to chain turns, so the Runner never needs to resend
-//  history. Spans are emitted as `GenerationSpanData` because LM Studio's
-//  response ids are not resolvable by OpenAI's trace dashboard.
+//  LM Studio provider. LM Studio implements the OpenAI-compat surface
+//  natively — both `/v1/chat/completions` and `/v1/responses` accept the
+//  standard OpenAI shapes (tools, structured output, image_url content,
+//  `previous_response_id` chaining, etc.). The only thing that
+//  distinguishes LM Studio from OpenAI at the Runner / tracing layer is
+//  that its response ids are NOT routable to OpenAI's trace dashboard —
+//  we emit `GenerationSpanData` instead of `ResponseSpanData` so the
+//  payload is self-contained.
 //
 //  Configuration:
 //    - `LMSTUDIO_URL` — base URL of the LM Studio REST server.
 //      Default `http://localhost:1234`.
-//    - `LM_API_TOKEN` — optional bearer token. LM Studio doesn't require auth
-//      out of the box but supports it when configured.
+//    - `LM_API_TOKEN` — optional bearer token. LM Studio doesn't require
+//      auth out of the box but supports it when configured.
 
 import Foundation
 #if canImport(FoundationNetworking)
@@ -25,22 +27,21 @@ public extension URL {
     static let lmStudio = URL(string: "http://localhost:1234")!
 }
 
-/// LM Studio API client. The Agents runner dispatches to `createResponse`
-/// (mirroring `OpenAI.createResponse`'s signature) which under the hood
-/// posts to `/api/v1/chat` with `previous_response_id` chaining.
-public class LMStudio: API, @unchecked Sendable {
-    /// LM Studio is stateful (chains via `previous_response_id`) but its ids
-    /// are not OpenAI-routable, so spans are emitted as `GenerationSpanData`
-    /// rather than `ResponseSpanData`.
-    override open var statePolicy: ConversationStatePolicy { .lmStudioNative }
+/// LM Studio API client — a thin `OpenAI` subclass that targets the
+/// LM Studio server's OpenAI-compat endpoints. All of
+/// `createResponse` / `createChatCompletion` / streaming / Conversations
+/// inherit from `OpenAI` and work out of the box because LM Studio
+/// speaks the OpenAI wire on `/v1/responses` and `/v1/chat/completions`.
+public class LMStudio: OpenAI, @unchecked Sendable {
+    /// LM Studio's response ids are not resolvable by OpenAI's trace
+    /// dashboard; everything else (server-side history, structured
+    /// output, tool calls, image input) matches OpenAI exactly.
+    override open var statePolicy: ConversationStatePolicy { .lmStudioOpenAICompat }
 
     public init(
         apiKey: String? = nil,
         endpointURL: URL = .lmStudio
     ) {
-        // versionPath is unused for the native endpoint (which is hardcoded
-        // to /api/v1/chat) but base APIs like `models()` still rely on it.
-        // LM Studio exposes the OpenAI-compat /v1/models so we keep "v1".
         super.init(
             apiKey: apiKey ?? ProcessInfo.processInfo.environment["LM_API_TOKEN"],
             endpointURL: endpointURL,

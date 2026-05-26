@@ -439,19 +439,9 @@ public actor Runner {
             do {
                 let response: Response
 
-                // Stateful dispatch: providers that declare server-side
-                // history (OpenAI Responses, LM Studio native chat) go
-                // through `ServerHistoryAPI`. We bypass the stateful path
-                // when the turn needs something the native endpoint can't
-                // honor — structured output or tool calls in LM Studio's
-                // case — and let the chat-completions branch below handle
-                // it via `response_format` / `tools`.
-                let useStatefulPath = try await Self.shouldUseStatefulPath(
+                let useStatefulPath = Self.shouldUseStatefulPath(
                     policy: api.statePolicy,
-                    outputType: agent.outputType,
-                    tools: tools,
-                    nextInput: turnState.nextInput,
-                    session: session
+                    outputType: agent.outputType
                 )
                 if useStatefulPath, let stateful = api as? ServerHistoryAPI {
                     response = try await withSpan { resultSpan in
@@ -568,15 +558,28 @@ public actor Runner {
                                             dict["content"] = JSONValue(text)
                                         }
                                     case let .parts(parts):
-                                        let structured: [[String: JSONValue]] = parts.map { part in
-                                            var entry: [String: JSONValue] = ["type": JSONValue(part.encodedType)]
+                                        // OpenAI's traces ingest accepts
+                                        // only `text` and `image` content
+                                        // discriminators — NOT the
+                                        // `image_url` / `input_text` /
+                                        // `output_text` shapes the chat
+                                        // and Responses APIs use. Without
+                                        // this collapse, image-bearing
+                                        // generation spans get rejected
+                                        // with "Invalid discriminator
+                                        // value. Expected 'text' | 'image'"
+                                        // and silently swallowed by
+                                        // BackendSpanExporter — that's
+                                        // why LM Studio image runs never
+                                        // appeared on the dashboard.
+                                        let structured: [[String: JSONValue]] = parts.compactMap { part in
                                             if let text = part.text {
-                                                entry["text"] = JSONValue(text)
+                                                return ["type": JSONValue("text"), "text": JSONValue(text)]
                                             }
                                             if let url = part.imageURL?.url {
-                                                entry["image_url"] = JSONValue(["url": JSONValue(url)])
+                                                return ["type": JSONValue("image"), "image_url": JSONValue(url)]
                                             }
-                                            return entry
+                                            return nil
                                         }
                                         if !structured.isEmpty {
                                             dict["content"] = JSONValue(structured)

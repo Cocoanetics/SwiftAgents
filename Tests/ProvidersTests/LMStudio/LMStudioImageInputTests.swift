@@ -232,6 +232,159 @@ struct LMStudioImageInputTests {
         #expect(imageMentioned, "expected the image content to appear in at least one exported span")
     }
 
+    @Test(
+        "Traces from an LM Studio image run can be ingested by the OpenAI traces backend",
+        .enabled(
+            if: TestClients.hasLMStudio && APIKey.hasOpenAI,
+            "Requires LMSTUDIO_URL and OPENAI_API_KEY"
+        )
+    )
+    func tracesShipToOpenAI() async throws {
+        // Same Spy pattern, but here we round-trip the captured spans
+        // through `openAI.ingestTraces` — exactly what the
+        // BackendSpanExporter does in production. Catches LM-Studio-
+        // specific span shapes that pass local assertions but get
+        // rejected by OpenAI's traces backend.
+        actor Spy: TracingExporter {
+            var captured: [[String: JSONValue]] = []
+            nonisolated func export(_ items: [[String: JSONValue]]) async {
+                await append(items)
+            }
+            func append(_ items: [[String: JSONValue]]) { captured.append(contentsOf: items) }
+            func snapshot() -> [[String: JSONValue]] { captured }
+        }
+        let spy = Spy()
+        await TraceProvider.shared.addProcessor(
+            BatchTraceProcessor(exporter: spy, scheduleDelay: 0.1)
+        )
+
+        let agentName = "LMStudioImageIngestProbe"
+        let agent = BasicAgent(
+            name: agentName,
+            model: "lmstudio/\(visionModel)",
+            instructions: "Answer with one word.",
+            modelSettings: ModelSettings(temperature: 0, maxCompletionTokens: 200)
+        )
+        let dataURL = URL(string: "data:image/png;base64,\(solidRedPNG)")!
+
+        _ = try await Runner.run(
+            agent: agent,
+            input: .array([
+                .message(.init(role: .user, content: [
+                    .inputText("What colour is this image?"),
+                    .inputImage(dataURL)
+                ]))
+            ]),
+            maxTurns: 2
+        )
+
+        try await Task.sleep(for: .milliseconds(500))
+
+        // Scope to this run's spans (trace_id from the agent span).
+        let captured = await spy.snapshot()
+        let encoder = JSONEncoder()
+        let entries = captured.compactMap { entry -> (entry: [String: JSONValue], json: String)? in
+            guard let data = try? encoder.encode(entry),
+                  let json = String(data: data, encoding: .utf8) else { return nil }
+            return (entry, json)
+        }
+        let anchor = try #require(
+            entries.first(where: { $0.json.contains(agentName) }),
+            "no agent span for \(agentName)"
+        )
+        guard case let .string(traceID) = anchor.entry["trace_id"] ?? .null else {
+            Issue.record("agent span has no trace_id")
+            return
+        }
+        let mine = entries.filter { $0.json.contains(traceID) }.map(\.entry)
+        #expect(!mine.isEmpty)
+
+        // The actual ingest call — this is what BackendSpanExporter does
+        // every time the default-registered processor flushes. If it
+        // throws, that's why traces don't appear on platform.openai.com.
+        let openAIKey = try #require(APIKey.openAI as String?)
+        let openAI = OpenAI(apiKey: openAIKey)
+        try await openAI.ingestTraces(mine)
+    }
+
+    @Test(
+        "Plain-text LM Studio run also ships cleanly to OpenAI traces",
+        .enabled(
+            if: TestClients.hasLMStudio && APIKey.hasOpenAI,
+            "Requires LMSTUDIO_URL and OPENAI_API_KEY"
+        )
+    )
+    func plainTextRunShipsCleanly() async throws {
+        // The auto-registered BackendSpanExporter swallows errors with
+        // `print(error)`. This test mirrors what it does — and asserts
+        // ingest doesn't throw, AND that the workflow name carries the
+        // provider so the user can find runs in the traces dashboard.
+        actor Spy: TracingExporter {
+            var captured: [[String: JSONValue]] = []
+            nonisolated func export(_ items: [[String: JSONValue]]) async {
+                await append(items)
+            }
+            func append(_ items: [[String: JSONValue]]) { captured.append(contentsOf: items) }
+            func snapshot() -> [[String: JSONValue]] { captured }
+        }
+        let spy = Spy()
+        await TraceProvider.shared.addProcessor(
+            BatchTraceProcessor(exporter: spy, scheduleDelay: 0.1)
+        )
+
+        let agentName = "LMStudioPlainTextIngestProbe"
+        let agent = BasicAgent(
+            name: agentName,
+            model: "lmstudio/\(visionModel)",
+            instructions: "Answer with one word.",
+            modelSettings: ModelSettings(temperature: 0, maxCompletionTokens: 50)
+        )
+
+        _ = try await Runner.run(
+            agent: agent,
+            input: "Reply with the word OK.",
+            maxTurns: 2
+        )
+        try await Task.sleep(for: .milliseconds(500))
+
+        let captured = await spy.snapshot()
+        let encoder = JSONEncoder()
+        let entries = captured.compactMap { entry -> (entry: [String: JSONValue], json: String)? in
+            guard let data = try? encoder.encode(entry),
+                  let json = String(data: data, encoding: .utf8) else { return nil }
+            return (entry, json)
+        }
+        let anchor = try #require(
+            entries.first(where: { $0.json.contains(agentName) }),
+            "no agent span for \(agentName)"
+        )
+        guard case let .string(traceID) = anchor.entry["trace_id"] ?? .null else {
+            Issue.record("agent span has no trace_id")
+            return
+        }
+        let mine = entries.filter { $0.json.contains(traceID) }.map(\.entry)
+        #expect(!mine.isEmpty)
+
+        // The trace event should carry a workflow_name with `lmstudio`
+        // so the dashboard groups it visibly.
+        let workflowNames = mine.compactMap { entry -> String? in
+            guard case let .string(object) = entry["object"] ?? .null,
+                  object == "trace",
+                  case let .string(name) = entry["workflow_name"] ?? .null else { return nil }
+            return name
+        }
+        #expect(workflowNames.contains { $0.lowercased().contains("lmstudio") },
+                "workflow names did not include 'lmstudio': \(workflowNames)")
+
+        // Round-trip the scoped spans through OpenAI's ingest endpoint
+        // — what BackendSpanExporter does on every batch flush. A 4xx
+        // here is exactly why traces fail to appear on
+        // platform.openai.com.
+        let openAIKey = try #require(APIKey.openAI as String?)
+        let openAI = OpenAI(apiKey: openAIKey)
+        try await openAI.ingestTraces(mine)
+    }
+
     /// Pulls the `trace_id` out of a flattened span/trace JSON blob.
     /// Used to scope assertions to a single Runner.run when other tests
     /// share the global TraceProvider.
