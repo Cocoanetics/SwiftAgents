@@ -23,6 +23,7 @@ private class AnthropicChatTestTools {
     }
 }
 
+@Suite(.serialized)
 struct AnthropicChatTests {
     private let model = "claude-haiku-4-5"
 

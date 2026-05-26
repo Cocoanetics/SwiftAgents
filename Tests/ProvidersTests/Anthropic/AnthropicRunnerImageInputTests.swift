@@ -41,6 +41,7 @@ private func diceDataURL() throws -> URL {
     return try #require(URL(string: dataURL), "expected a valid data: URL")
 }
 
+@Suite(.serialized)
 struct AnthropicRunnerImageInputTests {
     @Test(
         "Runner.run accepts a multimodal Response.Input against Anthropic",

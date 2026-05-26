@@ -36,6 +36,7 @@ private final class AnthropicColourGuessAgent: Agent {
     let modelSettings = ModelSettings(temperature: 0)
 }
 
+@Suite(.serialized)
 struct AnthropicRunnerStructuredOutputTests {
     @Test(
         "Runner produces a @Schema-decoded result from Anthropic via output_config",
