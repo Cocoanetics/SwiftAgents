@@ -64,20 +64,22 @@ struct OpenAIConversationsSessionTests {
             modelSettings: ModelSettings(temperature: 0)
         )
 
-        _ = try await Runner.run(
-            agent: agent,
-            input: "Remember: my dog is called Pixel.",
-            session: session,
-            maxTurns: 3
-        )
+        try await withTrace(name: "Pixel memory session") {
+            _ = try await Runner.run(
+                agent: agent,
+                input: "Remember: my dog is called Pixel.",
+                session: session,
+                maxTurns: 3
+            )
 
-        let second = try await Runner.run(
-            agent: agent,
-            input: "What's my dog's name?",
-            session: session,
-            maxTurns: 3
-        )
-        #expect(second.finalOutput.lowercased().contains("pixel"))
+            let second = try await Runner.run(
+                agent: agent,
+                input: "What's my dog's name?",
+                session: session,
+                maxTurns: 3
+            )
+            #expect(second.finalOutput.lowercased().contains("pixel"))
+        }
 
         try await session.clearSession()
     }

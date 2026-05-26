@@ -29,27 +29,31 @@ struct SessionResumeIntegrationTests {
 
         let session = InMemorySession()
 
-        _ = try await Runner.run(
-            agent: agent,
-            input: "Remember: my favourite colour is blue.",
-            session: session,
-            maxTurns: 3
-        )
+        // Group both Runner.run calls into one top-level trace on the
+        // dashboard — same pattern as Python's `with trace("..."):` and
+        // the Coder example's `withTrace(name: "Coder Session") { ... }`.
+        try await withTrace(name: "Memorizer session") {
+            _ = try await Runner.run(
+                agent: agent,
+                input: "Remember: my favourite colour is blue.",
+                session: session,
+                maxTurns: 3
+            )
 
-        let afterFirst = await session.getItems(limit: nil)
-        #expect(afterFirst.count >= 2, "expected at least user + assistant items, got \(afterFirst.count)")
+            let afterFirst = await session.getItems(limit: nil)
+            #expect(afterFirst.count >= 2, "expected at least user + assistant items, got \(afterFirst.count)")
 
-        let second = try await Runner.run(
-            agent: agent,
-            input: "What colour did I say was my favourite?",
-            session: session,
-            maxTurns: 3
-        )
+            let second = try await Runner.run(
+                agent: agent,
+                input: "What colour did I say was my favourite?",
+                session: session,
+                maxTurns: 3
+            )
+            #expect(second.finalOutput.lowercased().contains("blue"))
 
-        #expect(second.finalOutput.lowercased().contains("blue"))
-
-        let afterSecond = await session.getItems(limit: nil)
-        #expect(afterSecond.count > afterFirst.count)
+            let afterSecond = await session.getItems(limit: nil)
+            #expect(afterSecond.count > afterFirst.count)
+        }
     }
 
     @Test(
@@ -66,20 +70,21 @@ struct SessionResumeIntegrationTests {
             modelSettings: ModelSettings(temperature: 0)
         )
 
-        let first = try await Runner.run(
-            agent: agent,
-            input: "Remember: the secret word is platypus.",
-            maxTurns: 3
-        )
-        let resumeId = try #require(first.lastResponseId, "first run should return a chain pointer")
+        try await withTrace(name: "Memorizer scalar resume") {
+            let first = try await Runner.run(
+                agent: agent,
+                input: "Remember: the secret word is platypus.",
+                maxTurns: 3
+            )
+            let resumeId = try #require(first.lastResponseId, "first run should return a chain pointer")
 
-        let second = try await Runner.run(
-            agent: agent,
-            input: "What was the secret word?",
-            previousResponseId: resumeId,
-            maxTurns: 3
-        )
-
-        #expect(second.finalOutput.lowercased().contains("platypus"))
+            let second = try await Runner.run(
+                agent: agent,
+                input: "What was the secret word?",
+                previousResponseId: resumeId,
+                maxTurns: 3
+            )
+            #expect(second.finalOutput.lowercased().contains("platypus"))
+        }
     }
 }

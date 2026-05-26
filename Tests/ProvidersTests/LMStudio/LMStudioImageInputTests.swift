@@ -106,40 +106,46 @@ struct LMStudioImageInputTests {
         let session = InMemorySession()
         let dataURL = URL(string: "data:image/png;base64,\(solidRedPNG)")!
 
-        _ = try await Runner.run(
-            agent: agent,
-            input: .array([
-                .message(.init(role: .user, content: [
-                    .inputText("Look at this image. What colour is it?"),
-                    .inputImage(dataURL)
-                ]))
-            ]),
-            session: session,
-            maxTurns: 2
-        )
+        // Wrap both runs in a single `withTrace` so the OpenAI traces
+        // dashboard groups them into one top-level trace — two agent
+        // spans (one per Runner.run), each with its own Generation span,
+        // under one workflow.
+        let second = try await withTrace(name: "LM Studio vision memory") {
+            _ = try await Runner.run(
+                agent: agent,
+                input: .array([
+                    .message(.init(role: .user, content: [
+                        .inputText("Look at this image. What colour is it?"),
+                        .inputImage(dataURL)
+                    ]))
+                ]),
+                session: session,
+                maxTurns: 2
+            )
 
-        // The first turn appended the user image + assistant reply.
-        let afterFirst = await session.getItems(limit: nil)
-        #expect(afterFirst.count >= 2)
-        let sawImage = afterFirst.contains { element in
-            if case let .message(msg) = element, msg.role == .user {
-                return msg.content.contains { part in
-                    if case .inputImage = part { return true }
-                    return false
+            // The first turn appended the user image + assistant reply.
+            let afterFirst = await session.getItems(limit: nil)
+            #expect(afterFirst.count >= 2)
+            let sawImage = afterFirst.contains { element in
+                if case let .message(msg) = element, msg.role == .user {
+                    return msg.content.contains { part in
+                        if case .inputImage = part { return true }
+                        return false
+                    }
                 }
+                return false
             }
-            return false
-        }
-        #expect(sawImage, "expected the user's image part to be persisted in the session")
+            #expect(sawImage, "expected the user's image part to be persisted in the session")
 
-        // Follow-up turn (plain text) — the model should reference the
-        // colour it saw earlier via the replayed session history.
-        let second = try await Runner.run(
-            agent: agent,
-            input: "What colour was the image I just showed you?",
-            session: session,
-            maxTurns: 2
-        )
+            // Follow-up turn (plain text) — the model should reference
+            // the colour it saw earlier via the replayed session history.
+            return try await Runner.run(
+                agent: agent,
+                input: "What colour was the image I just showed you?",
+                session: session,
+                maxTurns: 2
+            )
+        }
         #expect(second.finalOutput.lowercased().contains("red"))
     }
 

@@ -151,37 +151,39 @@ struct SessionRoundTripLiveTests {
             modelSettings: ModelSettings(temperature: 0)
         )
 
-        _ = try await Runner.run(
-            agent: agent,
-            input: "What's the weather in Berlin?",
-            session: session,
-            maxTurns: 5
-        )
+        try await withTrace(name: "Weather memory session") {
+            _ = try await Runner.run(
+                agent: agent,
+                input: "What's the weather in Berlin?",
+                session: session,
+                maxTurns: 5
+            )
 
-        let afterFirst = await session.getItems(limit: nil)
-        // user msg + (assistant text? +) tool call + tool output + final
-        // assistant — at minimum 4 items.
-        #expect(afterFirst.count >= 4, "expected tool-call items in session, got \(afterFirst.count)")
-        let sawFunctionCall = afterFirst.contains { element in
-            if case .functionCall = element { return true }
-            return false
-        }
-        let sawFunctionCallOutput = afterFirst.contains { element in
-            if case .functionCallOutput = element { return true }
-            return false
-        }
-        #expect(sawFunctionCall, "expected the tool call to be persisted in the session")
-        #expect(sawFunctionCallOutput, "expected the tool output to be persisted in the session")
+            let afterFirst = await session.getItems(limit: nil)
+            // user msg + (assistant text? +) tool call + tool output +
+            // final assistant — at minimum 4 items.
+            #expect(afterFirst.count >= 4, "expected tool-call items in session, got \(afterFirst.count)")
+            let sawFunctionCall = afterFirst.contains { element in
+                if case .functionCall = element { return true }
+                return false
+            }
+            let sawFunctionCallOutput = afterFirst.contains { element in
+                if case .functionCallOutput = element { return true }
+                return false
+            }
+            #expect(sawFunctionCall, "expected the tool call to be persisted in the session")
+            #expect(sawFunctionCallOutput, "expected the tool output to be persisted in the session")
 
-        let second = try await Runner.run(
-            agent: agent,
-            input: "Which city did I just ask about?",
-            session: session,
-            maxTurns: 3
-        )
-        // If the session round-trips properly, the model sees the prior
-        // user message + tool exchange and answers "Berlin".
-        #expect(second.finalOutput.lowercased().contains("berlin"))
+            let second = try await Runner.run(
+                agent: agent,
+                input: "Which city did I just ask about?",
+                session: session,
+                maxTurns: 3
+            )
+            // If the session round-trips properly, the model sees the
+            // prior user message + tool exchange and answers "Berlin".
+            #expect(second.finalOutput.lowercased().contains("berlin"))
+        }
     }
 
     @Test(
@@ -192,33 +194,35 @@ struct SessionRoundTripLiveTests {
         let session = InMemorySession()
         let agent = StructuredColourAgent()
 
-        let first = try await Runner.run(
-            agent: agent,
-            input: "What colour is grass?",
-            session: session,
-            maxTurns: 3
-        )
-        #expect(!first.finalOutput.colour.isEmpty)
+        try await withTrace(name: "Colour memory session") {
+            let first = try await Runner.run(
+                agent: agent,
+                input: "What colour is grass?",
+                session: session,
+                maxTurns: 3
+            )
+            #expect(!first.finalOutput.colour.isEmpty)
 
-        let afterFirst = await session.getItems(limit: nil)
-        // user + assistant (the structured JSON) at minimum
-        #expect(afterFirst.count >= 2)
-        // Find the assistant message holding the JSON.
-        let assistant = afterFirst.first { element in
-            if case let .message(msg) = element, msg.role == .assistant { return true }
-            return false
+            let afterFirst = await session.getItems(limit: nil)
+            // user + assistant (the structured JSON) at minimum
+            #expect(afterFirst.count >= 2)
+            // Find the assistant message holding the JSON.
+            let assistant = afterFirst.first { element in
+                if case let .message(msg) = element, msg.role == .assistant { return true }
+                return false
+            }
+            #expect(assistant != nil, "expected the assistant's structured turn in the session")
+
+            let second = try await Runner.run(
+                agent: agent,
+                input: "What about the sky?",
+                session: session,
+                maxTurns: 3
+            )
+            // The second turn produces another ColourGuess; verifying
+            // it decoded at all proves the round-trip didn't poison
+            // the chat history with malformed assistant content.
+            #expect(!second.finalOutput.colour.isEmpty)
         }
-        #expect(assistant != nil, "expected the assistant's structured turn in the session")
-
-        let second = try await Runner.run(
-            agent: agent,
-            input: "What about the sky?",
-            session: session,
-            maxTurns: 3
-        )
-        // The second turn produces another ColourGuess; verifying it
-        // decoded at all proves the round-trip didn't poison the chat
-        // history with malformed assistant content.
-        #expect(!second.finalOutput.colour.isEmpty)
     }
 }
