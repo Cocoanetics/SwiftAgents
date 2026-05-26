@@ -3,21 +3,33 @@ import Foundation
 import Testing
 
 enum TestClients {
+    /// Reads a process-environment variable after ensuring SwiftDotenv
+    /// has had a chance to load the nearest `.env` file. Mirrors how
+    /// `APIKey` reads `OPENAI_API_KEY` etc. — without this hop, the
+    /// local-LLM gates below evaluate before `.env` is loaded if no
+    /// `APIKey.*` accessor has been touched yet (e.g. when filtering
+    /// `swift test --filter "LMStudio"`), and the entire suite silently
+    /// skips even though the value is sitting in `.env`.
+    private static func env(_ name: String) -> String? {
+        APIKey.loadEnvIfNeeded()
+        return ProcessInfo.processInfo.environment[name]
+    }
+
     static var hasOllama: Bool {
-        ProcessInfo.processInfo.environment["OLLAMA_URL"] != nil
+        env("OLLAMA_URL") != nil
     }
 
     static var hasLocalLLM: Bool {
-        ProcessInfo.processInfo.environment["LOCAL_LLM_URL"] != nil
+        env("LOCAL_LLM_URL") != nil
     }
 
     static var hasLMStudio: Bool {
-        ProcessInfo.processInfo.environment["LMSTUDIO_URL"] != nil
+        env("LMSTUDIO_URL") != nil
     }
 
     static func lmStudio() throws -> LMStudio {
         let raw = try #require(
-            ProcessInfo.processInfo.environment["LMSTUDIO_URL"],
+            env("LMSTUDIO_URL"),
             "LMSTUDIO_URL is required for this test"
         )
         let urlString = raw.hasPrefix("http") ? raw : "http://" + raw
@@ -44,7 +56,7 @@ enum TestClients {
 
     static func ollama() throws -> OllamaAPI {
         let raw = try #require(
-            ProcessInfo.processInfo.environment["OLLAMA_URL"],
+            env("OLLAMA_URL"),
             "OLLAMA_URL is required for this test"
         )
         let urlString = raw.hasPrefix("http") ? raw : "http://" + raw
@@ -53,7 +65,7 @@ enum TestClients {
     }
 
     static func localLLMEndpoint() -> URL? {
-        guard let raw = ProcessInfo.processInfo.environment["LOCAL_LLM_URL"] else {
+        guard let raw = env("LOCAL_LLM_URL") else {
             return nil
         }
         let urlString = raw.hasPrefix("http") ? raw : "http://" + raw
