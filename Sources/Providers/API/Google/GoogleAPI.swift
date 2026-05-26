@@ -641,18 +641,31 @@ public class GoogleAPI: API, @unchecked Sendable {
             return .array(arr.compactMap(jsonValue(from:)))
         }
         // NSNumber covers both Bool and numeric values from
-        // JSONSerialization; check Bool first to avoid widening
-        // `true` / `false` into integers.
+        // JSONSerialization. On macOS, `(NSNumber as? Bool)` and
+        // `(NSNumber as? Int)` BOTH succeed regardless of the
+        // underlying type, so we disambiguate via `objCType` — which
+        // is available on both Apple Foundation and
+        // swift-corelibs-foundation (CFBooleanGetTypeID isn't, hence
+        // this rewrite for Linux CI).
         if let number = raw as? NSNumber {
-            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+            let typeChar = String(cString: number.objCType)
+            if typeChar == "c" || typeChar == "B" {
+                // 'c' (signed char) and 'B' (bool) — NSNumber's
+                // boolean encodings.
                 return .bool(number.boolValue)
             }
-            let cType = String(cString: number.objCType)
-            if cType.contains("d") || cType.contains("f") {
+            if typeChar.contains("d") || typeChar.contains("f") {
                 return .double(number.doubleValue)
             }
             return .integer(number.intValue)
         }
+        // Fallback path for platforms where JSONSerialization
+        // returns Swift-native types directly (some Linux toolchains
+        // skip the NSNumber bridge). Check Bool first to avoid it
+        // collapsing into Int.
+        if let bool = raw as? Bool { return .bool(bool) }
+        if let int = raw as? Int { return .integer(int) }
+        if let dbl = raw as? Double { return .double(dbl) }
         if let str = raw as? String { return .string(str) }
         if raw is NSNull { return .null }
         return nil
