@@ -170,6 +170,32 @@ struct ResponseTests {
         #expect(output.phase == .finalAnswer)
     }
 
+    @Test("ReasoningOutput prefers non-empty `content` over empty `summary` array")
+    func reasoningOutputFallsThroughEmptySummary() throws {
+        // LM Studio's `/v1/responses` returns reasoning items with BOTH
+        // `summary: []` (empty) AND the rich text in
+        // `content: [{type: "reasoning_text", text: "..."}]`. The
+        // decoder used to take the summary branch on an empty array and
+        // never look at content, leaving the reasoning span empty on
+        // the trace dashboard. Guard against that.
+        let json = """
+        {
+          "id": "rs_abc",
+          "type": "reasoning",
+          "status": "completed",
+          "summary": [],
+          "content": [
+            {"type": "reasoning_text", "text": "let me think about this"}
+          ]
+        }
+        """
+        let output = try OpenAI(apiKey: "test").decoder.decode(
+            OutputItem.ReasoningOutput.self, from: Data(json.utf8)
+        )
+        #expect(output.summary.count == 1)
+        #expect(output.summary.first?.text == "let me think about this")
+    }
+
     @Test("Reasoning text decodes encrypted content include")
     func reasoningTextEncryptedContentDecoding() throws {
         let json = """

@@ -22,9 +22,13 @@ extension OutputItem.ReasoningOutput: Codable {
         id = try container.decode(String.self, forKey: .id)
         status = try container.decodeIfPresent(ResponseStatus.self, forKey: .status)
 
-        // OpenAI uses "summary", LM Studio uses "content"
-        if let summary = try? container.decode([OutputItem.SummaryItem].self, forKey: .summary) {
-            self.summary = summary
+        // OpenAI uses "summary"; LM Studio uses "content"; LM Studio
+        // ALSO sends `summary: []` (empty) alongside the rich `content`,
+        // so an empty summary should fall through to content rather than
+        // declaring victory and leaving the rich reasoning unused.
+        let decodedSummary = try? container.decode([OutputItem.SummaryItem].self, forKey: .summary)
+        if let decodedSummary, !decodedSummary.isEmpty {
+            summary = decodedSummary
         } else if let content = try? container.decode([ContentItem].self, forKey: .content) {
             // Convert reasoning_text content items to summary items
             summary = content.compactMap { item in
@@ -34,7 +38,7 @@ extension OutputItem.ReasoningOutput: Codable {
                 return nil
             }
         } else {
-            summary = []
+            summary = decodedSummary ?? []
         }
     }
 
