@@ -100,24 +100,42 @@ public struct LMStudioChatResponse: Codable, Sendable {
     public let usage: ResponsesUsage?
 }
 
-/// One element of the LM Studio `output` array. LM Studio docs show the
-/// simple form `{type: "message", content: "..."}` for assistant text, but
-/// for tool calls and structured content the wire matches the OpenAI
-/// Responses API. We accept both: try the simple form first, fall back to
+/// One element of the LM Studio `output` array. LM Studio's native chat
+/// endpoint emits a few simpler shapes than the OpenAI Responses API:
+///   - `{type: "message", content: <string>}` for assistant text
+///   - `{type: "reasoning", content: <string>}` for chain-of-thought
+///     summaries (no `id`, no `summary` field)
+/// For tool calls and other structured items the wire matches the OpenAI
+/// shape. We try the simple forms first; everything else falls through to
 /// the standard `OutputItem` decoder.
 public enum LMStudioOutputItem: Codable, Sendable {
     case message(id: String?, content: String)
+    case reasoning(content: String)
     case raw(OutputItem)
 
     public init(from decoder: Decoder) throws {
         let typed = try? decoder.container(keyedBy: TypedKeys.self)
-        if let type = try? typed?.decode(String.self, forKey: .type),
-           type == "message",
-           let raw = try? decoder.container(keyedBy: TypedKeys.self),
-           let content = try? raw.decode(String.self, forKey: .content) {
-            let id = try? raw.decodeIfPresent(String.self, forKey: .id)
-            self = .message(id: id, content: content)
-            return
+        if let type = try? typed?.decode(String.self, forKey: .type) {
+            switch type {
+                case "message":
+                    if let raw = try? decoder.container(keyedBy: TypedKeys.self),
+                       let content = try? raw.decode(String.self, forKey: .content) {
+                        let id = try? raw.decodeIfPresent(String.self, forKey: .id)
+                        self = .message(id: id, content: content)
+                        return
+                    }
+                case "reasoning":
+                    // LM Studio's reasoning shape lacks the `id` /
+                    // `summary` fields that `OutputItem.ReasoningOutput`
+                    // expects, so the standard decoder would throw on it.
+                    if let raw = try? decoder.container(keyedBy: TypedKeys.self),
+                       let content = try? raw.decode(String.self, forKey: .content) {
+                        self = .reasoning(content: content)
+                        return
+                    }
+                default:
+                    break
+            }
         }
         self = try .raw(OutputItem(from: decoder))
     }
@@ -128,6 +146,10 @@ public enum LMStudioOutputItem: Codable, Sendable {
                 var container = encoder.container(keyedBy: TypedKeys.self)
                 try container.encode("message", forKey: .type)
                 if let id { try container.encode(id, forKey: .id) }
+                try container.encode(content, forKey: .content)
+            case let .reasoning(content):
+                var container = encoder.container(keyedBy: TypedKeys.self)
+                try container.encode("reasoning", forKey: .type)
                 try container.encode(content, forKey: .content)
             case let .raw(item):
                 try item.encode(to: encoder)
@@ -152,6 +174,12 @@ extension LMStudioOutputItem {
                     role: .assistant,
                     status: .completed,
                     content: [.outputText(.init(text: content, annotations: []))]
+                ))
+            case let .reasoning(content):
+                return .reasoning(.init(
+                    id: UUID().uuidString,
+                    status: .completed,
+                    summary: [.init(type: "summary_text", text: content)]
                 ))
             case let .raw(item):
                 return item

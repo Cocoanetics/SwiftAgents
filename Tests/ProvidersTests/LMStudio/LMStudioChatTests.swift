@@ -50,6 +50,35 @@ struct LMStudioChatTests {
         #expect(text.text == "That's great! Blue is a beautiful color.")
     }
 
+    @Test("Reasoning items without an id decode without throwing")
+    func decodesReasoningWithoutId() throws {
+        // LM Studio emits reasoning summaries as a sparse object — no `id`,
+        // no `summary` field. The standard `OutputItem.ReasoningOutput`
+        // decoder requires `id`, so falling through to it used to throw
+        // on every turn that produced chain-of-thought.
+        let json = Data("""
+        {
+            "model_instance_id": "google/gemma-4-26b-a4b",
+            "output": [
+                {"type": "reasoning", "content": "User asked. Answer briefly."},
+                {"type": "message", "content": "OK"}
+            ],
+            "response_id": "resp_with_reasoning"
+        }
+        """.utf8)
+
+        let lmstudio = LMStudio()
+        let decoded = try lmstudio.decoder.decode(LMStudioChatResponse.self, from: json)
+        let response = decoded.toResponse(modelHint: "google/gemma-4-26b-a4b", instructions: nil)
+
+        #expect(response.output.count == 2)
+        guard case let .reasoning(reasoningOutput) = response.output.first else {
+            Issue.record("Expected reasoning output, got \(String(describing: response.output.first))")
+            return
+        }
+        #expect(reasoningOutput.summary.first?.text == "User asked. Answer briefly.")
+    }
+
     @Test("Falls back to OpenAI-shaped output when content is structured")
     func decodesStructuredMessageResponse() throws {
         let json = Data("""
