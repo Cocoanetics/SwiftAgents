@@ -25,6 +25,8 @@ public actor Runner {
     public static func run<A: Agent>(
         agent: A,
         input: String,
+        session: Session? = nil,
+        conversationStateTracker: ConversationStateTracker? = nil,
         maxTurns: Int = 10,
         config: RunConfig = RunConfig()
     ) async throws -> RunResult<A.OutputType> {
@@ -34,13 +36,29 @@ public actor Runner {
         if TraceContext.currentTrace == nil {
             // no current trace context, so we start one with default name
             return try await withTrace(name: "Agent Workflow") {
-                return try await run(agent: agent, input: input, maxTurns: maxTurns, config: config)
+                return try await run(
+                    agent: agent,
+                    input: input,
+                    session: session,
+                    conversationStateTracker: conversationStateTracker,
+                    maxTurns: maxTurns,
+                    config: config
+                )
             }
         }
 
+        // Provider-agnostic session is the canonical conversation log. If
+        // the caller didn't pass one, we still use a fresh InMemorySession
+        // internally so the per-turn flow stays uniform.
+        let session: Session = session ?? InMemorySession()
+        let tracker = conversationStateTracker ?? ConversationStateTracker()
+
+        // Seed the session with the user input. Tool call outputs and
+        // assistant outputs are appended later as each turn completes.
+        try await session.addItems([.userMessage(input)])
+
         var turns = 0
         let nextInput = Response.Input.text(input)
-        let previousResponse: Response? = nil
 
         var currentAgent: A = agent
 
@@ -49,9 +67,10 @@ public actor Runner {
             let api = try await Providers.shared.api(for: modelSpec)
             let model = modelSpec.modelNameWithoutProviderPrefix
 
-            // Reset these for each agent in the workflow
+            // Reset the per-agent nextInput pointer to the original user
+            // input. The session and tracker carry forward unchanged across
+            // handoffs.
             var currentNextInput = nextInput
-            var currentPreviousResponse = previousResponse
 
             let agentResult: AgentResult<A.OutputType> = try await withSpan { agentSpan in
                 var tools: [Tool] = currentAgent.createTools()
@@ -103,15 +122,16 @@ public actor Runner {
                         model: model,
                         api: api,
                         nextInput: currentNextInput,
-                        previousResponse: currentPreviousResponse,
+                        session: session,
+                        tracker: tracker,
                         decoder: decoder,
                         config: config
                     )
 
-                    // Update the current input/response state if needed
+                    // Update the current input pointer if needed; session
+                    // and tracker mutate in place.
                     if case let .continueWithState(state) = result.continuation {
                         currentNextInput = state.nextInput
-                        currentPreviousResponse = state.previousResponse
                     }
 
                     // Check output guardrails before returning the result from the agent's span
@@ -124,10 +144,9 @@ public actor Runner {
                     }
                     return result.result
                 } else {
-                    // Execute the agent directly using the turnState to track nextInput and previousResponse
+                    // Execute the agent directly using the turnState to track nextInput
                     var turnState = TurnState(
                         nextInput: currentNextInput,
-                        previousResponse: currentPreviousResponse,
                         turns: turns
                     )
 
@@ -139,6 +158,8 @@ public actor Runner {
                         model: model,
                         api: api,
                         turnState: &turnState,
+                        session: session,
+                        tracker: tracker,
                         decoder: decoder
                     )
 
@@ -175,12 +196,13 @@ public actor Runner {
 
     // MARK: - Helpers
 
-    /// Helper struct to track state across turns
+    /// Per-turn scratch state. Conversation history lives on the `Session`;
+    /// chain id lives on the `ConversationStateTracker`. This struct just
+    /// carries the bits that change between agents during a single run
+    /// (the next input to send + a turn counter).
     private struct TurnState {
         var nextInput: Response.Input
-        var previousResponse: Response?
         var turns: Int
-        var chatHistory: [ChatMessage] = []
     }
 
     /// Result type for the executeWithInputGuardrails function to include continuation state
@@ -204,14 +226,14 @@ public actor Runner {
         model: String,
         api: API,
         nextInput: Response.Input,
-        previousResponse: Response?,
+        session: Session,
+        tracker: ConversationStateTracker,
         decoder: JSONDecoder,
         config: RunConfig
     ) async throws -> GuardrailExecutionResult<A.OutputType> {
         // Initialize turn state
         var turnState = TurnState(
             nextInput: nextInput,
-            previousResponse: previousResponse,
             turns: 0
         )
 
@@ -233,6 +255,8 @@ public actor Runner {
                         model: model,
                         api: api,
                         turnState: &turnState,
+                        session: session,
+                        tracker: tracker,
                         decoder: decoder
                     )
                     return .agent(result)
@@ -342,14 +366,11 @@ public actor Runner {
         model: String,
         api: API,
         turnState: inout TurnState,
+        session: Session,
+        tracker: ConversationStateTracker,
         decoder: JSONDecoder
     ) async throws -> AgentResult<A.OutputType> {
         while turnState.turns < maxTurns {
-            if turnState.turns == 0 {
-                // Add chat history management, used with chat completions models
-                turnState.chatHistory.append(ChatMessage(role: .system, content: .text(agent.instructions)))
-            }
-
             turnState.turns += 1
 
             // Improved logging: agent name, model, turn number
@@ -361,41 +382,62 @@ public actor Runner {
             do {
                 let response: Response
 
-                if let openAI = api as? OpenAI {
+                if api.statePolicy.supportsServerSideHistory, let stateful = api as? ServerHistoryAPI {
                     response = try await withSpan { resultSpan in
-                        // set it without response up front, in case of error
-                        resultSpan.spanData = ResponseSpanData(input: turnState.nextInput)
+                        // Placeholder span before the call so error paths
+                        // still record something. For OpenAI-routable
+                        // providers we use ResponseSpanData (carries the id
+                        // OpenAI trace can resolve); for others we'll fill
+                        // a GenerationSpanData below.
+                        if api.statePolicy.responseIdsAreOpenAIRoutable {
+                            resultSpan.spanData = ResponseSpanData(input: turnState.nextInput)
+                        }
 
-                        let response = try await openAI.createResponse(
+                        let previousResponseId = await tracker.previousResponseId
+                        let response = try await stateful.dispatchCreateResponse(
                             input: turnState.nextInput,
                             model: model,
                             instructions: agent.instructions,
-                            maxOutputTokens: agent.modelSettings.maxCompletionTokens,
-                            metadata: agent.modelSettings.metadata,
-                            parallelToolCalls: agent.modelSettings.parallelToolCalls,
-                            previousResponseId: turnState.previousResponse?.id,
-                            reasoning: agent.modelSettings.reasoning,
-                            store: agent.modelSettings.store,
-                            temperature: agent.modelSettings.temperature,
+                            previousResponseId: previousResponseId,
                             textFormat: agent.outputType,
-                            toolChoice: agent.modelSettings.toolChoice,
                             tools: tools,
-                            topP: agent.modelSettings.topP,
-                            truncation: agent.modelSettings.truncation,
+                            modelSettings: agent.modelSettings
                         )
-                        resultSpan.spanData = ResponseSpanData(response: response, input: turnState.nextInput)
+
+                        if api.statePolicy.responseIdsAreOpenAIRoutable {
+                            resultSpan.spanData = ResponseSpanData(response: response, input: turnState.nextInput)
+                        } else {
+                            // Foreign response id — emit a Generation span
+                            // synthesised from the local input/output so
+                            // trace consumers don't need to fetch the id
+                            // from a remote that won't recognise it.
+                            resultSpan.spanData = Self.makeGenerationSpanForResponse(
+                                input: turnState.nextInput,
+                                instructions: agent.instructions,
+                                response: response,
+                                model: model,
+                                modelSettings: agent.modelSettings,
+                                baseURL: api.endpointURL.absoluteString
+                            )
+                        }
                         return response
                     }
                 } else {
-                    // Fallback for APIs that only support chat completion style
+                    // Fallback for APIs that only support chat completion style.
+                    // Build the wire history from the session each turn so a
+                    // resumed session picks up its prior messages, then
+                    // prepend the agent's system instructions.
                     response = try await withSpan { resultSpan in
-                        let messages = turnState.nextInput.toChatMessage()
-                        turnState.chatHistory.append(contentsOf: messages)
+                        let sessionItems = try await session.getItems()
+                        var messages: [ChatMessage] = [
+                            ChatMessage(role: .system, content: .text(agent.instructions))
+                        ]
+                        messages.append(contentsOf: Response.Input.array(sessionItems).toChatMessage())
 
                         // Call chat completion on generic API
                         let completion = try await api.createChatCompletion(
                             model: model,
-                            messages: turnState.chatHistory,
+                            messages: messages,
                             tools: tools.toolDescriptions,
                             n: nil,
                             stop: nil,
@@ -418,7 +460,7 @@ public actor Runner {
                         )
 
                         // Build span data for generation
-                        let inputMessages: [[String: JSONValue]] = turnState.chatHistory.map { msg in
+                        let inputMessages: [[String: JSONValue]] = messages.map { msg in
                             var dict: [String: JSONValue] = [
                                 "role": JSONValue(msg.role.rawValue)
                             ]
@@ -499,13 +541,24 @@ public actor Runner {
                             usage: usage
                         )
 
-                        // Append assistant message to history for next rounds
-                        if let assistantMessage = completion.choices.first?.message {
-                            turnState.chatHistory.append(assistantMessage)
-                        }
+                        // Assistant message gets added to the session below
+                        // via `OutputItem.toInputElement()` so the session
+                        // remains the single source of truth for history.
 
                         return response
                     }
+                }
+
+                // Update the chain tracker from the latest response. No-op
+                // when the response carries no usable id (mirrors Python's
+                // resume-hydration semantics across providers).
+                await tracker.update(from: response)
+
+                // Append the assistant's outputs to the session so the next
+                // turn — and any resumption of this session — picks them up.
+                let responseElements = response.output.compactMap { $0.toInputElement() }
+                if !responseElements.isEmpty {
+                    try await session.addItems(responseElements)
                 }
 
                 var newInputs = [Response.Input.Element]()
@@ -546,10 +599,14 @@ public actor Runner {
                                     newInputs.append(inputElement)
                                 }
 
-                                // Store updates before returning
+                                // Store updates before returning. The
+                                // chain pointer was already updated via
+                                // `tracker.update(from: response)`; here we
+                                // just stash the handoff payload as the
+                                // next agent's input and persist it.
                                 if !newInputs.isEmpty {
                                     turnState.nextInput = .array(newInputs)
-                                    turnState.previousResponse = response
+                                    try await session.addItems(newInputs)
                                 }
 
                                 // Return the handoff agent directly
@@ -602,7 +659,9 @@ public actor Runner {
 
                 if !newInputs.isEmpty {
                     turnState.nextInput = .array(newInputs)
-                    turnState.previousResponse = response
+                    // Persist tool outputs / approvals so a resumed session
+                    // sees them and a stateless provider replays them.
+                    try await session.addItems(newInputs)
                 } else {
                     if functionCalls.isEmpty {
                         if A.OutputType.self == String.self {
@@ -634,164 +693,8 @@ public actor Runner {
         throw RunnerError.exceededMaxTurns
     }
 
-    /// Wraps `agent.applyPatch(path:diff:type:)` and constructs the result.
-    static func executeApplyPatch(_ call: ApplyPatchCallOutput, agent: some Agent) -> ApplyPatchCallOutputResult {
-        guard let patcher = agent as? AppliesPatches else {
-            return ApplyPatchCallOutputResult(
-                callId: call.resolvedCallId,
-                output: "Error: Agent does not support apply_patch",
-                status: .failed
-            )
-        }
-        do {
-            try patcher.applyPatch(path: call.operation.path, diff: call.operation.diff, type: call.operation.type)
-            let verb = switch call.operation.type {
-                case .createFile: "Created"
-                case .updateFile: "Updated"
-                case .deleteFile: "Deleted"
-            }
-            return ApplyPatchCallOutputResult(callId: call.resolvedCallId, output: "\(verb) \(call.operation.path)")
-        } catch {
-            return ApplyPatchCallOutputResult(
-                callId: call.resolvedCallId,
-                output: "Error: \(error.localizedDescription)",
-                status: .failed
-            )
-        }
-    }
-
-    /// Helper to serialize OutputItem to a dictionary for tracing
-    private static func outputItemToDict(_ item: OutputItem) -> [String: JSONValue] {
-        switch item {
-            case let .message(message):
-                let content = message.content.compactMap { content in
-                    if case let .outputText(textContent) = content { return textContent.text }
-                    return nil
-                }.joined(separator: "\n")
-                return [
-                    "type": JSONValue("message"),
-                    "role": JSONValue(message.role.rawValue),
-                    "content": JSONValue(content)
-                ]
-            case let .functionCall(call):
-                // Try to decode arguments as JSON, fallback to string
-                let args = if let data = call.arguments.data(using: .utf8),
-                              let obj = try? JSONSerialization.jsonObject(with: data) {
-                    JSONValue(jsonObject: obj)
-                } else {
-                    JSONValue(call.arguments)
-                }
-                return [
-                    "type": JSONValue("tool_call"),
-                    "tool_call_id": JSONValue(call.callId),
-                    "tool_name": JSONValue(call.name),
-                    "arguments": args
-                ]
-            case let .fileSearch(file):
-                return [
-                    "type": JSONValue("file_search"),
-                    "id": JSONValue(file.id),
-                    "queries": JSONValue(file.queries),
-                    "results": JSONValue(file.results ?? [])
-                ]
-            case let .webSearch(web):
-                return [
-                    "type": JSONValue("web_search"),
-                    "id": JSONValue(web.id)
-                ]
-            case let .computer(comp):
-                return [
-                    "type": JSONValue("computer"),
-                    "id": JSONValue(comp.id),
-                    "action": JSONValue(String(describing: comp.action))
-                ]
-            case let .reasoning(reasoning):
-                let text = reasoning.summary.map(\.text).joined(separator: "\n")
-                return [
-                    "type": JSONValue("reasoning"),
-                    "content": JSONValue(text)
-                ]
-            case let .mcpListTools(mcpList):
-                return [
-                    "type": JSONValue("mcp_list_tools"),
-                    "id": JSONValue(mcpList.id),
-                    "server_label": JSONValue(mcpList.serverLabel),
-                    "tools": JSONValue(mcpList.tools.map { tool in
-                        [
-                            "name": JSONValue(tool.name),
-                            "description": JSONValue(tool.description),
-                            "input_schema": JSONValue(tool.inputSchema),
-                            "annotations": JSONValue(tool.annotations)
-                        ]
-                    })
-                ]
-            case let .mcpApprovalRequest(approval):
-                return [
-                    "type": JSONValue("mcp_approval_request"),
-                    "id": JSONValue(approval.id),
-                    "name": JSONValue(approval.name),
-                    "server_label": JSONValue(approval.serverLabel),
-                    "arguments": JSONValue(approval.arguments)
-                ]
-            case let .mcpCall(mcpCall):
-                return [
-                    "type": JSONValue("mcp_call"),
-                    "id": JSONValue(mcpCall.id),
-                    "approval_request_id": JSONValue(mcpCall.approvalRequestId),
-                    "arguments": JSONValue(mcpCall.arguments),
-                    "error": JSONValue(mcpCall.error),
-                    "name": JSONValue(mcpCall.name),
-                    "output": JSONValue(mcpCall.output),
-                    "server_label": JSONValue(mcpCall.serverLabel)
-                ]
-            case let .applyPatchCall(patchCall):
-                return [
-                    "type": JSONValue("apply_patch_call"),
-                    "id": JSONValue(patchCall.id),
-                    "operation_type": JSONValue(patchCall.operation.type.rawValue),
-                    "path": JSONValue(patchCall.operation.path)
-                ]
-        }
-    }
-
-    private static func checkOutputGuardrails<A: Agent>(
-        _ guardrails: [any OutputGuardrail],
-        output: A.OutputType,
-        agent: A
-    ) async throws {
-        if guardrails.isEmpty { return }
-
-        try await withThrowingTaskGroup(of: OutputGuardrailResult?.self) { group in
-            for guardrail in guardrails {
-                group.addTask {
-                    try await withSpan { span in
-                        let result = try await guardrail.evaluate(output, agent: agent)
-
-                        let outputResult = OutputGuardrailResult(
-                            guardrail: guardrail,
-                            agentOutput: (output as? any Encodable)
-                                .map(JSONValue.init) ?? .string(String(describing: output)),
-                            agent: agent,
-                            output: result
-                        )
-                        span.spanData = GuardrailSpanData(
-                            name: guardrail.name,
-                            triggered: result.tripwireTriggered
-                        )
-                        return outputResult
-                    }
-                }
-            }
-            // As soon as one returns tripwireTriggered, cancel all and throw
-            while let result = try await group.next() {
-                if let guardrailResult = result, guardrailResult.output.tripwireTriggered {
-                    group.cancelAll()
-                    throw OutputGuardrailTripwireTriggered(
-                        guardrailName: guardrailResult.guardrail.name,
-                        result: guardrailResult.output
-                    )
-                }
-            }
-        }
-    }
+    // Stateless helpers (`executeApplyPatch`, `makeGenerationSpanForResponse`,
+    // `inputToMessageDicts`, `outputItemToDict`, `checkOutputGuardrails`)
+    // live in `Runner+Helpers.swift` to keep this actor body focused on the
+    // per-turn state machine.
 }

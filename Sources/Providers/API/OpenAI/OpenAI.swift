@@ -12,6 +12,9 @@ import FoundationNetworking
 import SwiftMCP
 
 open class OpenAI: API, @unchecked Sendable {
+    /// OpenAI Responses API: stateful, ids routable to OpenAI tracing.
+    override open var statePolicy: ConversationStatePolicy { .openAIResponses }
+
     /// Initializes OpenAI API. If now API key is provided, then we're looking for OPENAI_API_KEY in the environment
     override public init(apiKey: String? = nil, endpointURL: URL = .openAI, versionPath: String = "v1") {
         super.init(

@@ -74,10 +74,12 @@ public actor Providers {
             apis[normalizedProvider.lowercased()] = ollama
             return ollama
         }
-        // Create LM Studio if requested (OpenAI-compatible local LLM)
+        // Create LM Studio if requested. Talks to LM Studio's native stateful
+        // chat endpoint (`/api/v1/chat`) so the Runner can chain turns via
+        // `previous_response_id` instead of resending history.
         if normalizedProvider.lowercased() == "lmstudio" {
-            let baseURL = ProcessInfo.processInfo.environment["LMSTUDIO_URL"] ?? "http://192.168.1.142:1234"
-            let lmstudio = OpenAI(apiKey: "lm-studio", endpointURL: URL(string: baseURL)!, versionPath: "v1")
+            let baseURL = ProcessInfo.processInfo.environment["LMSTUDIO_URL"] ?? "http://localhost:1234"
+            let lmstudio = LMStudio(endpointURL: URL(string: baseURL)!)
             apis["lmstudio"] = lmstudio
             return lmstudio
         }

@@ -1,0 +1,281 @@
+//
+//  Runner+Helpers.swift
+//  SwiftAgents
+//
+//  Stateless helpers split out of Runner.swift to keep the main actor body
+//  focused on the per-turn state machine: span-shape synthesis, the
+//  `Response.Input` ↔ message-dict translation used by GenerationSpanData,
+//  the OutputItem dict serializer used by trace exporters, the
+//  apply_patch dispatch, and the output-guardrail fan-out.
+
+import Foundation
+import SwiftMCP
+
+extension Runner {
+    /// Wraps `agent.applyPatch(path:diff:type:)` and constructs the result.
+    static func executeApplyPatch(_ call: ApplyPatchCallOutput, agent: some Agent) -> ApplyPatchCallOutputResult {
+        guard let patcher = agent as? AppliesPatches else {
+            return ApplyPatchCallOutputResult(
+                callId: call.resolvedCallId,
+                output: "Error: Agent does not support apply_patch",
+                status: .failed
+            )
+        }
+        do {
+            try patcher.applyPatch(path: call.operation.path, diff: call.operation.diff, type: call.operation.type)
+            let verb = switch call.operation.type {
+                case .createFile: "Created"
+                case .updateFile: "Updated"
+                case .deleteFile: "Deleted"
+            }
+            return ApplyPatchCallOutputResult(callId: call.resolvedCallId, output: "\(verb) \(call.operation.path)")
+        } catch {
+            return ApplyPatchCallOutputResult(
+                callId: call.resolvedCallId,
+                output: "Error: \(error.localizedDescription)",
+                status: .failed
+            )
+        }
+    }
+
+    /// Synthesise a `GenerationSpanData` describing a stateful turn whose
+    /// `response_id` shouldn't be exported to OpenAI tracing. Mirrors the
+    /// dict shape the chat-completions branch produces so trace consumers
+    /// see a uniform `generation` span regardless of which endpoint was
+    /// actually called.
+    static func makeGenerationSpanForResponse(
+        input: Response.Input,
+        instructions: String?,
+        response: Response,
+        model: String,
+        modelSettings: ModelSettings,
+        baseURL: String
+    ) -> GenerationSpanData {
+        var inputMessages: [[String: JSONValue]] = []
+        if let instructions, !instructions.isEmpty {
+            inputMessages.append([
+                "role": JSONValue("system"),
+                "content": JSONValue(instructions)
+            ])
+        }
+        inputMessages.append(contentsOf: inputToMessageDicts(input))
+
+        let outputMessages = response.output.map(outputItemToDict)
+
+        let modelConfig: [String: JSONValue] = [
+            "temperature": JSONValue(modelSettings.temperature),
+            "top_p": JSONValue(modelSettings.topP),
+            "frequency_penalty": JSONValue(modelSettings.frequencyPenalty),
+            "presence_penalty": JSONValue(modelSettings.presencePenalty),
+            "tool_choice": JSONValue(modelSettings.toolChoice),
+            "parallel_tool_calls": JSONValue(modelSettings.parallelToolCalls),
+            "truncation": JSONValue(modelSettings.truncation),
+            "max_tokens": JSONValue(modelSettings.maxCompletionTokens),
+            "reasoning": JSONValue(modelSettings.reasoning),
+            "metadata": JSONValue(modelSettings.metadata),
+            "store": JSONValue(modelSettings.store),
+            "include_usage": JSONValue(modelSettings.includeUsage),
+            "extra_query": JSONValue(modelSettings.extraQuery),
+            "extra_body": JSONValue(modelSettings.extraBody),
+            "extra_headers": JSONValue(modelSettings.extraHeaders),
+            "base_url": JSONValue(modelSettings.baseURL ?? baseURL)
+        ]
+
+        let usage: [String: JSONValue] = [
+            "input_tokens": JSONValue(response.usage?.inputTokens ?? 0),
+            "output_tokens": JSONValue(response.usage?.outputTokens ?? 0)
+        ]
+
+        return GenerationSpanData(
+            input: inputMessages,
+            output: outputMessages,
+            model: model,
+            modelConfig: modelConfig,
+            usage: usage
+        )
+    }
+
+    /// Best-effort conversion of `Response.Input` into the
+    /// `[[String: JSONValue]]` message-dict shape used by `GenerationSpanData`.
+    /// Only the element kinds the runner actually sends (user/system text,
+    /// tool call outputs, function calls) are mapped; other shapes are
+    /// dropped from the span rather than misrepresented.
+    static func inputToMessageDicts(_ input: Response.Input) -> [[String: JSONValue]] {
+        switch input {
+            case let .text(text):
+                return [[
+                    "role": JSONValue("user"),
+                    "content": JSONValue(text)
+                ]]
+            case let .array(elements):
+                return elements.compactMap { element -> [String: JSONValue]? in
+                    switch element {
+                        case let .message(msg):
+                            let content = msg.content.compactMap { piece -> String? in
+                                if case let .inputText(text) = piece { return text }
+                                return nil
+                            }.joined(separator: "\n")
+                            return [
+                                "role": JSONValue(msg.role.rawValue),
+                                "content": JSONValue(content)
+                            ]
+                        case let .functionCallOutput(output):
+                            return [
+                                "role": JSONValue("tool"),
+                                "tool_call_id": JSONValue(output.callId),
+                                "content": JSONValue(output.output)
+                            ]
+                        case let .functionCall(call):
+                            return [
+                                "role": JSONValue("assistant"),
+                                "tool_calls": JSONValue([[
+                                    "id": JSONValue(call.callId),
+                                    "type": JSONValue("function"),
+                                    "function": JSONValue([
+                                        "name": JSONValue(call.name),
+                                        "arguments": JSONValue(call.arguments)
+                                    ])
+                                ]])
+                            ]
+                        default:
+                            return nil
+                    }
+                }
+        }
+    }
+
+    /// Helper to serialize OutputItem to a dictionary for tracing
+    static func outputItemToDict(_ item: OutputItem) -> [String: JSONValue] {
+        switch item {
+            case let .message(message):
+                let content = message.content.compactMap { content in
+                    if case let .outputText(textContent) = content { return textContent.text }
+                    return nil
+                }.joined(separator: "\n")
+                return [
+                    "type": JSONValue("message"),
+                    "role": JSONValue(message.role.rawValue),
+                    "content": JSONValue(content)
+                ]
+            case let .functionCall(call):
+                // Try to decode arguments as JSON, fallback to string
+                let args = if let data = call.arguments.data(using: .utf8),
+                              let obj = try? JSONSerialization.jsonObject(with: data) {
+                    JSONValue(jsonObject: obj)
+                } else {
+                    JSONValue(call.arguments)
+                }
+                return [
+                    "type": JSONValue("tool_call"),
+                    "tool_call_id": JSONValue(call.callId),
+                    "tool_name": JSONValue(call.name),
+                    "arguments": args
+                ]
+            case let .fileSearch(file):
+                return [
+                    "type": JSONValue("file_search"),
+                    "id": JSONValue(file.id),
+                    "queries": JSONValue(file.queries),
+                    "results": JSONValue(file.results ?? [])
+                ]
+            case let .webSearch(web):
+                return [
+                    "type": JSONValue("web_search"),
+                    "id": JSONValue(web.id)
+                ]
+            case let .computer(comp):
+                return [
+                    "type": JSONValue("computer"),
+                    "id": JSONValue(comp.id),
+                    "action": JSONValue(String(describing: comp.action))
+                ]
+            case let .reasoning(reasoning):
+                let text = reasoning.summary.map(\.text).joined(separator: "\n")
+                return [
+                    "type": JSONValue("reasoning"),
+                    "content": JSONValue(text)
+                ]
+            case let .mcpListTools(mcpList):
+                return [
+                    "type": JSONValue("mcp_list_tools"),
+                    "id": JSONValue(mcpList.id),
+                    "server_label": JSONValue(mcpList.serverLabel),
+                    "tools": JSONValue(mcpList.tools.map { tool in
+                        [
+                            "name": JSONValue(tool.name),
+                            "description": JSONValue(tool.description),
+                            "input_schema": JSONValue(tool.inputSchema),
+                            "annotations": JSONValue(tool.annotations)
+                        ]
+                    })
+                ]
+            case let .mcpApprovalRequest(approval):
+                return [
+                    "type": JSONValue("mcp_approval_request"),
+                    "id": JSONValue(approval.id),
+                    "name": JSONValue(approval.name),
+                    "server_label": JSONValue(approval.serverLabel),
+                    "arguments": JSONValue(approval.arguments)
+                ]
+            case let .mcpCall(mcpCall):
+                return [
+                    "type": JSONValue("mcp_call"),
+                    "id": JSONValue(mcpCall.id),
+                    "approval_request_id": JSONValue(mcpCall.approvalRequestId),
+                    "arguments": JSONValue(mcpCall.arguments),
+                    "error": JSONValue(mcpCall.error),
+                    "name": JSONValue(mcpCall.name),
+                    "output": JSONValue(mcpCall.output),
+                    "server_label": JSONValue(mcpCall.serverLabel)
+                ]
+            case let .applyPatchCall(patchCall):
+                return [
+                    "type": JSONValue("apply_patch_call"),
+                    "id": JSONValue(patchCall.id),
+                    "operation_type": JSONValue(patchCall.operation.type.rawValue),
+                    "path": JSONValue(patchCall.operation.path)
+                ]
+        }
+    }
+
+    static func checkOutputGuardrails<A: Agent>(
+        _ guardrails: [any OutputGuardrail],
+        output: A.OutputType,
+        agent: A
+    ) async throws {
+        if guardrails.isEmpty { return }
+
+        try await withThrowingTaskGroup(of: OutputGuardrailResult?.self) { group in
+            for guardrail in guardrails {
+                group.addTask {
+                    try await withSpan { span in
+                        let result = try await guardrail.evaluate(output, agent: agent)
+
+                        let outputResult = OutputGuardrailResult(
+                            guardrail: guardrail,
+                            agentOutput: (output as? any Encodable)
+                                .map(JSONValue.init) ?? .string(String(describing: output)),
+                            agent: agent,
+                            output: result
+                        )
+                        span.spanData = GuardrailSpanData(
+                            name: guardrail.name,
+                            triggered: result.tripwireTriggered
+                        )
+                        return outputResult
+                    }
+                }
+            }
+            // As soon as one returns tripwireTriggered, cancel all and throw
+            while let result = try await group.next() {
+                if let guardrailResult = result, guardrailResult.output.tripwireTriggered {
+                    group.cancelAll()
+                    throw OutputGuardrailTripwireTriggered(
+                        guardrailName: guardrailResult.guardrail.name,
+                        result: guardrailResult.output
+                    )
+                }
+            }
+        }
+    }
+}

@@ -11,6 +11,20 @@ enum TestClients {
         ProcessInfo.processInfo.environment["LOCAL_LLM_URL"] != nil
     }
 
+    static var hasLMStudio: Bool {
+        ProcessInfo.processInfo.environment["LMSTUDIO_URL"] != nil
+    }
+
+    static func lmStudio() throws -> LMStudio {
+        let raw = try #require(
+            ProcessInfo.processInfo.environment["LMSTUDIO_URL"],
+            "LMSTUDIO_URL is required for this test"
+        )
+        let urlString = raw.hasPrefix("http") ? raw : "http://" + raw
+        let endpoint = try #require(URL(string: urlString), "LMSTUDIO_URL must be a valid URL")
+        return LMStudio(endpointURL: endpoint)
+    }
+
     private static let embeddingDetector = EmbeddingDetector()
 
     static func openAI() throws -> OpenAI {

@@ -25,6 +25,12 @@ open class API: @unchecked Sendable {
 
     let versionPath: String
 
+    /// How the Runner should handle conversation state and tracing for this
+    /// provider. Default: stateless (client sends full history, spans emit
+    /// `GenerationSpanData`). Subclasses override to opt into server-side
+    /// history chaining and/or OpenAI-routable response ids.
+    open var statePolicy: ConversationStatePolicy { .stateless }
+
     public lazy var encoder = {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = JSONEncoder.KeyEncodingStrategy.custom { codingPath in
