@@ -123,7 +123,7 @@ public class GoogleAPI: API, @unchecked Sendable {
         metadata _: [String: String]? = nil,
         parallelToolCalls _: Bool? = nil,
         presencePenalty _: Double? = nil,
-        responseFormat _: ChatCompletionRequest.ResponseFormat? = nil,
+        responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
         frequencyPenalty _: Double? = nil,
         logitBias _: [String: Int]? = nil,
         user _: String? = nil,
@@ -138,17 +138,12 @@ public class GoogleAPI: API, @unchecked Sendable {
             imageConfig: imageConfig.map { GoogleGenerateContentRequest.ImageConfig(
                 aspectRatio: $0.aspectRatio,
                 imageSize: $0.imageSize
-            ) }
+            ) },
+            responseFormat: responseFormat
         )
         let endpoint = "v1beta/models/\(model):generateContent"
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: requestPayload)
-        // logHttpRequest(request)
         let (data, response) = try await session.data(for: request)
-
-        let string = String(data: data, encoding: .utf8)!
-        let url = URL(fileURLWithPath: "/tmp/request.json")
-        try string.write(to: url, atomically: true, encoding: .utf8)
-
         return try makeChatCompletionResponse(model: model, data: data, response: response)
     }
 
@@ -301,7 +296,8 @@ public class GoogleAPI: API, @unchecked Sendable {
         from messages: [ChatMessage],
         tools: [ToolDescription]?,
         thinkingConfig: GoogleThinkingConfig?,
-        imageConfig: GoogleGenerateContentRequest.ImageConfig?
+        imageConfig: GoogleGenerateContentRequest.ImageConfig?,
+        responseFormat: ChatCompletionRequest.ResponseFormat? = nil
     ) -> GoogleGenerateContentRequest {
         var systemParts: [GoogleGenerateContent.Part] = []
         var contents: [GoogleGenerateContent.Content] = []
@@ -356,7 +352,12 @@ public class GoogleAPI: API, @unchecked Sendable {
                         continue
                     }
 
-                    var parts: [GoogleGenerateContent.Part] = []
+                    // The functionResponse part already carries the tool
+                    // output text in `response.output`. Don't also append
+                    // the raw textContent as a separate text part — Gemini
+                    // sees the conversation as "tool already answered, no
+                    // user query pending" and emits an empty content with
+                    // STOP, breaking `candidates[0].content.parts` decode.
                     let responsePart = GoogleGenerateContent.Part(
                         text: nil,
                         inlineData: nil,
@@ -369,9 +370,7 @@ public class GoogleAPI: API, @unchecked Sendable {
                         thought: nil,
                         thoughtSignature: nil
                     )
-                    parts.append(responsePart)
-                    parts.append(contentsOf: googleParts(from: message))
-                    contents.append(.init(role: "user", parts: parts))
+                    contents.append(.init(role: "user", parts: [responsePart]))
 
                 case .function:
                     continue
@@ -381,12 +380,38 @@ public class GoogleAPI: API, @unchecked Sendable {
         let systemInstruction = systemParts.isEmpty ? nil : GoogleGenerateContent.Content(role: nil, parts: systemParts)
 
         let requestThinkingConfig = thinkingConfig.map { GoogleGenerateContentRequest.ThinkingConfig(from: $0) }
-        let generationConfig = (requestThinkingConfig != nil || imageConfig != nil)
+
+        // Translate the OpenAI-shaped responseFormat into Gemini's
+        // `responseSchema` + `responseMimeType` pair. `.json` switches
+        // to JSON mode without enforcing a schema; `.jsonSchema(format)`
+        // enforces the given schema server-side. `.text` leaves both
+        // nil so the model replies in plain text.
+        let responseSchema: JSONValue?
+        let responseMimeType: String?
+        switch responseFormat {
+            case .none, .some(.text):
+                responseSchema = nil
+                responseMimeType = nil
+            case .some(.json):
+                responseSchema = nil
+                responseMimeType = "application/json"
+            case let .some(.jsonSchema(format)):
+                responseSchema = geminiCompatibleSchema(format.schema)
+                responseMimeType = "application/json"
+        }
+
+        let hasGenerationConfig = requestThinkingConfig != nil
+            || imageConfig != nil
+            || responseSchema != nil
+            || responseMimeType != nil
+        let generationConfig = hasGenerationConfig
             ? GoogleGenerateContentRequest.GenerationConfig(
                 thinkingConfig: requestThinkingConfig,
                 imageConfig: imageConfig,
                 responseModalities: imageConfig != nil ? ["IMAGE"] : nil,
-                temperature: 1.0
+                temperature: 1.0,
+                responseSchema: responseSchema,
+                responseMimeType: responseMimeType
             )
             : nil
 
@@ -549,6 +574,88 @@ public class GoogleAPI: API, @unchecked Sendable {
             default:
                 return .stop
         }
+    }
+
+    /// Encode a `JSONSchema` into the OpenAPI 3.0 subset Gemini's
+    /// `responseSchema` accepts. Gemini rejects unknown fields outright
+    /// (returns `INVALID_ARGUMENT` for `additional_properties` /
+    /// `$schema`), so we strip those — and any other JSON-Schema-only
+    /// vocabulary that might creep in — recursively from every nested
+    /// object before sending. Returns `nil` if the schema can't be
+    /// re-parsed; the caller falls back to no schema in that case.
+    private func geminiCompatibleSchema(_ schema: JSONSchema) -> JSONValue? {
+        // Use the API's pretty-print-free encoder so the JSON Schema
+        // produced here matches what the function-tool path already
+        // emits (no snake_case conversion under "schema" paths — see
+        // API.swift). We don't actually care about the wire bytes,
+        // only the parsed object.
+        let schemaEncoder = JSONEncoder()
+        guard let data = try? schemaEncoder.encode(schema),
+              let raw = try? JSONSerialization.jsonObject(with: data),
+              let value = jsonValue(from: raw) else {
+            return nil
+        }
+        return stripGeminiIncompatibleKeys(value)
+    }
+
+    /// Drop keys Gemini's schema subset rejects, recursively.
+    private func stripGeminiIncompatibleKeys(_ value: JSONValue) -> JSONValue {
+        // List of fields documented at https://ai.google.dev/api/caching#Schema
+        // as NOT being part of the supported subset. `additionalProperties`
+        // is the one the @Schema macro emits by default (defaults to
+        // `false`), so it's the practical concern; the rest are belt-and-
+        // braces against future JSON-Schema additions.
+        let disallowed: Set<String> = [
+            "additionalProperties",
+            "additional_properties",
+            "$schema",
+            "definitions",
+            "$defs",
+            "patternProperties",
+            "pattern_properties"
+        ]
+        switch value {
+            case let .object(dict):
+                var sanitised: [String: JSONValue] = [:]
+                for (key, child) in dict where !disallowed.contains(key) {
+                    sanitised[key] = stripGeminiIncompatibleKeys(child)
+                }
+                return .object(sanitised)
+            case let .array(items):
+                return .array(items.map(stripGeminiIncompatibleKeys))
+            default:
+                return value
+        }
+    }
+
+    private func jsonValue(from raw: Any) -> JSONValue? {
+        if let dict = raw as? [String: Any] {
+            var out: [String: JSONValue] = [:]
+            for (key, child) in dict {
+                guard let mapped = jsonValue(from: child) else { return nil }
+                out[key] = mapped
+            }
+            return .object(out)
+        }
+        if let arr = raw as? [Any] {
+            return .array(arr.compactMap(jsonValue(from:)))
+        }
+        // NSNumber covers both Bool and numeric values from
+        // JSONSerialization; check Bool first to avoid widening
+        // `true` / `false` into integers.
+        if let number = raw as? NSNumber {
+            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+                return .bool(number.boolValue)
+            }
+            let cType = String(cString: number.objCType)
+            if cType.contains("d") || cType.contains("f") {
+                return .double(number.doubleValue)
+            }
+            return .integer(number.intValue)
+        }
+        if let str = raw as? String { return .string(str) }
+        if raw is NSNull { return .null }
+        return nil
     }
 
     private func makeGoogleTools(from tools: [ToolDescription]?) -> [GoogleGenerateContentRequest.Tool]? {

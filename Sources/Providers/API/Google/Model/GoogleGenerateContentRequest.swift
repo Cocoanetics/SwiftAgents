@@ -1,4 +1,5 @@
 import Foundation
+import SwiftMCP
 
 /// Request payload for Gemini's native `models.generateContent` endpoint.
 /// Documentation: https://ai.google.dev/api/rest/v1/models/generateContent
@@ -35,17 +36,32 @@ public struct GoogleGenerateContentRequest: Codable, Sendable {
         public let imageConfig: ImageConfig?
         public let responseModalities: [String]?
         public let temperature: Double?
+        /// When set, Gemini constrains the response to the provided
+        /// schema. Stored as a `JSONValue` (not `JSONSchema`) because
+        /// Gemini accepts only a subset of the OpenAPI 3.0 schema
+        /// vocabulary and rejects fields like `additionalProperties` /
+        /// `$schema` outright — see `geminiCompatibleSchema(_:)` in
+        /// GoogleAPI for the sanitiser. Pair with
+        /// `responseMimeType: "application/json"` for JSON output.
+        public let responseSchema: JSONValue?
+        /// Mime type for the response. Set to `"application/json"`
+        /// alongside `responseSchema` to get JSON output.
+        public let responseMimeType: String?
 
         public init(
             thinkingConfig: ThinkingConfig? = nil,
             imageConfig: ImageConfig? = nil,
             responseModalities: [String]? = nil,
-            temperature: Double? = nil
+            temperature: Double? = nil,
+            responseSchema: JSONValue? = nil,
+            responseMimeType: String? = nil
         ) {
             self.thinkingConfig = thinkingConfig
             self.imageConfig = imageConfig
             self.responseModalities = responseModalities
             self.temperature = temperature
+            self.responseSchema = responseSchema
+            self.responseMimeType = responseMimeType
         }
     }
 
