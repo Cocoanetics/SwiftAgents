@@ -46,6 +46,33 @@ public actor Runner {
         maxTurns: Int = 10,
         config: RunConfig = RunConfig()
     ) async throws -> RunResult<A.OutputType> {
+        // Plain-text convenience — defers to the multimodal entrypoint.
+        try await run(
+            agent: agent,
+            input: Response.Input.text(input),
+            session: session,
+            previousResponseId: previousResponseId,
+            autoPreviousResponseId: autoPreviousResponseId,
+            conversationId: conversationId,
+            maxTurns: maxTurns,
+            config: config
+        )
+    }
+
+    /// Multimodal entrypoint. Accepts `Response.Input` so callers can pass
+    /// structured user input — e.g. a message with `.inputImage` content —
+    /// alongside (or instead of) plain text. Mirrors Python's
+    /// `Runner.run(input: str | list[TResponseInputItem])`.
+    public static func run<A: Agent>(
+        agent: A,
+        input: Response.Input,
+        session: Session? = nil,
+        previousResponseId: String? = nil,
+        autoPreviousResponseId: Bool = false,
+        conversationId: String? = nil,
+        maxTurns: Int = 10,
+        config: RunConfig = RunConfig()
+    ) async throws -> RunResult<A.OutputType> {
         try validateSessionConversationSettings(
             session: session,
             conversationId: conversationId,
@@ -88,12 +115,17 @@ public actor Runner {
             previousResponseId: previousResponseId
         )
 
-        // Seed the session with the user input. Tool call outputs and
-        // assistant outputs are appended later as each turn completes.
-        try await session.addItems([.userMessage(input)])
+        // Seed the session with the user input. `.text(s)` becomes a single
+        // user message; `.array(items)` is appended verbatim so multimodal
+        // callers can include `.inputImage` / `.inputImageFileID` parts.
+        let seededItems: [Response.Input.Element] = switch input {
+            case let .text(text): [.userMessage(text)]
+            case let .array(elements): elements
+        }
+        try await session.addItems(seededItems)
 
         var turns = 0
-        let nextInput = Response.Input.text(input)
+        let nextInput = input
 
         var currentAgent: A = agent
 
@@ -109,34 +141,7 @@ public actor Runner {
 
             let agentResult: AgentResult<A.OutputType> = try await withSpan { agentSpan in
                 var tools: [Tool] = currentAgent.createTools()
-
-                for proxy in currentAgent.mcpServers {
-                    tools += try await withSpan { mcpListSpan in
-                        let serverName = await proxy.serverName
-                        let mcpTools = try await proxy.listTools()
-
-                        let myTools = mcpTools.map { mcpTool in
-                            let parameters: Parameters = if case let .object(object, _) = mcpTool.inputSchema {
-                                Parameters(properties: object.properties)
-                            } else {
-                                .none
-                            }
-
-                            return Tool.function(FunctionTool(
-                                name: mcpTool.name,
-                                description: mcpTool.description,
-                                parameters: parameters,
-                                strict: true
-                            ))
-                        }
-
-                        let names = mcpTools.map(\.name)
-
-                        mcpListSpan.spanData = MCPListToolsSpanData(server: serverName, result: names)
-
-                        return myTools
-                    }
-                }
+                tools += try await Self.collectMCPTools(for: currentAgent)
 
                 agentSpan.spanData = AgentSpanData(
                     name: currentAgent.name,
@@ -147,10 +152,14 @@ public actor Runner {
 
                 // Check if we should run input guardrails (only for the first agent in a workflow)
                 if !currentAgent.inputGuardrails.isEmpty, agentSpan.parentID == nil {
+                    // Guardrails evaluate plain text — flatten any
+                    // multimodal `Response.Input` to its text parts so
+                    // guardrail signatures stay backwards-compatible.
+                    let guardrailInput = Self.flattenInputText(input)
                     // Execute agent with guardrails in parallel
                     let result = try await executeWithInputGuardrails(
                         agent: currentAgent,
-                        input: input,
+                        input: guardrailInput,
                         agentSpan: agentSpan,
                         tools: tools,
                         maxTurns: maxTurns,
@@ -437,14 +446,13 @@ public actor Runner {
                 // honor — structured output or tool calls in LM Studio's
                 // case — and let the chat-completions branch below handle
                 // it via `response_format` / `tools`.
-                let needsStructuredOutput: Bool = switch agent.outputType {
-                    case .text: false
-                    case .json, .jsonSchema: true
-                }
-                let needsToolCalls = !tools.isEmpty
-                let useStatefulPath = api.statePolicy.supportsServerSideHistory
-                    && (!needsStructuredOutput || api.statePolicy.supportsStructuredOutput)
-                    && (!needsToolCalls || api.statePolicy.supportsToolCalls)
+                let useStatefulPath = try await Self.shouldUseStatefulPath(
+                    policy: api.statePolicy,
+                    outputType: agent.outputType,
+                    tools: tools,
+                    nextInput: turnState.nextInput,
+                    session: session
+                )
                 if useStatefulPath, let stateful = api as? ServerHistoryAPI {
                     response = try await withSpan { resultSpan in
                         // Placeholder span before the call so error paths

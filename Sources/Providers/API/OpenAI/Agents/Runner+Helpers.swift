@@ -26,6 +26,125 @@ public struct SessionConversationConfigurationError: Error, CustomStringConverti
 }
 
 extension Runner {
+    /// Discovers tools from every MCP server proxy on the agent and
+    /// returns them as `[Tool]`. Wraps each server probe in its own
+    /// `MCPListToolsSpanData` span so trace consumers can see which
+    /// server contributed which names.
+    static func collectMCPTools(for agent: some Agent) async throws -> [Tool] {
+        var collected: [Tool] = []
+        for proxy in agent.mcpServers {
+            collected += try await withSpan { mcpListSpan in
+                let serverName = await proxy.serverName
+                let mcpTools = try await proxy.listTools()
+                let myTools = mcpTools.map { mcpTool in
+                    let parameters: Parameters = if case let .object(object, _) = mcpTool.inputSchema {
+                        Parameters(properties: object.properties)
+                    } else {
+                        .none
+                    }
+                    return Tool.function(FunctionTool(
+                        name: mcpTool.name,
+                        description: mcpTool.description,
+                        parameters: parameters,
+                        strict: true
+                    ))
+                }
+                let names = mcpTools.map(\.name)
+                mcpListSpan.spanData = MCPListToolsSpanData(server: serverName, result: names)
+                return myTools
+            }
+        }
+        return collected
+    }
+
+    /// Decides whether this turn should go through the provider's
+    /// stateful path or fall back to chat completions. Bundles the four
+    /// gating checks (server history, structured output, tool calls,
+    /// image input) so the Runner body stays focused on the per-turn
+    /// state machine. Only consults the session when the new input is
+    /// text-only AND the policy can't honor images — saves an extra
+    /// session read in the common case.
+    static func shouldUseStatefulPath(
+        policy: ConversationStatePolicy,
+        outputType: TextFormat,
+        tools: [Tool],
+        nextInput: Response.Input,
+        session: Session
+    ) async throws -> Bool {
+        guard policy.supportsServerSideHistory else { return false }
+
+        let needsStructuredOutput: Bool = switch outputType {
+            case .text: false
+            case .json, .jsonSchema: true
+        }
+        if needsStructuredOutput, !policy.supportsStructuredOutput { return false }
+        if !tools.isEmpty, !policy.supportsToolCalls { return false }
+
+        if inputContainsImage(nextInput) {
+            return policy.supportsImageInput
+        }
+        if !policy.supportsImageInput {
+            let items = try await session.getItems()
+            if sessionContainsImage(items) { return false }
+        }
+        return true
+    }
+
+    /// True when the input contains any image part (URL or file id).
+    /// Used by the dispatch decision to route multimodal turns away from
+    /// stateful endpoints that don't accept Responses-API image content.
+    static func inputContainsImage(_ input: Response.Input) -> Bool {
+        switch input {
+            case .text:
+                return false
+            case let .array(elements):
+                return elements.contains(where: messageHasImage)
+        }
+    }
+
+    /// Same check applied to session items — a session populated with
+    /// prior image turns should keep routing through chat completions
+    /// even if the new turn itself is plain text.
+    static func sessionContainsImage(_ items: [Response.Input.Element]) -> Bool {
+        items.contains(where: messageHasImage)
+    }
+
+    private static func messageHasImage(_ element: Response.Input.Element) -> Bool {
+        guard case let .message(msg) = element else { return false }
+        return msg.content.contains { part in
+            switch part {
+                case .inputImage, .inputImageFileID: return true
+                case .inputText, .outputText: return false
+            }
+        }
+    }
+
+    /// Flattens a (possibly multimodal) `Response.Input` to a plain string
+    /// for guardrails that evaluate text only. Concatenates the
+    /// `inputText` / `outputText` content of any message elements;
+    /// non-text parts (images, file ids) are dropped. Mirrors what
+    /// Python's guardrails receive — they evaluate against a string and
+    /// ignore image parts.
+    static func flattenInputText(_ input: Response.Input) -> String {
+        switch input {
+            case let .text(text):
+                return text
+            case let .array(elements):
+                return elements.compactMap { element -> String? in
+                    guard case let .message(msg) = element else { return nil }
+                    let texts = msg.content.compactMap { part -> String? in
+                        switch part {
+                            case let .inputText(text), let .outputText(text):
+                                return text
+                            default:
+                                return nil
+                        }
+                    }
+                    return texts.isEmpty ? nil : texts.joined(separator: "\n")
+                }.joined(separator: "\n")
+        }
+    }
+
     /// Reject configurations that would double-count history. A `Session`
     /// is the canonical conversation log the runner reads/writes; the three
     /// server-pointer kwargs delegate that responsibility to the provider.
