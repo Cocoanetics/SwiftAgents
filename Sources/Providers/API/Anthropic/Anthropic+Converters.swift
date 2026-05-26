@@ -155,7 +155,7 @@ extension Anthropic {
                                         = message.role == .assistant ? .assistant : .user
                                     let blocks = message.content.compactMap { element -> AnthropicContentBlock? in
                                         switch element {
-                                            case let .inputText(text):
+                                            case let .inputText(text), let .outputText(text):
                                                 return .text(.init(text: text))
                                             case let .inputImage(url):
                                                 guard let url else { return nil }

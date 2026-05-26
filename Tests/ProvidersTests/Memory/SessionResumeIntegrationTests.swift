@@ -28,13 +28,11 @@ struct SessionResumeIntegrationTests {
         )
 
         let session = InMemorySession()
-        let tracker = ConversationStateTracker()
 
         _ = try await Runner.run(
             agent: agent,
             input: "Remember: my favourite colour is blue.",
             session: session,
-            conversationStateTracker: tracker,
             maxTurns: 3
         )
 
@@ -45,7 +43,6 @@ struct SessionResumeIntegrationTests {
             agent: agent,
             input: "What colour did I say was my favourite?",
             session: session,
-            conversationStateTracker: tracker,
             maxTurns: 3
         )
 
@@ -53,5 +50,36 @@ struct SessionResumeIntegrationTests {
 
         let afterSecond = await session.getItems(limit: nil)
         #expect(afterSecond.count > afterFirst.count)
+    }
+
+    @Test(
+        "Scalar previousResponseId resume: lastResponseId from one run chains the next",
+        .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY")
+    )
+    func scalarResumeViaLastResponseId() async throws {
+        let agent = BasicAgent(
+            name: "Memorizer",
+            model: "gpt-4.1",
+            instructions: """
+            You remember everything the user tells you. Answer concisely.
+            """,
+            modelSettings: ModelSettings(temperature: 0)
+        )
+
+        let first = try await Runner.run(
+            agent: agent,
+            input: "Remember: the secret word is platypus.",
+            maxTurns: 3
+        )
+        let resumeId = try #require(first.lastResponseId, "first run should return a chain pointer")
+
+        let second = try await Runner.run(
+            agent: agent,
+            input: "What was the secret word?",
+            previousResponseId: resumeId,
+            maxTurns: 3
+        )
+
+        #expect(second.finalOutput.lowercased().contains("platypus"))
     }
 }

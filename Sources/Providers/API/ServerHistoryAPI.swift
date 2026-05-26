@@ -22,6 +22,7 @@ protocol ServerHistoryAPI: API {
         model: String,
         instructions: String?,
         previousResponseId: String?,
+        conversationId: String?,
         textFormat: TextFormat?,
         tools: [Tool]?,
         modelSettings: ModelSettings
@@ -34,6 +35,7 @@ extension OpenAI: ServerHistoryAPI {
         model: String,
         instructions: String?,
         previousResponseId: String?,
+        conversationId: String?,
         textFormat: TextFormat?,
         tools: [Tool]?,
         modelSettings: ModelSettings
@@ -41,6 +43,7 @@ extension OpenAI: ServerHistoryAPI {
         try await createResponse(
             input: input,
             model: model,
+            conversation: conversationId,
             instructions: instructions,
             maxOutputTokens: modelSettings.maxCompletionTokens,
             metadata: modelSettings.metadata,
@@ -64,10 +67,13 @@ extension LMStudio: ServerHistoryAPI {
         model: String,
         instructions: String?,
         previousResponseId: String?,
+        conversationId _: String?,
         textFormat: TextFormat?,
         tools: [Tool]?,
         modelSettings: ModelSettings
     ) async throws -> Response {
+        // LM Studio's native chat endpoint has no `conversation_id` concept
+        // — the chain pointer (`previous_response_id`) is the only handle.
         try await createResponse(
             input: input,
             model: model,

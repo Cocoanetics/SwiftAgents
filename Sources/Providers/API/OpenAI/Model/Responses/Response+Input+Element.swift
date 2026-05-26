@@ -166,8 +166,16 @@ public extension Response.Input {
 
     /// Represents the different types of content elements in a message
     enum ContentElement: Codable, Sendable {
-        /// Text content
+        /// User-side text content. Encoded as `{type: "input_text"}` on the
+        /// wire. The Responses API rejects this content type when the
+        /// enclosing message has `role: assistant` — use `.outputText`
+        /// instead for replayed assistant messages.
         case inputText(String)
+
+        /// Assistant-side text content. Encoded as `{type: "output_text"}`.
+        /// Used when feeding a prior assistant turn back into the model as
+        /// input on a stateless or session-driven turn.
+        case outputText(String)
 
         /// Image URL content
         case inputImage(URL?)
@@ -183,6 +191,9 @@ public extension Response.Input {
                 case "input_text":
                     let text = try container.decode(String.self, forKey: .text)
                     self = .inputText(text)
+                case "output_text":
+                    let text = try container.decode(String.self, forKey: .text)
+                    self = .outputText(text)
                 case "input_image":
                     if let fileID = try container.decodeIfPresent(String.self, forKey: .fileID) {
                         self = .inputImageFileID(fileID)
@@ -213,6 +224,9 @@ public extension Response.Input {
             switch self {
                 case let .inputText(text):
                     try container.encode("input_text", forKey: .type)
+                    try container.encode(text, forKey: .text)
+                case let .outputText(text):
+                    try container.encode("output_text", forKey: .type)
                     try container.encode(text, forKey: .text)
                 case let .inputImage(url):
                     try container.encode("input_image", forKey: .type)

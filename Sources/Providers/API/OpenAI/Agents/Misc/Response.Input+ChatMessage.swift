@@ -28,7 +28,7 @@ extension Response.Input {
                         case let .message(message):
                             let parts = message.content.compactMap { contentElement -> ChatMessage.ContentPart? in
                                 switch contentElement {
-                                    case let .inputText(text):
+                                    case let .inputText(text), let .outputText(text):
                                         return .init(text: text)
                                     case let .inputImage(url):
                                         guard let url else { return nil }

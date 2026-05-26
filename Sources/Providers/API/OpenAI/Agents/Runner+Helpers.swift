@@ -11,7 +11,40 @@
 import Foundation
 import SwiftMCP
 
+/// Surfaced when the caller combines `session` with any of
+/// `conversationId` / `previousResponseId` / `autoPreviousResponseId`.
+/// Mirrors `openai-agents-python`'s `UserError`.
+public struct SessionConversationConfigurationError: Error, CustomStringConvertible {
+    public let description: String
+
+    init() {
+        self.description = """
+        Session persistence cannot be combined with conversationId, \
+        previousResponseId, or autoPreviousResponseId.
+        """
+    }
+}
+
 extension Runner {
+    /// Reject configurations that would double-count history. A `Session`
+    /// is the canonical conversation log the runner reads/writes; the three
+    /// server-pointer kwargs delegate that responsibility to the provider.
+    /// Combining them would either re-send items the server already has or
+    /// shadow the session's view of "what was said." Mirrors Python's
+    /// `validate_session_conversation_settings`.
+    static func validateSessionConversationSettings(
+        session: Session?,
+        conversationId: String?,
+        previousResponseId: String?,
+        autoPreviousResponseId: Bool
+    ) throws {
+        guard session != nil else { return }
+        if conversationId == nil, previousResponseId == nil, !autoPreviousResponseId {
+            return
+        }
+        throw SessionConversationConfigurationError()
+    }
+
     /// Wraps `agent.applyPatch(path:diff:type:)` and constructs the result.
     static func executeApplyPatch(_ call: ApplyPatchCallOutput, agent: some Agent) -> ApplyPatchCallOutputResult {
         guard let patcher = agent as? AppliesPatches else {

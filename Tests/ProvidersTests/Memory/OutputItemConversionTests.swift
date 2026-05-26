@@ -12,8 +12,8 @@ import Foundation
 import Testing
 
 struct OutputItemConversionTests {
-    @Test("Message output lifts to message input with the same text")
-    func messageRoundtrip() {
+    @Test("Assistant message output lifts to outputText (replayable as input)")
+    func messageRoundtripAssistant() {
         let output = OutputItem.message(.init(
             id: "msg_1",
             role: .assistant,
@@ -26,11 +26,29 @@ struct OutputItemConversionTests {
             return
         }
         #expect(input.role == .assistant)
-        guard case let .inputText(text) = input.content.first else {
-            Issue.record("Expected inputText content")
+        // Assistant content must be `output_text` on the wire — the
+        // Responses API rejects `input_text` for assistant role.
+        guard case let .outputText(text) = input.content.first else {
+            Issue.record("Expected outputText content for assistant role")
             return
         }
         #expect(text == "Hello there")
+    }
+
+    @Test("User message output lifts to inputText")
+    func messageRoundtripUser() {
+        let output = OutputItem.message(.init(
+            id: "msg_2",
+            role: .user,
+            status: .completed,
+            content: [.outputText(.init(text: "Hi", annotations: []))]
+        ))
+        guard case let .message(input) = output.toInputElement(),
+              case let .inputText(text) = input.content.first else {
+            Issue.record("Expected .message with inputText for user role")
+            return
+        }
+        #expect(text == "Hi")
     }
 
     @Test("Function call lifts to function call input verbatim")

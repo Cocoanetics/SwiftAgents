@@ -22,14 +22,37 @@ private enum GuardrailOutcome<OutputType: Sendable> {
  between agents, tools, and the OpenAI API.
  */
 public actor Runner {
+    /// Run an agent workflow. Mirrors `openai-agents-python`'s
+    /// `Runner.run(...)` surface, in Swift naming:
+    ///   - `session`: provider-agnostic conversation log. When passed,
+    ///     `conversationId`/`previousResponseId`/`autoPreviousResponseId`
+    ///     must all be unset — they're alternative ways to track the same
+    ///     conversation and combining them double-counts items.
+    ///   - `previousResponseId`: chain pointer for stateful providers
+    ///     (OpenAI Responses API, LM Studio native chat).
+    ///   - `autoPreviousResponseId`: round-trip flag carried back on
+    ///     `RunResult` so callers can opt into chain continuity without
+    ///     juggling ids by hand.
+    ///   - `conversationId`: OpenAI Conversations API handle. The server
+    ///     becomes the source of truth; we forward it to `createResponse`
+    ///     and let it manage history.
     public static func run<A: Agent>(
         agent: A,
         input: String,
         session: Session? = nil,
-        conversationStateTracker: ConversationStateTracker? = nil,
+        previousResponseId: String? = nil,
+        autoPreviousResponseId: Bool = false,
+        conversationId: String? = nil,
         maxTurns: Int = 10,
         config: RunConfig = RunConfig()
     ) async throws -> RunResult<A.OutputType> {
+        try validateSessionConversationSettings(
+            session: session,
+            conversationId: conversationId,
+            previousResponseId: previousResponseId,
+            autoPreviousResponseId: autoPreviousResponseId
+        )
+
         let decoder: JSONDecoder = .init()
         decoder.dateDecodingStrategy = config.dateDecodingStrategy
 
@@ -40,7 +63,9 @@ public actor Runner {
                     agent: agent,
                     input: input,
                     session: session,
-                    conversationStateTracker: conversationStateTracker,
+                    previousResponseId: previousResponseId,
+                    autoPreviousResponseId: autoPreviousResponseId,
+                    conversationId: conversationId,
                     maxTurns: maxTurns,
                     config: config
                 )
@@ -51,7 +76,13 @@ public actor Runner {
         // the caller didn't pass one, we still use a fresh InMemorySession
         // internally so the per-turn flow stays uniform.
         let session: Session = session ?? InMemorySession()
-        let tracker = conversationStateTracker ?? ConversationStateTracker()
+        // Internal tracker, hydrated from the scalar kwargs. Mirrors
+        // Python's OpenAIServerConversationTracker — not exposed to
+        // callers; the resolved final values flow back via RunResult.
+        let tracker = ConversationStateTracker(
+            conversationId: conversationId,
+            previousResponseId: previousResponseId
+        )
 
         // Seed the session with the user input. Tool call outputs and
         // assistant outputs are appended later as each turn completes.
@@ -181,7 +212,20 @@ public actor Runner {
 
             switch agentResult {
                 case let .finalOutput(output, reasoning):
-                    return RunResult(finalOutput: output, finalReasoning: reasoning)
+                    // Pull the resolved chain pointers off the internal
+                    // tracker so callers can resume by passing them back as
+                    // `previousResponseId` / `conversationId` on the next
+                    // `Runner.run` call. Mirrors Python's
+                    // `RunResult._previous_response_id` / `_conversation_id`.
+                    let resolvedResponseId = await tracker.previousResponseId
+                    let resolvedConversationId = await tracker.conversationId
+                    return RunResult(
+                        finalOutput: output,
+                        finalReasoning: reasoning,
+                        lastResponseId: resolvedResponseId,
+                        lastConversationId: resolvedConversationId,
+                        autoPreviousResponseId: autoPreviousResponseId
+                    )
                 case let .handOff(nextAgent):
                     if let nextAgentTyped = nextAgent as? A {
                         currentAgent = nextAgentTyped
@@ -394,11 +438,30 @@ public actor Runner {
                         }
 
                         let previousResponseId = await tracker.previousResponseId
+                        let conversationId = await tracker.conversationId
+
+                        // When the chain pointer or conversation handle is
+                        // present, the server already has prior context;
+                        // send only the new turn. Otherwise (fresh run, or
+                        // resumed via a Session that wasn't paired with a
+                        // chain id), pass the full session history so the
+                        // server can reconstruct the conversation.
+                        let stateLessInput: Response.Input
+                        if previousResponseId != nil || conversationId != nil {
+                            stateLessInput = turnState.nextInput
+                        } else {
+                            let sessionItems = try await session.getItems()
+                            stateLessInput = sessionItems.isEmpty
+                                ? turnState.nextInput
+                                : .array(sessionItems)
+                        }
+
                         let response = try await stateful.dispatchCreateResponse(
-                            input: turnState.nextInput,
+                            input: stateLessInput,
                             model: model,
                             instructions: agent.instructions,
                             previousResponseId: previousResponseId,
+                            conversationId: conversationId,
                             textFormat: agent.outputType,
                             tools: tools,
                             modelSettings: agent.modelSettings

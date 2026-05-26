@@ -23,30 +23,27 @@
 import Foundation
 
 /// Per-run tracker for the response-id chain plus optional conversation id.
-/// An actor so concurrent agents (handoffs, parallel tool calls in future)
-/// can update it without racing.
-public actor ConversationStateTracker {
-    /// OpenAI Conversations API id, if the run is attached to one.
-    public private(set) var conversationId: String?
+/// Internal to the Runner: callers reach the resolved final values via
+/// `RunResult.lastResponseId` / `RunResult.lastConversationId`. Mirrors
+/// `openai-agents-python`'s `OpenAIServerConversationTracker`.
+actor ConversationStateTracker {
+    private(set) var conversationId: String?
+    private(set) var previousResponseId: String?
 
-    /// The last server-issued `response_id` worth chaining off. Updated only
-    /// when a new response actually carries a usable id.
-    public private(set) var previousResponseId: String?
-
-    public init(conversationId: String? = nil, previousResponseId: String? = nil) {
+    init(conversationId: String? = nil, previousResponseId: String? = nil) {
         self.conversationId = conversationId
         self.previousResponseId = previousResponseId
     }
 
     /// Record the conversation id this run is attached to.
-    public func setConversationId(_ id: String?) {
+    func setConversationId(_ id: String?) {
         conversationId = id
     }
 
     /// Update the chain pointer from a fresh `Response`. No-op if the
     /// response carries no usable id — preserves the prior chain across
     /// turns that happened to come from a stateless provider.
-    public func update(from response: Response) {
+    func update(from response: Response) {
         let id = response.id
         guard !id.isEmpty, Self.isChainableResponseId(id) else { return }
         previousResponseId = id
@@ -54,7 +51,7 @@ public actor ConversationStateTracker {
 
     /// Force the chain pointer to a specific id (or clear it). Useful when
     /// resuming from saved state.
-    public func setPreviousResponseId(_ id: String?) {
+    func setPreviousResponseId(_ id: String?) {
         if let id, id.isEmpty || !Self.isChainableResponseId(id) {
             return
         }
@@ -64,7 +61,7 @@ public actor ConversationStateTracker {
     /// Drops `previousResponseId` without touching `conversationId`. Use
     /// when handing off to a provider whose ids are incompatible with the
     /// current chain (cross-provider handoffs).
-    public func resetChain() {
+    func resetChain() {
         previousResponseId = nil
     }
 

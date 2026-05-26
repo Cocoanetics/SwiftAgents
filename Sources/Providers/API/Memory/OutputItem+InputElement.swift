@@ -21,8 +21,15 @@ public extension OutputItem {
     func toInputElement() -> Response.Input.Element? {
         switch self {
             case let .message(message):
+                // Assistant text must be `output_text` on the wire when
+                // replayed as input (OpenAI rejects `input_text` on
+                // assistant messages); user/system/tool messages use
+                // `input_text`.
+                let useOutputText = message.role == .assistant
                 let pieces: [Response.Input.ContentElement] = message.content.compactMap { piece in
-                    if case let .outputText(text) = piece { return .inputText(text.text) }
+                    if case let .outputText(text) = piece {
+                        return useOutputText ? .outputText(text.text) : .inputText(text.text)
+                    }
                     return nil
                 }
                 return .message(.init(

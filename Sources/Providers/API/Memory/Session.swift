@@ -28,8 +28,10 @@ import Foundation
 /// session pick up where the previous one left off.
 public protocol Session: Sendable {
     /// Stable identifier for this conversation. Useful for storage backends
-    /// that key on it (file path, SQLite row, etc.).
-    var sessionId: String { get }
+    /// that key on it (file path, SQLite row, etc.). Async because some
+    /// backends (e.g. `OpenAIConversationsSession`) lazy-create the id on
+    /// first access by calling out to a remote service.
+    var sessionId: String { get async }
 
     /// Returns the stored items in chronological order. When `limit` is set,
     /// returns the most recent `limit` items.
