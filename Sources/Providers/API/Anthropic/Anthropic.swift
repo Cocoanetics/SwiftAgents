@@ -129,7 +129,7 @@ public class Anthropic: API, @unchecked Sendable {
         metadata _: [String: String]? = nil,
         parallelToolCalls _: Bool? = nil,
         presencePenalty _: Double? = nil,
-        responseFormat _: ChatCompletionRequest.ResponseFormat? = nil,
+        responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
         frequencyPenalty _: Double? = nil,
         logitBias _: [String: Int]? = nil,
         user: String? = nil
@@ -148,7 +148,8 @@ public class Anthropic: API, @unchecked Sendable {
             stream: false,
             tools: Anthropic.convertToolDescriptions(tools),
             toolChoice: Anthropic.convertToolChoice(toolChoice),
-            metadata: user.map { AnthropicMessagesRequest.Metadata(userId: $0) }
+            metadata: user.map { AnthropicMessagesRequest.Metadata(userId: $0) },
+            outputConfig: Anthropic.convertOutputConfig(from: responseFormat)
         )
 
         let anthropicResponse = try await createMessage(request)

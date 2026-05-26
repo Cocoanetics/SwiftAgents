@@ -22,13 +22,11 @@ struct AgentGuardrailTest {
     struct MessageOutput: Codable, Equatable {
         let reasoning: String
         let response: String
+        // No CodingKeys remap — `@Schema` emits the Swift property name as
+        // the wire key, so the model returns "userName" verbatim and the
+        // decoder must look for the same. A `user_name` mapping here causes
+        // every turn to fail to decode and the run hits maxTurns.
         let userName: String
-
-        enum CodingKeys: String, CodingKey {
-            case reasoning
-            case response
-            case userName = "user_name"
-        }
     }
 
     final class MessageOutputAgent: Agent {

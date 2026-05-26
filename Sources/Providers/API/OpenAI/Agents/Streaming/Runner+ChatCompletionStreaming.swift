@@ -45,12 +45,19 @@ extension Runner {
             var assembledMessage: ChatMessage?
 
             try await withSpan { resultSpan in
+                // Omit `tools` entirely when empty — LM Studio reads
+                // `tools: []` as a request to enable lazy-grammar tool
+                // calling, which conflicts with `response_format`
+                // structured-output constraints.
+                let chatTools = tools.toolDescriptions
+                let toolsArg = chatTools.isEmpty ? nil : chatTools
+
                 let stream: AsyncThrowingStream<Chunk, Error>
                 do {
                     stream = try await api.createChatCompletionStream(
                         model: model,
                         messages: chatHistory,
-                        tools: tools.toolDescriptions,
+                        tools: toolsArg,
                         toolChoice: agent.modelSettings.toolChoice,
                         n: 1,
                         streamOptions: nil,
@@ -72,7 +79,7 @@ extension Runner {
                     let completion = try await api.createChatCompletion(
                         model: model,
                         messages: chatHistory,
-                        tools: tools.toolDescriptions,
+                        tools: toolsArg,
                         n: nil,
                         stop: nil,
                         store: agent.modelSettings.store,

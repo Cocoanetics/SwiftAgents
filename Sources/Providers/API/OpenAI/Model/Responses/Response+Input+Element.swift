@@ -95,6 +95,20 @@ public extension Response.Input {
                 case let .functionCallOutput(output):
                     try singleContainer.encode(output)
 
+                case let .functionCall(call):
+                    // `OutputItem.FunctionCall` doesn't include `type` in
+                    // its own CodingKeys (it's tagged at the OutputItem
+                    // enum level), so we must add the discriminator here
+                    // for the Responses API to accept it as a replayed
+                    // input item.
+                    try singleContainer.encode(FunctionCallWire(
+                        id: call.id,
+                        callId: call.callId,
+                        name: call.name,
+                        arguments: call.arguments,
+                        status: call.status
+                    ))
+
                 case let .mcpApprovalResponse(input):
                     try singleContainer.encode(input)
 
@@ -117,6 +131,23 @@ public extension Response.Input {
                         debugDescription: "Encoding not implemented for this Response.Input.Element case"
                     )
                     throw EncodingError.invalidValue(self, context)
+            }
+        }
+
+        /// Wire shape for replaying a prior `function_call` output item as
+        /// an `Input.Element`. Tags `type` so the Responses API recognises
+        /// the discriminator; everything else mirrors
+        /// `OutputItem.FunctionCall`.
+        private struct FunctionCallWire: Encodable {
+            let id: String
+            let callId: String
+            let name: String
+            let arguments: String
+            let status: ResponseStatus?
+            let type: String = "function_call"
+
+            private enum CodingKeys: String, CodingKey {
+                case id, callId, name, arguments, status, type
             }
         }
 
@@ -166,8 +197,16 @@ public extension Response.Input {
 
     /// Represents the different types of content elements in a message
     enum ContentElement: Codable, Sendable {
-        /// Text content
+        /// User-side text content. Encoded as `{type: "input_text"}` on the
+        /// wire. The Responses API rejects this content type when the
+        /// enclosing message has `role: assistant` — use `.outputText`
+        /// instead for replayed assistant messages.
         case inputText(String)
+
+        /// Assistant-side text content. Encoded as `{type: "output_text"}`.
+        /// Used when feeding a prior assistant turn back into the model as
+        /// input on a stateless or session-driven turn.
+        case outputText(String)
 
         /// Image URL content
         case inputImage(URL?)
@@ -183,6 +222,9 @@ public extension Response.Input {
                 case "input_text":
                     let text = try container.decode(String.self, forKey: .text)
                     self = .inputText(text)
+                case "output_text":
+                    let text = try container.decode(String.self, forKey: .text)
+                    self = .outputText(text)
                 case "input_image":
                     if let fileID = try container.decodeIfPresent(String.self, forKey: .fileID) {
                         self = .inputImageFileID(fileID)
@@ -213,6 +255,9 @@ public extension Response.Input {
             switch self {
                 case let .inputText(text):
                     try container.encode("input_text", forKey: .type)
+                    try container.encode(text, forKey: .text)
+                case let .outputText(text):
+                    try container.encode("output_text", forKey: .type)
                     try container.encode(text, forKey: .text)
                 case let .inputImage(url):
                     try container.encode("input_image", forKey: .type)

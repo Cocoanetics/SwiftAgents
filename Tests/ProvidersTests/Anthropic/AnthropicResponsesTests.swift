@@ -19,6 +19,11 @@ private class AnthropicResponsesTools {
     }
 }
 
+// Serialised so we don't burst Anthropic's per-account
+// concurrent-connection limit when the full test suite runs in
+// parallel. Tests within the suite execute one at a time; cross-
+// suite parallelism is preserved.
+@Suite(.serialized)
 struct AnthropicResponsesTests {
     private let model = "claude-haiku-4-5"
 

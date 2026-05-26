@@ -88,15 +88,18 @@ struct LMStudioStreamingTests {
             func snapshot() -> [[String: JSONValue]] { captured }
         }
         let spy = Spy()
-        await TraceProvider.shared.setProcessors([
+        // `addProcessor` rather than `setProcessors` so we coexist with
+        // any other trace-mutating test running concurrently — both
+        // `setProcessors` calls would otherwise clobber each other.
+        // Filtering by agent name below keeps assertions scoped to this
+        // test's run.
+        await TraceProvider.shared.addProcessor(
             BatchTraceProcessor(exporter: spy, scheduleDelay: 0.1)
-        ])
-        defer {
-            Task { await TraceProvider.shared.setProcessors([]) }
-        }
+        )
 
+        let agentName = "LMStudioTraceProbe"
         let agent = BasicAgent(
-            name: "LMStudioTraceProbe",
+            name: agentName,
             model: "lmstudio/\(model)",
             instructions: "Reply with exactly the word OK.",
             modelSettings: ModelSettings(temperature: 0)
@@ -113,8 +116,27 @@ struct LMStudioStreamingTests {
 
         // Sanity-check the same span types the non-streaming chat-completion
         // path emits — agent span + generation span — show up here too.
-        let spanTypes = captured.compactMap { entry -> String? in
-            guard case let .object(spanData) = entry["span_data"] ?? .null else { return nil }
+        // First find our agent span (only one with this agentName) and
+        // its trace_id, then filter the rest of the capture by that id
+        // so concurrent unrelated runs don't pollute the assertion. The
+        // generation span doesn't carry the agent name, so filtering by
+        // name alone misses it.
+        let encoder = JSONEncoder()
+        let entries = captured.compactMap { entry -> (entry: [String: JSONValue], json: String)? in
+            guard let data = try? encoder.encode(entry),
+                  let json = String(data: data, encoding: .utf8) else { return nil }
+            return (entry, json)
+        }
+        guard let anchor = entries.first(where: { $0.json.contains(agentName) }),
+              case let .string(traceID) = anchor.entry["trace_id"] ?? .null else {
+            Issue.record("no agent span for \(agentName); captured: \(entries.map(\.json).joined(separator: "\n"))")
+            return
+        }
+        let mine = entries.filter { $0.json.contains(traceID) }
+        #expect(!mine.isEmpty)
+
+        let spanTypes = mine.compactMap { pair -> String? in
+            guard case let .object(spanData) = pair.entry["span_data"] ?? .null else { return nil }
             if case let .string(type) = spanData["type"] ?? .null { return type }
             return nil
         }
@@ -123,9 +145,9 @@ struct LMStudioStreamingTests {
 
         // The workflow name should carry the inferred provider so the OpenAI
         // traces dashboard surfaces it at a glance.
-        let workflowNames = captured.compactMap { entry -> String? in
-            guard case let .string(object) = entry["object"] ?? .null, object == "trace" else { return nil }
-            if case let .string(name) = entry["workflow_name"] ?? .null { return name }
+        let workflowNames = mine.compactMap { pair -> String? in
+            guard case let .string(object) = pair.entry["object"] ?? .null, object == "trace" else { return nil }
+            if case let .string(name) = pair.entry["workflow_name"] ?? .null { return name }
             return nil
         }
         #expect(workflowNames.contains { $0.contains("lmstudio") }, "Got workflow names: \(workflowNames)")

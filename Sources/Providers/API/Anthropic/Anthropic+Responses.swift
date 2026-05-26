@@ -8,6 +8,7 @@
 //  This is the entry point the Agents SDK runner uses.
 
 import Foundation
+import SwiftMCP
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -32,7 +33,7 @@ public extension Anthropic {
         reasoning _: Reasoning? = nil,
         store _: Bool? = nil,
         temperature: Double? = nil,
-        textFormat _: TextFormat? = nil,
+        textFormat: TextFormat? = nil,
         toolChoice: ToolChoice? = nil,
         tools: [Tool]? = nil,
         topP: Double? = nil,
@@ -50,6 +51,7 @@ public extension Anthropic {
             toolChoice: toolChoice,
             parallelToolCalls: parallelToolCalls,
             previousResponseId: previousResponseId,
+            textFormat: textFormat,
             user: user,
             stream: false
         )
@@ -77,6 +79,7 @@ public extension Anthropic {
         reasoning _: Reasoning? = nil,
         store _: Bool? = nil,
         temperature: Double? = nil,
+        textFormat: TextFormat? = nil,
         toolChoice: ToolChoice? = nil,
         tools: [Tool]? = nil,
         topP: Double? = nil,
@@ -94,6 +97,7 @@ public extension Anthropic {
             toolChoice: toolChoice,
             parallelToolCalls: parallelToolCalls,
             previousResponseId: previousResponseId,
+            textFormat: textFormat,
             user: user,
             stream: true
         )
@@ -133,6 +137,7 @@ public extension Anthropic {
         toolChoice: ToolChoice?,
         parallelToolCalls: Bool?,
         previousResponseId: String?,
+        textFormat: TextFormat? = nil,
         user: String?,
         stream: Bool
     ) async throws -> (AnthropicMessagesRequest, [AnthropicMessage]) {
@@ -165,10 +170,87 @@ public extension Anthropic {
             stream: stream,
             tools: anthropicTools,
             toolChoice: convertedToolChoice,
-            metadata: user.map { AnthropicMessagesRequest.Metadata(userId: $0) }
+            metadata: user.map { AnthropicMessagesRequest.Metadata(userId: $0) },
+            outputConfig: Anthropic.convertOutputConfig(from: textFormat)
         )
 
         return (request, priorMessages)
+    }
+}
+
+extension Anthropic {
+    /// Translate the OpenAI-shaped `TextFormat` into Anthropic's native
+    /// `output_config` payload. Only `.jsonSchema` produces one — `.text`
+    /// and `.json` (JSON-mode without a schema) leave it nil so the
+    /// model replies normally. The schema is run through
+    /// `sanitizedSchemaForAnthropic(_:)` to drop fields Anthropic's
+    /// json_schema validator rejects — see
+    /// https://platform.claude.com/docs/en/build-with-claude/structured-outputs.
+    /// `additionalProperties: false` is REQUIRED by Anthropic and is
+    /// what the `@Schema` macro already emits, so it's kept verbatim.
+    static func convertOutputConfig(from textFormat: TextFormat?) -> AnthropicMessagesRequest.OutputConfig? {
+        guard case let .jsonSchema(format) = textFormat,
+              let schema = sanitizedSchemaForAnthropic(format.schema) else {
+            return nil
+        }
+        return AnthropicMessagesRequest.OutputConfig(format: .init(schema: schema))
+    }
+
+    /// Chat-completion variant — same translation, different source
+    /// enum. The chat-completion fallback path in the Runner is the
+    /// one Anthropic actually takes because `Anthropic` does not
+    /// conform to `ServerHistoryAPI`, so this is the wiring that
+    /// matters in practice.
+    static func convertOutputConfig(
+        from responseFormat: ChatCompletionRequest.ResponseFormat?
+    ) -> AnthropicMessagesRequest.OutputConfig? {
+        guard case let .jsonSchema(format) = responseFormat,
+              let schema = sanitizedSchemaForAnthropic(format.schema) else {
+            return nil
+        }
+        return AnthropicMessagesRequest.OutputConfig(format: .init(schema: schema))
+    }
+
+    /// Strip JSON-Schema features Anthropic's `output_config.format`
+    /// does not support, recursively. Anthropic accepts:
+    ///   type, properties, required, items, enum, const, anyOf, oneOf,
+    ///   description, additionalProperties (must be false),
+    ///   propertyOrdering.
+    /// And rejects: minimum/maximum/multipleOf, minLength/maxLength,
+    /// pattern, maxItems, `$ref`, `$schema`, `definitions`/`$defs`,
+    /// recursive schemas.
+    ///
+    /// Uses SwiftMCP's `JSONValue(encoding:)` to get a parsed-JSON tree
+    /// straight from the Codable schema — no JSONSerialization round-
+    /// trip, no NSNumber/objCType Bool-vs-Int disambiguation (SwiftMCP
+    /// handles that internally and cross-platform).
+    static func sanitizedSchemaForAnthropic(_ schema: JSONSchema) -> JSONValue? {
+        guard let value = try? JSONValue(encoding: schema) else { return nil }
+        return stripKeys(value)
+    }
+
+    private static let disallowedAnthropicKeys: Set<String> = [
+        "minimum", "maximum", "multipleOf",
+        "minLength", "maxLength", "pattern",
+        "maxItems",
+        "$ref", "$schema",
+        "definitions", "$defs",
+        "patternProperties"
+    ]
+
+    private static func stripKeys(_ value: JSONValue) -> JSONValue {
+        switch value {
+            case let .object(dict):
+                var sanitised: [String: JSONValue] = [:]
+                for (key, child) in dict where !disallowedAnthropicKeys.contains(key) {
+                    sanitised[key] = stripKeys(child)
+                }
+                return .object(sanitised)
+            case let .array(items):
+                return .array(items.map(stripKeys))
+            default:
+                return value
+        }
     }
 }
 
