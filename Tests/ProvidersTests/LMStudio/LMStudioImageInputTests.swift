@@ -15,6 +15,7 @@
 
 import Foundation
 @testable import Providers
+import SwiftMCP
 import Testing
 
 /// A 1x1 solid-red PNG, base64-encoded. Verified to decode and reach
@@ -140,5 +141,81 @@ struct LMStudioImageInputTests {
             maxTurns: 2
         )
         #expect(second.finalOutput.lowercased().contains("red"))
+    }
+
+    @Test(
+        "Image-input run emits agent + generation spans",
+        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+    )
+    func tracingForImageInput() async throws {
+        // Capture every span the global tracer emits during the agent
+        // run. Same pattern as `AnthropicResponsesTests.tracesShipToOpenAI`.
+        actor Spy: TracingExporter {
+            var captured: [[String: JSONValue]] = []
+            nonisolated func export(_ items: [[String: JSONValue]]) async {
+                await append(items)
+            }
+            func append(_ items: [[String: JSONValue]]) { captured.append(contentsOf: items) }
+            func snapshot() -> [[String: JSONValue]] { captured }
+        }
+        let spy = Spy()
+        await TraceProvider.shared.setProcessors([
+            BatchTraceProcessor(exporter: spy, scheduleDelay: 0.1)
+        ])
+        // Reset processors after the test so we don't leak the spy into
+        // unrelated runs that may execute later in the same suite.
+        defer { Task { await TraceProvider.shared.setProcessors([]) } }
+
+        let agent = BasicAgent(
+            name: "LMStudioVisionTraceProbe",
+            model: "lmstudio/\(visionModel)",
+            instructions: "Answer with one word.",
+            modelSettings: ModelSettings(temperature: 0, maxCompletionTokens: 200)
+        )
+        let dataURL = URL(string: "data:image/png;base64,\(solidRedPNG)")!
+
+        _ = try await Runner.run(
+            agent: agent,
+            input: .array([
+                .message(.init(role: .user, content: [
+                    .inputText("What colour is this image?"),
+                    .inputImage(dataURL)
+                ]))
+            ]),
+            maxTurns: 2
+        )
+
+        // Wait for the batch processor to flush (scheduleDelay = 100ms).
+        try await Task.sleep(for: .milliseconds(500))
+
+        let captured = await spy.snapshot()
+        #expect(!captured.isEmpty, "expected the Runner to emit at least one trace/span")
+
+        // Flatten every exported item to JSON once and string-match —
+        // cheaper than walking nested JSONValue containers and robust
+        // against schema tweaks in the exporter.
+        let encoder = JSONEncoder()
+        let flattened = captured.compactMap { item -> String? in
+            guard let data = try? encoder.encode(item),
+                  let json = String(data: data, encoding: .utf8) else { return nil }
+            return json
+        }
+        let joined = flattened.joined(separator: "\n")
+
+        // LM Studio image runs route through chat completions (the
+        // native `/api/v1/chat` can't handle images), so the per-turn
+        // span carries `GenerationSpanData` rather than
+        // `ResponseSpanData`. Both span shapes must be present.
+        #expect(joined.contains("\"type\":\"agent\""),
+                "expected at least one agent span. Captured:\n\(joined)")
+        #expect(joined.contains("\"type\":\"generation\""),
+                "expected at least one generation span. Captured:\n\(joined)")
+
+        // The image content should appear in the generation span's
+        // input — proves the trace export carries the multimodal
+        // payload, not just the assistant's textual reply.
+        let imageMentioned = joined.contains("data:image/png;base64")
+            || joined.contains("image_url")
+        #expect(imageMentioned, "expected the image content to appear in at least one exported span")
     }
 }
