@@ -159,15 +159,18 @@ struct LMStudioImageInputTests {
             func snapshot() -> [[String: JSONValue]] { captured }
         }
         let spy = Spy()
-        await TraceProvider.shared.setProcessors([
+        // `addProcessor` instead of `setProcessors` so we coexist with any
+        // other trace-mutating test running concurrently (e.g. the
+        // streaming-trace test) — `setProcessors` replaces and they'd
+        // clobber each other. Filtering by agent name below then picks
+        // out only the spans we care about.
+        await TraceProvider.shared.addProcessor(
             BatchTraceProcessor(exporter: spy, scheduleDelay: 0.1)
-        ])
-        // Reset processors after the test so we don't leak the spy into
-        // unrelated runs that may execute later in the same suite.
-        defer { Task { await TraceProvider.shared.setProcessors([]) } }
+        )
 
+        let agentName = "LMStudioVisionTraceProbe"
         let agent = BasicAgent(
-            name: "LMStudioVisionTraceProbe",
+            name: agentName,
             model: "lmstudio/\(visionModel)",
             instructions: "Answer with one word.",
             modelSettings: ModelSettings(temperature: 0, maxCompletionTokens: 200)
@@ -191,16 +194,26 @@ struct LMStudioImageInputTests {
         let captured = await spy.snapshot()
         #expect(!captured.isEmpty, "expected the Runner to emit at least one trace/span")
 
-        // Flatten every exported item to JSON once and string-match —
-        // cheaper than walking nested JSONValue containers and robust
-        // against schema tweaks in the exporter.
+        // Flatten every exported item to JSON. Other trace-emitting tests
+        // can share the global TraceProvider in parallel — find OUR
+        // run's `trace_id` (the agent span carries this test's agent
+        // name) and filter everything else by that id so the assertions
+        // stay scoped to this run.
         let encoder = JSONEncoder()
         let flattened = captured.compactMap { item -> String? in
             guard let data = try? encoder.encode(item),
                   let json = String(data: data, encoding: .utf8) else { return nil }
             return json
         }
-        let joined = flattened.joined(separator: "\n")
+        let anchorJSON = flattened.first(where: { $0.contains(agentName) })
+        let anchor = try #require(
+            anchorJSON,
+            "no spans for \(agentName) in capture: \(flattened.joined(separator: "\n"))"
+        )
+        let traceID = Self.extractTraceID(from: anchor)
+        let resolvedTraceID = try #require(traceID, "expected a trace_id on the agent span")
+        let mine = flattened.filter { $0.contains(resolvedTraceID) }
+        let joined = mine.joined(separator: "\n")
 
         // LM Studio image runs route through chat completions (the
         // native `/api/v1/chat` can't handle images), so the per-turn
@@ -217,5 +230,16 @@ struct LMStudioImageInputTests {
         let imageMentioned = joined.contains("data:image/png;base64")
             || joined.contains("image_url")
         #expect(imageMentioned, "expected the image content to appear in at least one exported span")
+    }
+
+    /// Pulls the `trace_id` out of a flattened span/trace JSON blob.
+    /// Used to scope assertions to a single Runner.run when other tests
+    /// share the global TraceProvider.
+    private static func extractTraceID(from json: String) -> String? {
+        guard let range = json.range(of: "\"trace_id\":\""),
+              let end = json[range.upperBound...].firstIndex(of: "\"") else {
+            return nil
+        }
+        return String(json[range.upperBound ..< end])
     }
 }
