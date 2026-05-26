@@ -147,6 +147,31 @@ extension Runner {
         }
     }
 
+    /// Variant that reads the full session as the span input, falling
+    /// back to a provided `Response.Input` when the session is empty
+    /// (first-turn case, or no session). Keeps the call site in
+    /// `Runner.run` compact.
+    static func makeGenerationSpanForResponse(
+        session: Session,
+        fallback: Response.Input,
+        instructions: String?,
+        response: Response,
+        model: String,
+        modelSettings: ModelSettings,
+        baseURL: String
+    ) async throws -> GenerationSpanData {
+        let sessionItems = try await session.getItems()
+        let input: Response.Input = sessionItems.isEmpty ? fallback : .array(sessionItems)
+        return makeGenerationSpanForResponse(
+            input: input,
+            instructions: instructions,
+            response: response,
+            model: model,
+            modelSettings: modelSettings,
+            baseURL: baseURL
+        )
+    }
+
     /// Synthesise a `GenerationSpanData` describing a stateful turn whose
     /// `response_id` shouldn't be exported to OpenAI tracing. Mirrors the
     /// dict shape the chat-completions branch produces so trace consumers

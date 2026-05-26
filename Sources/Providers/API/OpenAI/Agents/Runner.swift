@@ -487,12 +487,13 @@ public actor Runner {
                         if api.statePolicy.responseIdsAreOpenAIRoutable {
                             resultSpan.spanData = ResponseSpanData(response: response, input: turnState.nextInput)
                         } else {
-                            // Foreign response id — emit a Generation span
-                            // synthesised from the local input/output so
-                            // trace consumers don't need to fetch the id
-                            // from a remote that won't recognise it.
-                            resultSpan.spanData = Self.makeGenerationSpanForResponse(
-                                input: turnState.nextInput,
+                            // Foreign response id — synthesise a Generation
+                            // span carrying the full session history (not
+                            // just the per-turn delta) so the dashboard
+                            // shows what the model actually saw.
+                            resultSpan.spanData = try await Self.makeGenerationSpanForResponse(
+                                session: session,
+                                fallback: turnState.nextInput,
                                 instructions: agent.instructions,
                                 response: response,
                                 model: model,
