@@ -8,6 +8,7 @@
 //  This is the entry point the Agents SDK runner uses.
 
 import Foundation
+import SwiftMCP
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -32,7 +33,7 @@ public extension Anthropic {
         reasoning _: Reasoning? = nil,
         store _: Bool? = nil,
         temperature: Double? = nil,
-        textFormat _: TextFormat? = nil,
+        textFormat: TextFormat? = nil,
         toolChoice: ToolChoice? = nil,
         tools: [Tool]? = nil,
         topP: Double? = nil,
@@ -50,6 +51,7 @@ public extension Anthropic {
             toolChoice: toolChoice,
             parallelToolCalls: parallelToolCalls,
             previousResponseId: previousResponseId,
+            textFormat: textFormat,
             user: user,
             stream: false
         )
@@ -77,6 +79,7 @@ public extension Anthropic {
         reasoning _: Reasoning? = nil,
         store _: Bool? = nil,
         temperature: Double? = nil,
+        textFormat: TextFormat? = nil,
         toolChoice: ToolChoice? = nil,
         tools: [Tool]? = nil,
         topP: Double? = nil,
@@ -94,6 +97,7 @@ public extension Anthropic {
             toolChoice: toolChoice,
             parallelToolCalls: parallelToolCalls,
             previousResponseId: previousResponseId,
+            textFormat: textFormat,
             user: user,
             stream: true
         )
@@ -133,6 +137,7 @@ public extension Anthropic {
         toolChoice: ToolChoice?,
         parallelToolCalls: Bool?,
         previousResponseId: String?,
+        textFormat: TextFormat? = nil,
         user: String?,
         stream: Bool
     ) async throws -> (AnthropicMessagesRequest, [AnthropicMessage]) {
@@ -165,10 +170,98 @@ public extension Anthropic {
             stream: stream,
             tools: anthropicTools,
             toolChoice: convertedToolChoice,
-            metadata: user.map { AnthropicMessagesRequest.Metadata(userId: $0) }
+            metadata: user.map { AnthropicMessagesRequest.Metadata(userId: $0) },
+            outputConfig: Anthropic.convertOutputConfig(from: textFormat)
         )
 
         return (request, priorMessages)
+    }
+}
+
+extension Anthropic {
+    /// Translate the OpenAI-shaped `TextFormat` into Anthropic's native
+    /// `output_config` payload. Only `.jsonSchema` produces one — `.text`
+    /// and `.json` (JSON-mode without a schema) leave it nil so the
+    /// model replies normally. The schema is run through
+    /// `sanitizedForAnthropic(_:)` to drop fields Anthropic's
+    /// json_schema validator rejects (`minimum`, `maximum`, `pattern`,
+    /// `$ref`, etc.) — see
+    /// https://platform.claude.com/docs/en/build-with-claude/structured-outputs.
+    /// `additionalProperties: false` is REQUIRED by Anthropic and is
+    /// what the `@Schema` macro already emits, so it's kept verbatim.
+    static func convertOutputConfig(from textFormat: TextFormat?) -> AnthropicMessagesRequest.OutputConfig? {
+        guard case let .jsonSchema(format) = textFormat else { return nil }
+        let sanitised = sanitizedSchemaForAnthropic(format.schema)
+        return AnthropicMessagesRequest.OutputConfig(
+            format: .init(schema: sanitised)
+        )
+    }
+
+    /// Chat-completion variant — same translation, different source
+    /// enum. The chat-completion fallback path in the Runner is the
+    /// one Anthropic actually takes because `Anthropic` does not
+    /// conform to `ServerHistoryAPI`, so this is the wiring that
+    /// matters in practice.
+    static func convertOutputConfig(
+        from responseFormat: ChatCompletionRequest.ResponseFormat?
+    ) -> AnthropicMessagesRequest.OutputConfig? {
+        guard case let .jsonSchema(format) = responseFormat else { return nil }
+        let sanitised = sanitizedSchemaForAnthropic(format.schema)
+        return AnthropicMessagesRequest.OutputConfig(
+            format: .init(schema: sanitised)
+        )
+    }
+
+    /// Strip JSON-Schema features Anthropic's `output_config.format`
+    /// does not support, recursively. Anthropic accepts:
+    ///   type, properties, required, items, enum, const, anyOf, oneOf,
+    ///   description, additionalProperties (must be false),
+    ///   propertyOrdering.
+    /// And rejects: minimum/maximum/multipleOf, minLength/maxLength,
+    /// pattern, minItems/maxItems (mostly), `$ref`, `$schema`,
+    /// `definitions`/`$defs`, recursive schemas.
+    static func sanitizedSchemaForAnthropic(_ schema: JSONSchema) -> JSONSchema {
+        // Round-trip through JSON so we can strip arbitrary keys without
+        // mutating the typed schema. The @Schema macro emits a fairly
+        // tight subset already, but tools defined elsewhere in the SDK
+        // may inject minLength/pattern hints that would 400 Anthropic.
+        let disallowed: Set<String> = [
+            "minimum", "maximum", "multipleOf",
+            "minLength", "maxLength", "pattern",
+            "maxItems",
+            "$ref", "$schema",
+            "definitions", "$defs",
+            "patternProperties"
+        ]
+        let encoder = JSONEncoder()
+        guard let data = try? encoder.encode(schema) else { return schema }
+        guard var dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return schema
+        }
+        dict = stripKeys(dict, disallowed: disallowed)
+        guard let restored = try? JSONSerialization.data(withJSONObject: dict),
+              let sanitised = try? JSONDecoder().decode(JSONSchema.self, from: restored) else {
+            return schema
+        }
+        return sanitised
+    }
+
+    private static func stripKeys(_ raw: [String: Any], disallowed: Set<String>) -> [String: Any] {
+        var out: [String: Any] = [:]
+        for (key, value) in raw where !disallowed.contains(key) {
+            out[key] = stripKeysFromAny(value, disallowed: disallowed)
+        }
+        return out
+    }
+
+    private static func stripKeysFromAny(_ value: Any, disallowed: Set<String>) -> Any {
+        if let dict = value as? [String: Any] {
+            return stripKeys(dict, disallowed: disallowed)
+        }
+        if let arr = value as? [Any] {
+            return arr.map { stripKeysFromAny($0, disallowed: disallowed) }
+        }
+        return value
     }
 }
 

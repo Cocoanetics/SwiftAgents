@@ -3,17 +3,13 @@
 //  ProvidersTests
 //
 //  Structured-output coverage via the Agents SDK Runner against
-//  Anthropic. Anthropic does NOT currently honor `textFormat` /
-//  `responseFormat` server-side (`Anthropic+Responses.swift` and
-//  `Anthropic+ChatCompletion.swift` both ignore the parameter with an
-//  underscore arg), so this test exercises the prompt-engineering
-//  path: the agent has an `@Schema`-decorated `OutputType` and the
-//  prompt explicitly asks for matching JSON. If Claude returns clean
-//  JSON, the Runner decodes it and the test passes.
-//
-//  If structured output ever lands natively on Anthropic, this test
-//  should keep passing — the schema constraint would just become
-//  server-enforced rather than prompt-suggested.
+//  Anthropic. Exercises Anthropic's NATIVE structured outputs feature
+//  (`output_config.format` with `type: "json_schema"`, per
+//  https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
+//  rather than prompt-driven JSON. The schema constraint is enforced
+//  server-side via grammar-constrained sampling — Claude can't return
+//  text that doesn't match the schema, so the agent's `instructions`
+//  contain no JSON shape hints.
 //
 //  Gated on ANTHROPIC_API_KEY.
 //
@@ -33,17 +29,16 @@ private final class AnthropicColourGuessAgent: Agent {
     typealias OutputType = AnthropicColourGuess
     let name = "AnthropicColourGuesser"
     let model: String? = "anthropic/claude-haiku-4-5"
-    let instructions = """
-    Decide what colour a thing usually is. Reply with ONLY a JSON object
-    matching this schema: { "colour": <string>, "confidence": <number> }.
-    No prose, no markdown fences.
-    """
+    // No JSON hints in the prompt — the schema is enforced via
+    // `output_config.format`. If we accidentally regress to plain text
+    // mode, the decoder fails and this test catches it.
+    let instructions = "Decide what colour a thing usually is."
     let modelSettings = ModelSettings(temperature: 0)
 }
 
 struct AnthropicRunnerStructuredOutputTests {
     @Test(
-        "Runner produces a @Schema-decoded result from Anthropic via prompt-driven JSON",
+        "Runner produces a @Schema-decoded result from Anthropic via output_config",
         .enabled(if: APIKey.hasAnthropic, "Requires ANTHROPIC_API_KEY")
     )
     func runnerStructuredOutput() async throws {
@@ -53,10 +48,11 @@ struct AnthropicRunnerStructuredOutputTests {
             input: "What colour is grass?",
             maxTurns: 3
         )
-        // Decoded result means Claude returned valid JSON shaped like
-        // the @Schema decl — the prompt-driven structured-output path
-        // worked. If Anthropic ever gains native schema enforcement
-        // this assertion is still correct.
+        // Server-side grammar-constrained sampling guarantees the
+        // response is parseable JSON matching the schema. If
+        // `output_config` ever gets dropped on the floor again, the
+        // model would respond in prose ("Grass is green.") and decode
+        // would fail.
         #expect(!result.finalOutput.colour.isEmpty)
         #expect(result.finalOutput.confidence.isFinite)
     }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftMCP
 
 /// Request body for `POST /v1/messages`.
 ///
@@ -26,6 +27,12 @@ public struct AnthropicMessagesRequest: Codable, Sendable {
     public let tools: [AnthropicTool]?
     public let toolChoice: AnthropicToolChoice?
     public let metadata: Metadata?
+    /// Native structured-output config, per
+    /// https://platform.claude.com/docs/en/build-with-claude/structured-outputs
+    /// — Anthropic constrains the assistant's output to the given JSON
+    /// Schema server-side (grammar-constrained sampling), returning the
+    /// JSON inline as a text block. Mutually compatible with `tools`.
+    public let outputConfig: OutputConfig?
 
     public init(
         model: String,
@@ -39,7 +46,8 @@ public struct AnthropicMessagesRequest: Codable, Sendable {
         stream: Bool? = nil,
         tools: [AnthropicTool]? = nil,
         toolChoice: AnthropicToolChoice? = nil,
-        metadata: Metadata? = nil
+        metadata: Metadata? = nil,
+        outputConfig: OutputConfig? = nil
     ) {
         self.model = model
         self.messages = messages
@@ -53,6 +61,27 @@ public struct AnthropicMessagesRequest: Codable, Sendable {
         self.tools = tools
         self.toolChoice = toolChoice
         self.metadata = metadata
+        self.outputConfig = outputConfig
+    }
+
+    /// `output_config.format` wire payload. Currently Anthropic supports
+    /// only `type: "json_schema"`.
+    public struct OutputConfig: Codable, Sendable {
+        public let format: Format
+
+        public init(format: Format) {
+            self.format = format
+        }
+
+        public struct Format: Codable, Sendable {
+            public let type: String
+            public let schema: JSONSchema
+
+            public init(type: String = "json_schema", schema: JSONSchema) {
+                self.type = type
+                self.schema = schema
+            }
+        }
     }
 
     public struct Metadata: Codable, Sendable {
@@ -80,5 +109,6 @@ public struct AnthropicMessagesRequest: Codable, Sendable {
         case tools
         case toolChoice = "tool_choice"
         case metadata
+        case outputConfig = "output_config"
     }
 }
