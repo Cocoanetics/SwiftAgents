@@ -168,19 +168,35 @@ struct AnthropicResponsesTests {
         let agent = BasicAgent(
             name: "AnthropicStreamer",
             model: "anthropic/\(model)",
-            instructions: "Write the phrase 'streaming works' in lowercase, nothing else.",
+            instructions: "Write a single sentence describing why streaming is useful for chat UIs.",
             modelSettings: ModelSettings(temperature: 0)
         )
 
         let runResult = Runner.runStreamed(agent: agent, input: "go", maxTurns: 3)
 
         var sawMessage = false
+        var deltaCount = 0
+        var accumulatedDelta = ""
         for try await event in runResult.events {
-            if case let .runItemEvent(_, item) = event,
-                case let .message(text) = item, !text.isEmpty {
-                sawMessage = true
+            switch event {
+                case let .rawResponseEvent(rawEvent):
+                    if case let .outputTextDelta(info) = rawEvent.object {
+                        deltaCount += 1
+                        accumulatedDelta += info.delta
+                    }
+                case let .runItemEvent(_, item):
+                    if case let .message(text) = item, !text.isEmpty {
+                        sawMessage = true
+                    }
+                default:
+                    continue
             }
         }
+        // Token-by-token streaming is the whole point of `runStreamed` — for
+        // any meaningful answer Anthropic should emit several text deltas
+        // before the final message arrives, not just one synthetic event.
+        #expect(deltaCount > 1, "Expected multiple text deltas, got \(deltaCount)")
+        #expect(!accumulatedDelta.isEmpty)
         #expect(sawMessage)
     }
 

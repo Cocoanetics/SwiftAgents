@@ -94,4 +94,38 @@ struct AnthropicChatTests {
         let content = try #require(choice.message.textContent)
         #expect(!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
+
+    @Test("Anthropic chat completion stream", .enabled(if: APIKey.hasAnthropic, "Requires ANTHROPIC_API_KEY"))
+    func chatCompletionStream() async throws {
+        let client = try TestClients.anthropic()
+        let messages: [ChatMessage] = [
+            .init(role: .system, content: .text("You are a concise assistant.")),
+            .init(role: .user, content: .text("Write one short sentence about why streaming matters."))
+        ]
+
+        let stream = try await client.createChatCompletionStream(
+            model: model,
+            messages: messages,
+            maxCompletionTokens: 200
+        )
+
+        var deltaCount = 0
+        var accumulated = ""
+        var sawFinish = false
+        for try await chunk in stream {
+            for choice in chunk.choices {
+                if let content = choice.delta.content, !content.isEmpty {
+                    deltaCount += 1
+                    accumulated += content
+                }
+                if choice.finishReason != nil {
+                    sawFinish = true
+                }
+            }
+        }
+
+        #expect(deltaCount > 1, "Expected multiple deltas, got \(deltaCount)")
+        #expect(!accumulated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        #expect(sawFinish)
+    }
 }

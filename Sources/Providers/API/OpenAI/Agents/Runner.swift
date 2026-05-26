@@ -57,8 +57,12 @@ public actor Runner {
         decoder.dateDecodingStrategy = config.dateDecodingStrategy
 
         if TraceContext.currentTrace == nil {
-            // no current trace context, so we start one with default name
-            return try await withTrace(name: "Agent Workflow") {
+            // no current trace context, so we start one with a name derived
+            // from the model spec when possible (main brought `workflowName`
+            // in via the streaming PR).
+            let spec = config.model ?? agent.model ?? "gpt-4.1"
+            let name = Runner.workflowName(base: config.workFlowName, modelSpec: spec)
+            return try await withTrace(name: name) {
                 return try await run(
                     agent: agent,
                     input: input,
@@ -426,6 +430,12 @@ public actor Runner {
             do {
                 let response: Response
 
+                // Stateful dispatch: providers that declare server-side
+                // history (OpenAI Responses, LM Studio native chat) go
+                // through `ServerHistoryAPI`; everything else falls through
+                // to the chat-completions branch below. Supersedes main's
+                // narrower `endpointURL == .openAI` check — the policy on
+                // each provider now encodes the same distinction.
                 if api.statePolicy.supportsServerSideHistory, let stateful = api as? ServerHistoryAPI {
                     response = try await withSpan { resultSpan in
                         // Placeholder span before the call so error paths
