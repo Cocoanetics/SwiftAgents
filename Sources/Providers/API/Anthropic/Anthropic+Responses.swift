@@ -183,18 +183,17 @@ extension Anthropic {
     /// `output_config` payload. Only `.jsonSchema` produces one — `.text`
     /// and `.json` (JSON-mode without a schema) leave it nil so the
     /// model replies normally. The schema is run through
-    /// `sanitizedForAnthropic(_:)` to drop fields Anthropic's
-    /// json_schema validator rejects (`minimum`, `maximum`, `pattern`,
-    /// `$ref`, etc.) — see
+    /// `sanitizedSchemaForAnthropic(_:)` to drop fields Anthropic's
+    /// json_schema validator rejects — see
     /// https://platform.claude.com/docs/en/build-with-claude/structured-outputs.
     /// `additionalProperties: false` is REQUIRED by Anthropic and is
     /// what the `@Schema` macro already emits, so it's kept verbatim.
     static func convertOutputConfig(from textFormat: TextFormat?) -> AnthropicMessagesRequest.OutputConfig? {
-        guard case let .jsonSchema(format) = textFormat else { return nil }
-        let sanitised = sanitizedSchemaForAnthropic(format.schema)
-        return AnthropicMessagesRequest.OutputConfig(
-            format: .init(schema: sanitised)
-        )
+        guard case let .jsonSchema(format) = textFormat,
+              let schema = sanitizedSchemaForAnthropic(format.schema) else {
+            return nil
+        }
+        return AnthropicMessagesRequest.OutputConfig(format: .init(schema: schema))
     }
 
     /// Chat-completion variant — same translation, different source
@@ -205,11 +204,11 @@ extension Anthropic {
     static func convertOutputConfig(
         from responseFormat: ChatCompletionRequest.ResponseFormat?
     ) -> AnthropicMessagesRequest.OutputConfig? {
-        guard case let .jsonSchema(format) = responseFormat else { return nil }
-        let sanitised = sanitizedSchemaForAnthropic(format.schema)
-        return AnthropicMessagesRequest.OutputConfig(
-            format: .init(schema: sanitised)
-        )
+        guard case let .jsonSchema(format) = responseFormat,
+              let schema = sanitizedSchemaForAnthropic(format.schema) else {
+            return nil
+        }
+        return AnthropicMessagesRequest.OutputConfig(format: .init(schema: schema))
     }
 
     /// Strip JSON-Schema features Anthropic's `output_config.format`
@@ -218,50 +217,40 @@ extension Anthropic {
     ///   description, additionalProperties (must be false),
     ///   propertyOrdering.
     /// And rejects: minimum/maximum/multipleOf, minLength/maxLength,
-    /// pattern, minItems/maxItems (mostly), `$ref`, `$schema`,
-    /// `definitions`/`$defs`, recursive schemas.
-    static func sanitizedSchemaForAnthropic(_ schema: JSONSchema) -> JSONSchema {
-        // Round-trip through JSON so we can strip arbitrary keys without
-        // mutating the typed schema. The @Schema macro emits a fairly
-        // tight subset already, but tools defined elsewhere in the SDK
-        // may inject minLength/pattern hints that would 400 Anthropic.
-        let disallowed: Set<String> = [
-            "minimum", "maximum", "multipleOf",
-            "minLength", "maxLength", "pattern",
-            "maxItems",
-            "$ref", "$schema",
-            "definitions", "$defs",
-            "patternProperties"
-        ]
-        let encoder = JSONEncoder()
-        guard let data = try? encoder.encode(schema) else { return schema }
-        guard var dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return schema
-        }
-        dict = stripKeys(dict, disallowed: disallowed)
-        guard let restored = try? JSONSerialization.data(withJSONObject: dict),
-              let sanitised = try? JSONDecoder().decode(JSONSchema.self, from: restored) else {
-            return schema
-        }
-        return sanitised
+    /// pattern, maxItems, `$ref`, `$schema`, `definitions`/`$defs`,
+    /// recursive schemas.
+    ///
+    /// Uses SwiftMCP's `JSONValue(encoding:)` to get a parsed-JSON tree
+    /// straight from the Codable schema — no JSONSerialization round-
+    /// trip, no NSNumber/objCType Bool-vs-Int disambiguation (SwiftMCP
+    /// handles that internally and cross-platform).
+    static func sanitizedSchemaForAnthropic(_ schema: JSONSchema) -> JSONValue? {
+        guard let value = try? JSONValue(encoding: schema) else { return nil }
+        return stripKeys(value)
     }
 
-    private static func stripKeys(_ raw: [String: Any], disallowed: Set<String>) -> [String: Any] {
-        var out: [String: Any] = [:]
-        for (key, value) in raw where !disallowed.contains(key) {
-            out[key] = stripKeysFromAny(value, disallowed: disallowed)
-        }
-        return out
-    }
+    private static let disallowedAnthropicKeys: Set<String> = [
+        "minimum", "maximum", "multipleOf",
+        "minLength", "maxLength", "pattern",
+        "maxItems",
+        "$ref", "$schema",
+        "definitions", "$defs",
+        "patternProperties"
+    ]
 
-    private static func stripKeysFromAny(_ value: Any, disallowed: Set<String>) -> Any {
-        if let dict = value as? [String: Any] {
-            return stripKeys(dict, disallowed: disallowed)
+    private static func stripKeys(_ value: JSONValue) -> JSONValue {
+        switch value {
+            case let .object(dict):
+                var sanitised: [String: JSONValue] = [:]
+                for (key, child) in dict where !disallowedAnthropicKeys.contains(key) {
+                    sanitised[key] = stripKeys(child)
+                }
+                return .object(sanitised)
+            case let .array(items):
+                return .array(items.map(stripKeys))
+            default:
+                return value
         }
-        if let arr = value as? [Any] {
-            return arr.map { stripKeysFromAny($0, disallowed: disallowed) }
-        }
-        return value
     }
 }
 

@@ -578,41 +578,27 @@ public class GoogleAPI: API, @unchecked Sendable {
 
     /// Encode a `JSONSchema` into the OpenAPI 3.0 subset Gemini's
     /// `responseSchema` accepts. Gemini rejects unknown fields outright
-    /// (returns `INVALID_ARGUMENT` for `additional_properties` /
+    /// (returns `INVALID_ARGUMENT` for `additionalProperties` /
     /// `$schema`), so we strip those — and any other JSON-Schema-only
     /// vocabulary that might creep in — recursively from every nested
     /// object before sending. Returns `nil` if the schema can't be
-    /// re-parsed; the caller falls back to no schema in that case.
+    /// encoded; the caller falls back to no schema in that case.
     private func geminiCompatibleSchema(_ schema: JSONSchema) -> JSONValue? {
-        // Use the API's pretty-print-free encoder so the JSON Schema
-        // produced here matches what the function-tool path already
-        // emits (no snake_case conversion under "schema" paths — see
-        // API.swift). We don't actually care about the wire bytes,
-        // only the parsed object.
-        let schemaEncoder = JSONEncoder()
-        guard let data = try? schemaEncoder.encode(schema),
-              let raw = try? JSONSerialization.jsonObject(with: data),
-              let value = jsonValue(from: raw) else {
-            return nil
-        }
+        guard let value = try? JSONValue(encoding: schema) else { return nil }
         return stripGeminiIncompatibleKeys(value)
     }
 
-    /// Drop keys Gemini's schema subset rejects, recursively.
+    /// Drop keys Gemini's schema subset rejects, recursively. Documented
+    /// at https://ai.google.dev/api/caching#Schema — the @Schema macro
+    /// emits `additionalProperties: false` by default which is the
+    /// practical concern; the rest are belt-and-braces.
     private func stripGeminiIncompatibleKeys(_ value: JSONValue) -> JSONValue {
-        // List of fields documented at https://ai.google.dev/api/caching#Schema
-        // as NOT being part of the supported subset. `additionalProperties`
-        // is the one the @Schema macro emits by default (defaults to
-        // `false`), so it's the practical concern; the rest are belt-and-
-        // braces against future JSON-Schema additions.
         let disallowed: Set<String> = [
             "additionalProperties",
-            "additional_properties",
             "$schema",
             "definitions",
             "$defs",
-            "patternProperties",
-            "pattern_properties"
+            "patternProperties"
         ]
         switch value {
             case let .object(dict):
@@ -626,49 +612,6 @@ public class GoogleAPI: API, @unchecked Sendable {
             default:
                 return value
         }
-    }
-
-    private func jsonValue(from raw: Any) -> JSONValue? {
-        if let dict = raw as? [String: Any] {
-            var out: [String: JSONValue] = [:]
-            for (key, child) in dict {
-                guard let mapped = jsonValue(from: child) else { return nil }
-                out[key] = mapped
-            }
-            return .object(out)
-        }
-        if let arr = raw as? [Any] {
-            return .array(arr.compactMap(jsonValue(from:)))
-        }
-        // NSNumber covers both Bool and numeric values from
-        // JSONSerialization. On macOS, `(NSNumber as? Bool)` and
-        // `(NSNumber as? Int)` BOTH succeed regardless of the
-        // underlying type, so we disambiguate via `objCType` — which
-        // is available on both Apple Foundation and
-        // swift-corelibs-foundation (CFBooleanGetTypeID isn't, hence
-        // this rewrite for Linux CI).
-        if let number = raw as? NSNumber {
-            let typeChar = String(cString: number.objCType)
-            if typeChar == "c" || typeChar == "B" {
-                // 'c' (signed char) and 'B' (bool) — NSNumber's
-                // boolean encodings.
-                return .bool(number.boolValue)
-            }
-            if typeChar.contains("d") || typeChar.contains("f") {
-                return .double(number.doubleValue)
-            }
-            return .integer(number.intValue)
-        }
-        // Fallback path for platforms where JSONSerialization
-        // returns Swift-native types directly (some Linux toolchains
-        // skip the NSNumber bridge). Check Bool first to avoid it
-        // collapsing into Int.
-        if let bool = raw as? Bool { return .bool(bool) }
-        if let int = raw as? Int { return .integer(int) }
-        if let dbl = raw as? Double { return .double(dbl) }
-        if let str = raw as? String { return .string(str) }
-        if raw is NSNull { return .null }
-        return nil
     }
 
     private func makeGoogleTools(from tools: [ToolDescription]?) -> [GoogleGenerateContentRequest.Tool]? {

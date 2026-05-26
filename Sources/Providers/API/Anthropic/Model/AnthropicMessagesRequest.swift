@@ -75,9 +75,13 @@ public struct AnthropicMessagesRequest: Codable, Sendable {
 
         public struct Format: Codable, Sendable {
             public let type: String
-            public let schema: JSONSchema
+            /// Stored as `JSONValue` (not `JSONSchema`) because Anthropic
+            /// accepts only a subset of JSON-Schema vocabulary —
+            /// `sanitizedSchemaForAnthropic(_:)` in Anthropic+Responses
+            /// strips the unsupported keys recursively before we get here.
+            public let schema: JSONValue
 
-            public init(type: String = "json_schema", schema: JSONSchema) {
+            public init(type: String = "json_schema", schema: JSONValue) {
                 self.type = type
                 self.schema = schema
             }
