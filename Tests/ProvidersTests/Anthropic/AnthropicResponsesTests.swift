@@ -7,6 +7,7 @@
 //
 
 import Foundation
+@testable import Agents
 import Tracing
 @testable import Providers
 import SwiftMCP
@@ -225,6 +226,6 @@ struct AnthropicResponsesTests {
     /// resolve `anthropic/claude-*` model strings before the Runner asks
     /// for one.
     private func registerAnthropicForTests() async throws {
-        _ = try await Providers.shared.api(for: "anthropic/\(model)")
+        _ = try await ProviderRegistry.shared.api(for: "anthropic/\(model)")
     }
 }

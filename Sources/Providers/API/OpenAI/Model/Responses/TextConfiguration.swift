@@ -10,4 +10,8 @@ import Foundation
 /// Configuration options for a text response.
 public struct TextConfiguration: Codable, Sendable {
     public let format: TextFormat
+
+    public init(format: TextFormat) {
+        self.format = format
+    }
 }

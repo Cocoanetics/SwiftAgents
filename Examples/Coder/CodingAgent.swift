@@ -1,5 +1,5 @@
 import Foundation
-import Providers
+import SwiftAgents
 import SwiftMCP
 
 /// One targeted edit inside a multi-edit `edit` call. The struct shape

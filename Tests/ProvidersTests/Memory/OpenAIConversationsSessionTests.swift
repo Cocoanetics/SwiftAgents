@@ -8,6 +8,7 @@
 //
 
 import Foundation
+@testable import Agents
 import Tracing
 @testable import Providers
 import Testing

@@ -294,5 +294,10 @@ public extension Response.Input {
             case approve
             case approvalRequestId = "approval_request_id"
         }
+
+        public init(approve: Bool, approvalRequestId: String) {
+            self.approve = approve
+            self.approvalRequestId = approvalRequestId
+        }
     }
 }

@@ -21,5 +21,12 @@ public extension ResponsesStreamEvent {
 
         /// The text delta that was added.
         public let delta: String
+
+        public init(itemId: String, outputIndex: Int, contentIndex: Int, delta: String) {
+            self.itemId = itemId
+            self.outputIndex = outputIndex
+            self.contentIndex = contentIndex
+            self.delta = delta
+        }
     }
 }

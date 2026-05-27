@@ -1,4 +1,5 @@
 import Foundation
+@testable import Agents
 @testable import Providers
 import SwiftMCP
 import Testing

@@ -14,6 +14,7 @@
 //
 
 import Foundation
+@testable import Agents
 import Tracing
 @testable import Providers
 import SwiftMCP
@@ -30,7 +31,7 @@ struct LMStudioStreamingTests {
     func runnerStreamingViaLMStudio() async throws {
         // The shared Providers registry creates the LM Studio API instance
         // lazily on first lookup and reads LMSTUDIO_URL at that moment.
-        _ = try await Providers.shared.api(for: "lmstudio/\(model)")
+        _ = try await ProviderRegistry.shared.api(for: "lmstudio/\(model)")
 
         let agent = BasicAgent(
             name: "LMStudioStreamer",
@@ -77,7 +78,7 @@ struct LMStudioStreamingTests {
         .enabled(if: Self.hasLMStudio, "Requires LMSTUDIO_URL")
     )
     func runnerStreamingEmitsTraces() async throws {
-        _ = try await Providers.shared.api(for: "lmstudio/\(model)")
+        _ = try await ProviderRegistry.shared.api(for: "lmstudio/\(model)")
 
         // Capture every span the global tracer emits during the streamed run.
         actor Spy: TracingExporter {

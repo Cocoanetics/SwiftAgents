@@ -13,5 +13,10 @@ public extension OutputItem {
 
         /// The text content of the summary item.
         public let text: String
+
+        public init(type: String, text: String) {
+            self.type = type
+            self.text = text
+        }
     }
 }

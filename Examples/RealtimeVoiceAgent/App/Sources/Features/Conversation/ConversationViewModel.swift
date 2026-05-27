@@ -1,6 +1,6 @@
 import CallKit
 import OSLog
-import Providers
+import SwiftAgents
 import SwiftUI
 
 @MainActor

@@ -28,7 +28,7 @@
 		9B99C4325748595A1EFD0BAB /* RealtimeVoiceAgentApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3164BF7A60CF5E952DDFDBDF /* RealtimeVoiceAgentApp.swift */; };
 		9FE780CB00F0C197B35B2C39 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8229DF92A55460DECEE3162 /* SettingsView.swift */; };
 		AFDC9E5F87A79657BD75C4D1 /* RecurrenceEnd.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70293BAE7B70E8F894F999AD /* RecurrenceEnd.swift */; };
-		B34640DF4F8E95042FD54A4F /* Providers in Frameworks */ = {isa = PBXBuildFile; productRef = F222323D67CF64624516987E /* Providers */; };
+		B34640DF4F8E95042FD54A4F /* SwiftAgents in Frameworks */ = {isa = PBXBuildFile; productRef = B4D84CEE79624BA4139876F4 /* SwiftAgents */; };
 		B44B695E15E99EB7CB267443 /* AudioSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF2E8F403EC2C769C31B966 /* AudioSyncTests.swift */; };
 		C8D85B60D2E44EFB5BEA64C6 /* EKEventStore+async.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8AA944538B12364D4A8FD1C /* EKEventStore+async.swift */; };
 		D0C339FFA5802648BA4AEAF0 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37A926546B36DDCAB4912C9 /* AppConfiguration.swift */; };
@@ -96,7 +96,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B34640DF4F8E95042FD54A4F /* Providers in Frameworks */,
+				B34640DF4F8E95042FD54A4F /* SwiftAgents in Frameworks */,
 				8A9EFAF2CC0CEF4499098CC1 /* SwiftMCP in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -379,7 +379,7 @@
 			);
 			name = RealtimeVoiceAgent;
 			packageProductDependencies = (
-				F222323D67CF64624516987E /* Providers */,
+				B4D84CEE79624BA4139876F4 /* SwiftAgents */,
 				BA063424437A25DF4F09D1A4 /* SwiftMCP */,
 			);
 			productName = RealtimeVoiceAgent;
@@ -813,14 +813,14 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		B4D84CEE79624BA4139876F4 /* SwiftAgents */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SwiftAgents;
+		};
 		BA063424437A25DF4F09D1A4 /* SwiftMCP */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 3829C99C559631450FF11EFE /* XCRemoteSwiftPackageReference "SwiftMCP" */;
 			productName = SwiftMCP;
-		};
-		F222323D67CF64624516987E /* Providers */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Providers;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

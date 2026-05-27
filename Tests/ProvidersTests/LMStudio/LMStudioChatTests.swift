@@ -15,6 +15,7 @@
 import Foundation
 import Tracing
 @testable import Providers
+@testable import Agents
 import Testing
 
 struct LMStudioChatTests {
@@ -51,7 +52,7 @@ struct LMStudioChatTests {
 
     @Test("Providers registry returns an LMStudio instance for the lmstudio name")
     func providersReturnsLMStudio() async throws {
-        let providers = Providers()
+        let providers = ProviderRegistry()
         let api = try await providers.api(for: "lmstudio/google/gemma-4-26b-a4b")
         #expect(api is LMStudio)
     }

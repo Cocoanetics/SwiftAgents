@@ -1,6 +1,6 @@
 import EventKit
 import Foundation
-import Providers
+import SwiftAgents
 import SwiftMCP
 import UIKit
 
