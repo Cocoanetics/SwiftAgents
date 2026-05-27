@@ -18,5 +18,11 @@ public extension ResponsesStreamEvent {
 
         /// The function-call arguments delta that was added.
         public let delta: String
+
+        public init(itemId: String, outputIndex: Int, delta: String) {
+            self.itemId = itemId
+            self.outputIndex = outputIndex
+            self.delta = delta
+        }
     }
 }

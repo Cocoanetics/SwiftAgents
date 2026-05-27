@@ -1,4 +1,5 @@
 import Foundation // For ProcessInfo
+@testable import Agents
 @testable import Providers
 import SwiftMCP
 import Tracing

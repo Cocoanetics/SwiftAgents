@@ -13,7 +13,7 @@
 
 import Foundation
 
-protocol ServerHistoryAPI: API {
+package protocol ServerHistoryAPI: API {
     /// Make a single stateful turn against this provider. Mirrors
     /// `OpenAI.createResponse` but trimmed to the parameter set the Agents
     /// runner cares about. Sampling / metadata knobs are passed via
@@ -31,7 +31,7 @@ protocol ServerHistoryAPI: API {
 }
 
 extension OpenAI: ServerHistoryAPI {
-    func dispatchCreateResponse(
+    package func dispatchCreateResponse(
         input: Response.Input,
         model: String,
         instructions: String?,

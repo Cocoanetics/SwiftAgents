@@ -27,6 +27,20 @@ public extension OutputItem {
             case status
         }
 
+        public init(
+            id: String,
+            callId: String,
+            name: String,
+            arguments: String,
+            status: ResponseStatus?
+        ) {
+            self.id = id
+            self.callId = callId
+            self.name = name
+            self.arguments = arguments
+            self.status = status
+        }
+
         public func argumentsDictionary() throws -> [String: JSONValue] {
             guard !arguments.isEmpty,
                 let data = arguments.data(using: .utf8) else {

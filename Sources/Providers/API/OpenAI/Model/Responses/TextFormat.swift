@@ -68,4 +68,9 @@ public struct JSONSchemaFormat: Codable, Sendable {
 
     /// The schema for the response format
     public let schema: JSONSchema
+
+    public init(name: String, schema: JSONSchema) {
+        self.name = name
+        self.schema = schema
+    }
 }

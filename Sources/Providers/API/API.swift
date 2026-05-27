@@ -20,8 +20,8 @@ public extension URL {
 }
 
 open class API: @unchecked Sendable {
-    let apiKey: String?
-    let endpointURL: URL
+    package let apiKey: String?
+    package let endpointURL: URL
     let session: URLSession
 
     let versionPath: String

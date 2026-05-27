@@ -9,6 +9,12 @@ public extension OutputItem {
 
         /// Reasoning text contents.
         public let summary: [SummaryItem]
+
+        public init(id: String, status: ResponseStatus?, summary: [SummaryItem]) {
+            self.id = id
+            self.status = status
+            self.summary = summary
+        }
     }
 }
 

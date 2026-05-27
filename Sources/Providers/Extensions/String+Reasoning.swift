@@ -8,7 +8,7 @@
 import Foundation
 
 extension String {
-    func extractReasoning() -> (reasoning: String?, content: String) {
+    package func extractReasoning() -> (reasoning: String?, content: String) {
         let pattern = "<think>([\\s\\S]*?)<\\/think>\\s*"
         if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
             let nsrange = NSRange(startIndex ..< endIndex, in: self)

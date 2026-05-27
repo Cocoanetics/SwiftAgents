@@ -26,24 +26,24 @@ import Foundation
 /// Internal to the Runner: callers reach the resolved final values via
 /// `RunResult.lastResponseId` / `RunResult.lastConversationId`. Mirrors
 /// `openai-agents-python`'s `OpenAIServerConversationTracker`.
-actor ConversationStateTracker {
-    private(set) var conversationId: String?
-    private(set) var previousResponseId: String?
+package actor ConversationStateTracker {
+    package private(set) var conversationId: String?
+    package private(set) var previousResponseId: String?
 
-    init(conversationId: String? = nil, previousResponseId: String? = nil) {
+    package init(conversationId: String? = nil, previousResponseId: String? = nil) {
         self.conversationId = conversationId
         self.previousResponseId = previousResponseId
     }
 
     /// Record the conversation id this run is attached to.
-    func setConversationId(_ id: String?) {
+    package func setConversationId(_ id: String?) {
         conversationId = id
     }
 
     /// Update the chain pointer from a fresh `Response`. No-op if the
     /// response carries no usable id — preserves the prior chain across
     /// turns that happened to come from a stateless provider.
-    func update(from response: Response) {
+    package func update(from response: Response) {
         let id = response.id
         guard !id.isEmpty, Self.isChainableResponseId(id) else { return }
         previousResponseId = id
@@ -51,7 +51,7 @@ actor ConversationStateTracker {
 
     /// Force the chain pointer to a specific id (or clear it). Useful when
     /// resuming from saved state.
-    func setPreviousResponseId(_ id: String?) {
+    package func setPreviousResponseId(_ id: String?) {
         if let id, id.isEmpty || !Self.isChainableResponseId(id) {
             return
         }
@@ -61,7 +61,7 @@ actor ConversationStateTracker {
     /// Drops `previousResponseId` without touching `conversationId`. Use
     /// when handing off to a provider whose ids are incompatible with the
     /// current chain (cross-provider handoffs).
-    func resetChain() {
+    package func resetChain() {
         previousResponseId = nil
     }
 
@@ -72,7 +72,7 @@ actor ConversationStateTracker {
     /// OpenAI both hand back well-formed `resp_…` ids through their
     /// OpenAI-compat Responses endpoint, so no sentinel filtering is
     /// needed.
-    static func isChainableResponseId(_ id: String) -> Bool {
+    package static func isChainableResponseId(_ id: String) -> Bool {
         !id.isEmpty
     }
 }

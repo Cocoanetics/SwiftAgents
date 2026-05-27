@@ -201,7 +201,7 @@ public struct RealtimeSessionConfiguration: Codable, Sendable {
         self.expiresAt = expiresAt
     }
 
-    var sendableUpdatePayload: RealtimeSessionConfiguration {
+    package var sendableUpdatePayload: RealtimeSessionConfiguration {
         var copy = self
         copy.object = nil
         copy.id = nil

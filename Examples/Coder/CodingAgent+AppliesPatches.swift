@@ -1,5 +1,5 @@
 import Foundation
-import Providers
+import SwiftAgents
 
 extension CodingAgent: AppliesPatches {
     /// Apply a patch operation to create, update, or delete a file.

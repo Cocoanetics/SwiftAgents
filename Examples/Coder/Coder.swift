@@ -1,7 +1,6 @@
 import ArgumentParser
 import Foundation
-import Tracing
-import Providers
+import SwiftAgents
 import TerminalUI
 
 // swift-dotenv 2.1.0 builds on Apple platforms and Linux but not

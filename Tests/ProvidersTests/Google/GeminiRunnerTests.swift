@@ -23,6 +23,7 @@
 //
 
 import Foundation
+@testable import Agents
 import Tracing
 @testable import Providers
 import SwiftMCP
@@ -353,7 +354,7 @@ struct GeminiRunnerTests {
     /// before the Runner asks for one. Picks up `GEMINI_API_KEY` from
     /// the environment via the default `GoogleAPI()` initializer.
     private func registerGoogleForTests() async throws {
-        _ = try await Providers.shared.api(for: "google/\(geminiModel)")
+        _ = try await ProviderRegistry.shared.api(for: "google/\(geminiModel)")
     }
 
     /// Pulls the `trace_id` out of a flattened span/trace JSON blob.

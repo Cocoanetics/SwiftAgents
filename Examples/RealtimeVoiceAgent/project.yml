@@ -23,7 +23,7 @@ targets:
       - path: App/Sources
     dependencies:
       - package: SwiftAgents
-        product: Providers
+        product: SwiftAgents
       - package: SwiftMCP
     info:
       path: App/Info.plist

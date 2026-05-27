@@ -18,6 +18,11 @@ public struct ResponsesStreamEvent: Sendable {
     /// The object associated with the event.
     public let object: Object
 
+    public init(type: String, object: Object) {
+        self.type = type
+        self.object = object
+    }
+
     // MARK: - Struct
 
     /// Represents the object associated with a response streaming event.

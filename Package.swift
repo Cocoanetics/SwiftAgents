@@ -19,13 +19,26 @@ let package = Package(
 			name: "Tracing",
 			targets: ["Tracing"]
 		),
-		// LLM provider clients (OpenAI / Gemini / Ollama) plus the
-		// Agent runtime that's built on top of them. Eventually the
-		// runtime will move to its own target (`Agents`) and this
-		// will contain only the wire-level clients. Cross-platform.
+		// LLM provider clients (OpenAI / Anthropic / Gemini / Ollama /
+		// LMStudio) — wire-level only. Cross-platform.
 		.library(
 			name: "Providers",
 			targets: ["Providers"]
+		),
+		// The Agent runtime (Runner, Agent / BasicAgent, Handoffs,
+		// Guardrails, agent-tier Realtime) built on top of Providers.
+		// Pull this in when you want the agent loop; otherwise just use
+		// Providers directly.
+		.library(
+			name: "Agents",
+			targets: ["Agents"]
+		),
+		// Umbrella product. `import SwiftAgents` re-exports Providers,
+		// Tracing, and Agents — convenient for apps that want the whole
+		// stack without listing every module.
+		.library(
+			name: "SwiftAgents",
+			targets: ["SwiftAgents"]
 		),
 		// In-memory vector store, Accelerate-backed vector math, and
 		// the `NLContextualEmbedding`-based local embedding provider.
@@ -77,6 +90,24 @@ let package = Package(
 			path: "Sources/Providers"
 		),
 		.target(
+			name: "Agents",
+			dependencies: [
+				"Providers",
+				"Tracing",
+				"SwiftMCP"
+			],
+			path: "Sources/Agents"
+		),
+		.target(
+			name: "SwiftAgents",
+			dependencies: [
+				"Providers",
+				"Tracing",
+				"Agents"
+			],
+			path: "Sources/SwiftAgents"
+		),
+		.target(
 			name: "VectorStore",
 			dependencies: ["Providers"],
 			path: "Sources/VectorStore"
@@ -89,8 +120,7 @@ let package = Package(
 		.executableTarget(
 			name: "Coder",
 			dependencies: [
-				"Providers",
-				"Tracing",
+				"SwiftAgents",
 				"TerminalUI",
 				"SwiftMCP",
 				.product(name: "ArgumentParser", package: "swift-argument-parser"),
@@ -111,6 +141,7 @@ let package = Package(
 			name: "ProvidersTests",
 			dependencies: [
 				"Providers",
+				"Agents",
 				"Tracing",
 				"VectorStore",
 				"SwiftMCP"
