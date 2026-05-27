@@ -58,11 +58,6 @@ public enum GoogleGenerateContent {
                 self.fileUri = fileUri
                 self.mimeType = mimeType
             }
-
-            private enum CodingKeys: String, CodingKey {
-                case fileUri = "file_uri"
-                case mimeType = "mime_type"
-            }
         }
 
         public struct FunctionCall: Codable, @unchecked Sendable {
