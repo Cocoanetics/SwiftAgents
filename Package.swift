@@ -94,14 +94,15 @@ let package = Package(
 				"TerminalUI",
 				"SwiftMCP",
 				.product(name: "ArgumentParser", package: "swift-argument-parser"),
-				// swift-dotenv imports `Darwin` unconditionally so it only
-				// builds on Apple platforms. The CLI's `.env` loader is a
-				// developer convenience; on Linux / Windows / Android the
-				// env still works via plain `ProcessInfo.processInfo.environment`.
+				// swift-dotenv 2.1.0 supports Apple platforms (via Darwin)
+				// and Linux (via Glibc), but not Windows or Android. The
+				// `#if canImport(SwiftDotenv)` guard in `Coder.swift` covers
+				// those — on platforms where the dep isn't linked, the CLI
+				// falls back to `ProcessInfo.processInfo.environment`.
 				.product(
 					name: "SwiftDotenv",
 					package: "swift-dotenv",
-					condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS])
+					condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .linux])
 				)
 			],
 			path: "Examples/Coder"
@@ -112,12 +113,7 @@ let package = Package(
 				"Providers",
 				"Tracing",
 				"VectorStore",
-				"SwiftMCP",
-				.product(
-					name: "SwiftDotenv",
-					package: "swift-dotenv",
-					condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS])
-				)
+				"SwiftMCP"
 			],
 			path: "Tests/ProvidersTests",
 			resources: [.process("Resources")]

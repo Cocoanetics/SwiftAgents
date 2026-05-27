@@ -4,8 +4,8 @@ import Tracing
 import Providers
 import TerminalUI
 
-// SwiftDotenv only builds on Apple platforms (its public surface imports
-// `Darwin` unconditionally). On Linux / Windows / Android the CLI just
+// swift-dotenv 2.1.0 builds on Apple platforms and Linux but not
+// Windows or Android. On platforms where it's not linked the CLI
 // reads vars from `ProcessInfo.processInfo.environment` directly.
 #if canImport(SwiftDotenv)
 import SwiftDotenv
