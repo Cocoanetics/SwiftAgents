@@ -13,6 +13,7 @@
 //
 
 import Foundation
+import Tracing
 @testable import Providers
 import Testing
 

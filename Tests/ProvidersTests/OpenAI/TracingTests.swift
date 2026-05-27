@@ -1,6 +1,7 @@
 import Foundation
 @testable import Providers
 import SwiftMCP
+import Tracing
 import Testing
 
 private actor SpyTraceExporter: TracingExporter {

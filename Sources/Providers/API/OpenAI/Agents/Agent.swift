@@ -1,5 +1,6 @@
 import Foundation
 import SwiftMCP
+import Tracing
 
 public protocol Agent: AnyObject, Sendable {
     associatedtype OutputType: Decodable

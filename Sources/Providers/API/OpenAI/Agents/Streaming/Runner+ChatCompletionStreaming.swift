@@ -1,5 +1,6 @@
 import Foundation
 import SwiftMCP
+import Tracing
 
 extension Runner {
     // MARK: - Chat Completion Streamed Turn Execution

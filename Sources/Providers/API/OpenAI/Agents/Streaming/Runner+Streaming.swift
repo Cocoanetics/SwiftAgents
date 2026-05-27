@@ -1,5 +1,6 @@
 import Foundation
 import SwiftMCP
+import Tracing
 
 extension Runner {
     /// Run an agent with streaming, returning a result object immediately.

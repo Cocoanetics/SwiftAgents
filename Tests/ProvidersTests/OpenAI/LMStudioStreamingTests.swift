@@ -14,6 +14,7 @@
 //
 
 import Foundation
+import Tracing
 @testable import Providers
 import SwiftMCP
 import Testing

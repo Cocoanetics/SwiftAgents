@@ -1,5 +1,6 @@
 import Foundation
 import SwiftMCP
+import Tracing
 
 private let agentLogsEnabled = ProcessInfo.processInfo.environment["AGENT_LOGS"] != nil
 
@@ -570,7 +571,7 @@ public actor Runner {
                                         // with "Invalid discriminator
                                         // value. Expected 'text' | 'image'"
                                         // and silently swallowed by
-                                        // BackendSpanExporter — that's
+                                        // OpenAITraceExporter — that's
                                         // why LM Studio image runs never
                                         // appeared on the dashboard.
                                         let structured: [[String: JSONValue]] = parts.compactMap { part in

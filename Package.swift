@@ -11,6 +11,14 @@ let package = Package(
 		.watchOS(.v10)
 	],
 	products: [
+		// Generic tracing primitives — TraceProvider, TraceSpan,
+		// TracingProcessor, withSpan, etc. Provider-agnostic so
+		// `Providers` and future targets depend on it without
+		// coupling to any specific LLM backend.
+		.library(
+			name: "Tracing",
+			targets: ["Tracing"]
+		),
 		// LLM provider clients (OpenAI / Gemini / Ollama) plus the
 		// Agent runtime that's built on top of them. Eventually the
 		// runtime will move to its own target (`Agents`) and this
@@ -53,9 +61,17 @@ let package = Package(
 	],
 	targets: [
 		.target(
+			name: "Tracing",
+			dependencies: [
+				"SwiftMCP"
+			],
+			path: "Sources/Tracing"
+		),
+		.target(
 			name: "Providers",
 			dependencies: [
 				"SwiftMCP",
+				"Tracing",
 				.product(name: "Logging", package: "swift-log")
 			],
 			path: "Sources/Providers"
@@ -74,6 +90,7 @@ let package = Package(
 			name: "Coder",
 			dependencies: [
 				"Providers",
+				"Tracing",
 				"TerminalUI",
 				"SwiftMCP",
 				.product(name: "ArgumentParser", package: "swift-argument-parser"),
@@ -93,6 +110,7 @@ let package = Package(
 			name: "ProvidersTests",
 			dependencies: [
 				"Providers",
+				"Tracing",
 				"VectorStore",
 				"SwiftMCP",
 				.product(

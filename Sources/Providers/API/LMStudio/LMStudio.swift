@@ -18,6 +18,7 @@
 //      auth out of the box but supports it when configured.
 
 import Foundation
+import Tracing
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif

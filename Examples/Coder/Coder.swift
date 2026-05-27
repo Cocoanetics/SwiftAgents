@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import Tracing
 import Providers
 import TerminalUI
 
@@ -145,6 +146,26 @@ private func flushMarkdown(_ buffer: String, terminal: TerminalHandler, inCodeBl
     }
 }
 
+/// Builds the file URL for this session's JSONL transcript:
+/// `~/.coder/sessions/YYYY/MM/DD/session-{timestamp}-{uuid}.jsonl`.
+private func makeSessionFileURL() -> URL {
+    let now = Date()
+    let cal = Calendar.current
+    let year = String(cal.component(.year, from: now))
+    let month = String(format: "%02d", cal.component(.month, from: now))
+    let day = String(format: "%02d", cal.component(.day, from: now))
+
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd'T'HH-mm-ss"
+    let timestamp = formatter.string(from: now)
+    let uuid = UUID().uuidString.lowercased()
+
+    let home = FileManager.default.homeDirectoryForCurrentUser
+    return home
+        .appendingPathComponent(".coder/sessions/\(year)/\(month)/\(day)", isDirectory: true)
+        .appendingPathComponent("session-\(timestamp)-\(uuid).jsonl")
+}
+
 @main
 struct Coder: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -183,11 +204,15 @@ struct Coder: AsyncParsableCommand {
             throw ExitCode(1)
         }
 
-        // Re-initialize trace exporter now that env vars are loaded.
-        let openAI = OpenAI(apiKey: apiKey)
-        await TraceProvider.shared.setProcessors([
-            BatchTraceProcessor(exporter: BackendSpanExporter(openAI: openAI))
-        ])
+        // The `OpenAITraceExporter` auto-registers when the first `OpenAI`
+        // client is constructed with `OPENAI_API_KEY` set; trigger it
+        // explicitly here so it lands before the first run starts. Then
+        // add the JSONL processor alongside.
+        OpenAITracingAutoConfig.configureIfNeeded()
+        let sessionFileURL = makeSessionFileURL()
+        await TraceProvider.shared.addProcessor(
+            JSONLTracingProcessor(fileURL: sessionFileURL)
+        )
 
         let agent = CodingAgent(workingDirectory: workDir, config: RunConfig(model: model))
         let terminal = TerminalHandler()
@@ -207,8 +232,6 @@ struct Coder: AsyncParsableCommand {
             terminal.output("  /clear".dim + "            — clear the screen")
         }
 
-        let sessionLogger = SessionLogger(model: model, workingDirectory: workDir)
-
         // Handle user input
         let model = model
         var lastResponseId: String?
@@ -218,8 +241,6 @@ struct Coder: AsyncParsableCommand {
 
             Task {
                 defer { sema.signal() }
-
-                sessionLogger.log(.user(UserMessage(content: input)))
 
                 let config = RunConfig(model: model, workFlowName: "Coder Turn")
                 let result = Runner.runStreamed(
@@ -237,7 +258,6 @@ struct Coder: AsyncParsableCommand {
                     var lastDelta = ""
                     var lineBuffer = ""
                     var inCodeBlock = false
-                    var completedResponses = [Response]()
 
                     for try await event in result.events {
                         switch event {
@@ -275,21 +295,11 @@ struct Coder: AsyncParsableCommand {
                                                 inCodeBlock: &inCodeBlock
                                             )
                                         }
-                                    case let .responseCompleted(response):
-                                        completedResponses.append(response)
                                     default:
                                         break
                                 }
                             case let .runItemEvent(name, item):
-                                if case .toolOutput = name, case let .toolOutput(callId, output) = item {
-                                    sessionLogger.log(.toolResult(ToolResultEntry(callId: callId, output: output)))
-                                }
-                                if case .toolCalled = name, case let .toolCall(toolName, args, callId) = item {
-                                    sessionLogger.log(.toolCall(ToolCallEntry(
-                                        name: toolName,
-                                        arguments: args,
-                                        callId: callId
-                                    )))
+                                if case .toolCalled = name, case let .toolCall(toolName, args, _) = item {
                                     // Flush any buffered text before tool call
                                     if !lineBuffer.isEmpty {
                                         lastDelta = lineBuffer
@@ -326,27 +336,6 @@ struct Coder: AsyncParsableCommand {
                         print("\n\n")
                     }
                     lastResponseId = result.lastResponseId
-
-                    // Log assistant messages and usage from completed responses
-                    for response in completedResponses {
-                        for outputItem in response.output {
-                            if case let .message(msg) = outputItem {
-                                let text = msg.content.compactMap { content -> String? in
-                                    if case let .outputText(textContent) = content { textContent.text } else { nil }
-                                }.joined()
-                                if !text.isEmpty {
-                                    sessionLogger.log(.assistant(AssistantMessage(content: text)))
-                                }
-                            }
-                        }
-                        if let usage = response.usage {
-                            sessionLogger.log(.usage(UsageEntry(
-                                inputTokens: usage.inputTokens,
-                                outputTokens: usage.outputTokens,
-                                totalTokens: usage.totalTokens
-                            )))
-                        }
-                    }
                 } catch let error as RunnerError {
                     switch error {
                         case .exceededMaxTurns:
