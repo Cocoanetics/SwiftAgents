@@ -8,15 +8,15 @@ struct GoogleFilesTests {
         let google = try GoogleAPI(apiKey: #require(APIKey.gemini as String?))
         let data = sampleImageData()
         let uploaded = try await google.uploadFile(data: data, filename: "files-test.png", mimeType: "image/png")
-        guard let name = uploaded.name else {
+        guard let uri = uploaded.name else {
             #expect(Bool(false), "Uploaded file missing name")
             return
         }
-        let retrieved = try await google.retrieveFile(name: name)
-        #expect(retrieved.name == name)
+        let retrieved = try await google.retrieveFileMetadata(uri: uri)
+        #expect(retrieved.name == uri)
         let files = try await google.listFiles()
-        #expect(files.contains { $0.name == name })
-        let deleted = try await google.deleteFile(name: name)
+        #expect(files.contains { $0.name == uri })
+        let deleted = try await google.deleteFile(uri: uri)
         #expect(deleted)
     }
 

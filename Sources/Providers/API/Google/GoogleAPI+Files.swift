@@ -62,8 +62,13 @@ public extension GoogleAPI {
         return list.files ?? []
     }
 
-    func retrieveFile(name: String) async throws -> GoogleFile {
-        let request = try makeFilesRequest(path: "\(versionPath)/files/\(normalizedFileIdentifier(name))")
+    /// Retrieves metadata (`GoogleFile`) for a file previously uploaded to the Files API.
+    ///
+    /// Accepts either a bare identifier (`abc123`), a `files/abc123` resource name,
+    /// or a full URI (`https://generativelanguage.googleapis.com/v1beta/files/abc123`)
+    /// — the trailing path component is used in all cases.
+    func retrieveFileMetadata(uri: String) async throws -> GoogleFile {
+        let request = try makeFilesRequest(path: "\(versionPath)/files/\(normalizedFileIdentifier(uri))")
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse,
             (200 ... 299).contains(http.statusCode) else {
@@ -74,12 +79,12 @@ public extension GoogleAPI {
 
     /// Downloads the binary content of a file previously uploaded to the Files API.
     ///
-    /// Accepts either a bare file identifier (`abc123`), a `files/abc123` form,
+    /// Accepts either a bare identifier (`abc123`), a `files/abc123` resource name,
     /// or a full URI (`https://generativelanguage.googleapis.com/v1beta/files/abc123`)
     /// — the trailing path component is used in all cases.
-    func downloadFileContent(name: String) async throws -> Data {
+    func downloadFileContent(uri: String) async throws -> Data {
         let request = try makeFilesRequest(
-            path: "\(versionPath)/files/\(normalizedFileIdentifier(name))",
+            path: "\(versionPath)/files/\(normalizedFileIdentifier(uri))",
             queryItems: [URLQueryItem(name: "alt", value: "media")]
         )
         let (data, response) = try await session.data(for: request)
@@ -90,9 +95,14 @@ public extension GoogleAPI {
         return data
     }
 
+    /// Deletes a file previously uploaded to the Files API.
+    ///
+    /// Accepts either a bare identifier (`abc123`), a `files/abc123` resource name,
+    /// or a full URI (`https://generativelanguage.googleapis.com/v1beta/files/abc123`)
+    /// — the trailing path component is used in all cases.
     @discardableResult
-    func deleteFile(name: String) async throws -> Bool {
-        var request = try makeFilesRequest(path: "\(versionPath)/files/\(normalizedFileIdentifier(name))")
+    func deleteFile(uri: String) async throws -> Bool {
+        var request = try makeFilesRequest(path: "\(versionPath)/files/\(normalizedFileIdentifier(uri))")
         request.httpMethod = "DELETE"
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse,
@@ -126,10 +136,10 @@ public extension GoogleAPI {
         return request
     }
 
-    private func normalizedFileIdentifier(_ name: String) -> String {
-        if let last = name.split(separator: "/").last {
+    private func normalizedFileIdentifier(_ uri: String) -> String {
+        if let last = uri.split(separator: "/").last {
             return String(last)
         }
-        return name
+        return uri
     }
 }
