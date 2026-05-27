@@ -72,6 +72,24 @@ public extension GoogleAPI {
         return try decoder.decode(GoogleFile.self, from: data)
     }
 
+    /// Downloads the binary content of a file previously uploaded to the Files API.
+    ///
+    /// Accepts either a bare file identifier (`abc123`), a `files/abc123` form,
+    /// or a full URI (`https://generativelanguage.googleapis.com/v1beta/files/abc123`)
+    /// — the trailing path component is used in all cases.
+    func downloadFileContent(name: String) async throws -> Data {
+        let request = try makeFilesRequest(
+            path: "\(versionPath)/files/\(normalizedFileIdentifier(name))",
+            queryItems: [URLQueryItem(name: "alt", value: "media")]
+        )
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse,
+            (200 ... 299).contains(http.statusCode) else {
+            throw googleError(from: data, response: response)
+        }
+        return data
+    }
+
     @discardableResult
     func deleteFile(name: String) async throws -> Bool {
         var request = try makeFilesRequest(path: "\(versionPath)/files/\(normalizedFileIdentifier(name))")
@@ -84,12 +102,25 @@ public extension GoogleAPI {
         return true
     }
 
-    private func makeFilesRequest(path: String) throws -> URLRequest {
+    private func makeFilesRequest(path: String, queryItems: [URLQueryItem] = []) throws -> URLRequest {
         guard let apiKey else {
             throw APIError.authenticationError("Missing GEMINI_API_KEY")
         }
-        let url = endpointURL.appendingPathComponent(path)
-        var request = URLRequest(url: url)
+        let baseURL = endpointURL.appendingPathComponent(path)
+        let finalURL: URL
+        if queryItems.isEmpty {
+            finalURL = baseURL
+        } else {
+            guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+                throw APIError.otherError("files", "Cannot build URL from path: \(path)")
+            }
+            components.queryItems = queryItems
+            guard let composed = components.url else {
+                throw APIError.otherError("files", "Cannot compose URL with query items")
+            }
+            finalURL = composed
+        }
+        var request = URLRequest(url: finalURL)
         request.httpMethod = "GET"
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         return request
