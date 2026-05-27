@@ -67,7 +67,7 @@ public extension GoogleAPI {
     /// Accepts either a bare identifier (`abc123`), a `files/abc123` resource name,
     /// or a full URI (`https://generativelanguage.googleapis.com/v1beta/files/abc123`)
     /// — the trailing path component is used in all cases.
-    func retrieveFileMetadata(uri: String) async throws -> GoogleFile {
+    func retrieveFile(uri: String) async throws -> GoogleFile {
         let request = try makeFilesRequest(path: "\(versionPath)/files/\(normalizedFileIdentifier(uri))")
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse,
@@ -77,12 +77,12 @@ public extension GoogleAPI {
         return try decoder.decode(GoogleFile.self, from: data)
     }
 
-    /// Downloads the binary content of a file previously uploaded to the Files API.
+    /// Retrieves the binary content of a file previously uploaded to the Files API.
     ///
     /// Accepts either a bare identifier (`abc123`), a `files/abc123` resource name,
     /// or a full URI (`https://generativelanguage.googleapis.com/v1beta/files/abc123`)
     /// — the trailing path component is used in all cases.
-    func downloadFileContent(uri: String) async throws -> Data {
+    func retrieveFileContent(uri: String) async throws -> Data {
         let request = try makeFilesRequest(
             path: "\(versionPath)/files/\(normalizedFileIdentifier(uri))",
             queryItems: [URLQueryItem(name: "alt", value: "media")]

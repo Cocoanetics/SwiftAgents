@@ -12,7 +12,7 @@ struct GoogleFilesTests {
             #expect(Bool(false), "Uploaded file missing name")
             return
         }
-        let retrieved = try await google.retrieveFileMetadata(uri: uri)
+        let retrieved = try await google.retrieveFile(uri: uri)
         #expect(retrieved.name == uri)
         let files = try await google.listFiles()
         #expect(files.contains { $0.name == uri })
