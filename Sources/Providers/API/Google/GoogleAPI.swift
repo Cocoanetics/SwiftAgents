@@ -195,28 +195,23 @@ public class GoogleAPI: API, @unchecked Sendable {
 
             for (partIndex, part) in content.parts.enumerated() {
                 if let inlineData = part.inlineData {
-                    // Decode base64 image data
-                    if let imageData = Data(base64Encoded: inlineData.data) {
-                        // Determine file extension from mime type
-                        let fileExtension = switch inlineData.mimeType {
-                            case "image/png":
-                                "png"
-                            case "image/jpeg", "image/jpg":
-                                "jpg"
-                            case "image/webp":
-                                "webp"
-                            case "image/gif":
-                                "gif"
-                            default:
-                                "png" // default
-                        }
-
-                        // Save image file with timestamp and indices
-                        let filename =
-                            "google_response_\(timestamp)_candidate\(index)_part\(partIndex).\(fileExtension)"
-                        let imageURL = URL(fileURLWithPath: "/tmp/\(filename)")
-                        try? imageData.write(to: imageURL)
+                    let fileExtension = switch inlineData.mimeType {
+                        case "image/png":
+                            "png"
+                        case "image/jpeg", "image/jpg":
+                            "jpg"
+                        case "image/webp":
+                            "webp"
+                        case "image/gif":
+                            "gif"
+                        default:
+                            "png"
                     }
+
+                    let filename =
+                        "google_response_\(timestamp)_candidate\(index)_part\(partIndex).\(fileExtension)"
+                    let imageURL = URL(fileURLWithPath: "/tmp/\(filename)")
+                    try? inlineData.data.write(to: imageURL)
                 }
             }
         }
@@ -674,7 +669,7 @@ public class GoogleAPI: API, @unchecked Sendable {
         }
         let inline = GoogleGenerateContent.Part.InlineData(
             mimeType: decoded.mimeType,
-            data: decoded.data.base64EncodedString()
+            data: decoded.data
         )
         return GoogleGenerateContent.Part(
             text: nil,

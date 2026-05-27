@@ -29,12 +29,8 @@ struct GoogleImageGenerationResponseTests {
 
         let inline = try #require(part.inlineData, "Image-gen response must carry inlineData")
         #expect(inline.mimeType == "image/jpeg")
-        #expect(inline.data.hasPrefix("/9j/"))
-        #expect(inline.data.count == 81768)
-
-        let decoded = try #require(Data(base64Encoded: inline.data))
-        #expect(decoded.count > 60_000)
-        #expect(decoded.starts(with: [0xFF, 0xD8, 0xFF]))
+        #expect(inline.data.starts(with: [0xFF, 0xD8, 0xFF]), "JPEG SOI marker")
+        #expect(inline.data.count > 60_000)
 
         let signature = try #require(part.thoughtSignature)
         #expect(signature.count == 148504)

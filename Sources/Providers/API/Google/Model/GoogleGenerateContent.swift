@@ -42,9 +42,12 @@ public enum GoogleGenerateContent {
 
         public struct InlineData: Codable, Sendable {
             public let mimeType: String
-            public let data: String
+            /// Raw decoded bytes. JSONDecoder's default `.base64` data
+            /// strategy converts the on-wire base64 string to `Data`
+            /// automatically, and `JSONEncoder` reverses it on the way out.
+            public let data: Data
 
-            public init(mimeType: String, data: String) {
+            public init(mimeType: String, data: Data) {
                 self.mimeType = mimeType
                 self.data = data
             }
@@ -92,10 +95,10 @@ public enum GoogleGenerateContent {
             )
         }
 
-        public static func inlineData(mimeType: String, base64Data: String) -> Part {
+        public static func inlineData(mimeType: String, data: Data) -> Part {
             Part(
                 text: nil,
-                inlineData: InlineData(mimeType: mimeType, data: base64Data),
+                inlineData: InlineData(mimeType: mimeType, data: data),
                 fileData: nil,
                 functionCall: nil,
                 functionResponse: nil,
