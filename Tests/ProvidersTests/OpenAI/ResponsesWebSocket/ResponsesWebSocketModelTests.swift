@@ -15,6 +15,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking // URLSessionWebSocketTask.Message / .CloseCode live here on Linux
+#endif
 @testable import Providers
 import Testing
 
