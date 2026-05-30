@@ -123,7 +123,20 @@ extension Runner {
                 tools: tools,
                 modelSettings: modelSettings
             )
-        } catch APIError.previousResponseNotFound {
+        } catch let APIError.previousResponseNotFound(param) {
+            // Full-context recovery is only sound when we can actually
+            // reconstruct the conversation: either the `Session` holds the whole
+            // history (the run did not resume from an external
+            // `previousResponseId`), or a `conversationId` is still set so the
+            // server can rebuild it on the retry. Otherwise the `Session`
+            // contains only this run's latest input, and resending it with the
+            // chain nulled would silently drop all prior context — surface the
+            // failure instead.
+            let resumedExternally = tracker.startedFromExternalResponseId
+            guard !resumedExternally || conversationId != nil else {
+                throw APIError.previousResponseNotFound(param: param)
+            }
+
             await tracker.resetChain()
             let fullItems = try await session.getItems()
             let fullInput: Response.Input = fullItems.isEmpty ? nextInput : .array(fullItems)

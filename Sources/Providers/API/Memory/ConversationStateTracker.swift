@@ -30,9 +30,20 @@ package actor ConversationStateTracker {
     package private(set) var conversationId: String?
     package private(set) var previousResponseId: String?
 
+    /// True when this run resumed from a caller-supplied `previousResponseId`
+    /// rather than starting fresh. In that case the local `Session` was seeded
+    /// with only this run's input and does **not** hold the pre-resume history,
+    /// so it cannot be used to reconstruct full context if the server-side
+    /// chain is later lost (e.g. `previous_response_not_found`).
+    ///
+    /// `nonisolated` because it is immutable (set once at init) — callers read
+    /// it synchronously without hopping onto the actor.
+    package nonisolated let startedFromExternalResponseId: Bool
+
     package init(conversationId: String? = nil, previousResponseId: String? = nil) {
         self.conversationId = conversationId
         self.previousResponseId = previousResponseId
+        startedFromExternalResponseId = previousResponseId != nil
     }
 
     /// Record the conversation id this run is attached to.

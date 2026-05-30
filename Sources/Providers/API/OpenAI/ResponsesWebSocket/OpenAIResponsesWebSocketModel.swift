@@ -278,14 +278,20 @@ public actor OpenAIResponsesWebSocketModel {
                     }
                     route(event)
                 } catch {
-                    // A malformed *recognized* payload fails the turn in flight
-                    // but leaves the socket up — one bad frame shouldn't kill a
-                    // long-lived connection.
+                    // A recognized event whose payload is malformed fails the
+                    // turn in flight. We must also tear the socket down: the
+                    // server keeps streaming the rest of this response, and
+                    // because frames aren't correlated to a request id, a stale
+                    // terminal frame arriving after the gate is released could
+                    // resolve the *next* turn with the wrong response. Dropping
+                    // the connection forces the next turn to reconnect clean.
                     if ProcessInfo.processInfo.environment["DEBUG_RESPONSES"] != nil {
                         let payload = String(data: data, encoding: .utf8) ?? "<binary>"
                         NSLog("[DEBUG_RESPONSES] Failed to decode Responses WS frame: %@", payload)
                     }
+                    teardown()
                     failActiveTurn(error)
+                    return
                 }
             }
         } catch is CancellationError {

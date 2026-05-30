@@ -552,4 +552,36 @@ struct ResponsesWebSocketModelTests {
 
         await transport.disconnect()
     }
+
+    @Test("A malformed recognized frame fails the turn AND tears down the socket")
+    func malformedFrameTearsDownSocket() async throws {
+        let socket = ScriptedSocket()
+        let transport = makeTransport(SocketSequence([socket]))
+
+        // `response.completed` is recognized, but its nested response is missing
+        // required fields — a malformed *recognized* payload, which throws.
+        async let turn = transport.send(ResponsesCreateEvent(input: .text("Hi"), model: "gpt-5.1"))
+        await socket.waitForSendCount(1)
+        socket.push(#"{"type":"response.completed","response":{"object":"response"}}"#)
+
+        // `#expect(throws:)` can't capture an `async let`, so await + do/catch.
+        var thrown: (any Error)?
+        do {
+            _ = try await turn
+        } catch {
+            thrown = error
+        }
+        #expect(thrown != nil)
+
+        // The connection must be torn down — not merely the turn failed. The
+        // server may still be streaming this response's remaining frames, and
+        // because frames aren't correlated to a request id, leaving the socket
+        // open would let a stale terminal frame resolve a later turn. Dropping
+        // the socket (cancel) is what prevents that cross-turn leak.
+        #expect(socket.cancelCount >= 1)
+        let cached = await transport.lastResponseId
+        #expect(cached == nil)
+
+        await transport.disconnect()
+    }
 }
