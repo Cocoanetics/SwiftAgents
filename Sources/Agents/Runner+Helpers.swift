@@ -78,6 +78,68 @@ extension Runner {
         return true
     }
 
+    /// Dispatch one stateful turn, choosing incremental vs. full input and
+    /// recovering from a lost chain base.
+    ///
+    /// When the server already holds prior context (a `previousResponseId` or
+    /// `conversationId` is set) only the new delta (`nextInput`) is sent;
+    /// otherwise the full session history is replayed so the server can
+    /// reconstruct the conversation.
+    ///
+    /// If the turn fails with `previous_response_not_found` — common under
+    /// `store=false` / Zero Data Retention, or after a WebSocket transport
+    /// evicts its connection-local cache — the chain base is gone server-side.
+    /// Reset the chain pointer and resend the full reconstructed context (the
+    /// `Session` is the source of truth) as a brand-new chain.
+    static func dispatchStatefulTurn(
+        stateful: any ServerHistoryAPI,
+        nextInput: Response.Input,
+        model: String,
+        instructions: String?,
+        previousResponseId: String?,
+        conversationId: String?,
+        textFormat: TextFormat?,
+        tools: [Tool]?,
+        modelSettings: ModelSettings,
+        tracker: ConversationStateTracker,
+        session: Providers.Session
+    ) async throws -> Response {
+        let primaryInput: Response.Input
+        if previousResponseId != nil || conversationId != nil {
+            primaryInput = nextInput
+        } else {
+            let sessionItems = try await session.getItems()
+            primaryInput = sessionItems.isEmpty ? nextInput : .array(sessionItems)
+        }
+
+        do {
+            return try await stateful.dispatchCreateResponse(
+                input: primaryInput,
+                model: model,
+                instructions: instructions,
+                previousResponseId: previousResponseId,
+                conversationId: conversationId,
+                textFormat: textFormat,
+                tools: tools,
+                modelSettings: modelSettings
+            )
+        } catch APIError.previousResponseNotFound {
+            await tracker.resetChain()
+            let fullItems = try await session.getItems()
+            let fullInput: Response.Input = fullItems.isEmpty ? nextInput : .array(fullItems)
+            return try await stateful.dispatchCreateResponse(
+                input: fullInput,
+                model: model,
+                instructions: instructions,
+                previousResponseId: nil,
+                conversationId: conversationId,
+                textFormat: textFormat,
+                tools: tools,
+                modelSettings: modelSettings
+            )
+        }
+    }
+
     /// Flattens a (possibly multimodal) `Response.Input` to a plain string
     /// for guardrails that evaluate text only. Concatenates the
     /// `inputText` / `outputText` content of any message elements;

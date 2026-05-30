@@ -13,6 +13,16 @@ public struct RunConfig {
     /// The model to use for a run
     public var model: String?
 
+    /// An explicit transport for this run, bypassing provider-name routing.
+    ///
+    /// Set this to hand a run its own connection-oriented client — most
+    /// notably an ``OpenAIResponsesWebSocket``, which a caller builds (and
+    /// optionally `warmup`s) per session so each run owns its own socket.
+    /// When `nil`, the run resolves its provider from `model` via the shared
+    /// `ProviderRegistry` as before. The injected instance flows through the
+    /// same stateful/chat-completion detection as a registry-resolved one.
+    public var api: API?
+
     /// The work flow name, used for tracing spans if no other name is set
     var workFlowName: String
 
@@ -33,10 +43,12 @@ public struct RunConfig {
      */
     public init(
         model: String? = nil,
+        api: API? = nil,
         workFlowName: String = "Agent Workflow",
         dateDecodingStrategy: JSONDecoder.DateDecodingStrategy = .iso8601
     ) {
         self.model = model
+        self.api = api
         self.workFlowName = workFlowName
         self.dateDecodingStrategy = dateDecodingStrategy
     }

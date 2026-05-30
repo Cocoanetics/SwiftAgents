@@ -97,7 +97,16 @@ extension Runner {
 
         repeat {
             let modelSpec = config.model ?? currentAgent.model ?? "gpt-4.1"
-            let api = try await ProviderRegistry.shared.api(for: modelSpec)
+            // An explicit `config.api` (e.g. a per-session
+            // `OpenAIResponsesWebSocket`) wins over provider-name routing —
+            // mirroring the non-streaming loop. The injected client flows
+            // through the same OpenAI-vs-chat gate below.
+            let api: API
+            if let injected = config.api {
+                api = injected
+            } else {
+                api = try await ProviderRegistry.shared.api(for: modelSpec)
+            }
             let model = modelSpec.modelNameWithoutProviderPrefix
 
             // Only api.openai.com speaks the Responses streaming API the
@@ -277,22 +286,40 @@ extension Runner {
                 responseSpan.spanData = ResponseSpanData(input: currentInput)
 
                 // When continuing a conversation, skip instructions — the API has them via previousResponseId
-                let stream = try await openAI.createResponseStream(
-                    input: currentInput,
-                    model: model,
-                    instructions: previousResponseId == nil ? agent.instructions : nil,
-                    maxOutputTokens: agent.modelSettings.maxCompletionTokens,
-                    metadata: agent.modelSettings.metadata,
-                    parallelToolCalls: agent.modelSettings.parallelToolCalls,
-                    previousResponseId: previousResponseId,
-                    reasoning: agent.modelSettings.reasoning,
-                    store: agent.modelSettings.store,
-                    temperature: agent.modelSettings.temperature,
-                    toolChoice: agent.modelSettings.toolChoice,
-                    tools: tools,
-                    topP: agent.modelSettings.topP,
-                    truncation: agent.modelSettings.truncation
-                )
+                let instructions = previousResponseId == nil ? agent.instructions : nil
+
+                // A WebSocket-backed client streams the turn over its persistent
+                // socket (same `ResponsesStreamEvent` shape); everyone else uses
+                // the HTTP SSE create-stream. Both yield identical events, so the
+                // consumer loop below is unchanged.
+                let stream: AsyncThrowingStream<ResponsesStreamEvent, Error>
+                if let webSocket = openAI as? OpenAIResponsesWebSocket {
+                    stream = webSocket.streamResponse(
+                        input: currentInput,
+                        model: model,
+                        instructions: instructions,
+                        previousResponseId: previousResponseId,
+                        tools: tools,
+                        modelSettings: agent.modelSettings
+                    )
+                } else {
+                    stream = try await openAI.createResponseStream(
+                        input: currentInput,
+                        model: model,
+                        instructions: instructions,
+                        maxOutputTokens: agent.modelSettings.maxCompletionTokens,
+                        metadata: agent.modelSettings.metadata,
+                        parallelToolCalls: agent.modelSettings.parallelToolCalls,
+                        previousResponseId: previousResponseId,
+                        reasoning: agent.modelSettings.reasoning,
+                        store: agent.modelSettings.store,
+                        temperature: agent.modelSettings.temperature,
+                        toolChoice: agent.modelSettings.toolChoice,
+                        tools: tools,
+                        topP: agent.modelSettings.topP,
+                        truncation: agent.modelSettings.truncation
+                    )
+                }
 
                 for try await event in stream {
                     // Forward raw event to caller

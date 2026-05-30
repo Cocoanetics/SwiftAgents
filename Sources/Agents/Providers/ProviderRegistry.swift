@@ -50,6 +50,25 @@ public actor ProviderRegistry {
             apis["openai"] = openAI
             return openAI
         }
+        // OpenAI Responses over a persistent WebSocket. Addressed as
+        // `openai-websocket/<model>` (or `openai-ws/<model>`). This caches a
+        // single shared connection — correct for one sequential agent loop, but
+        // because a socket is sequential and non-multiplexed, concurrent
+        // sessions should each own their own connection: build an
+        // `OpenAIResponsesWebSocket()` per session and pass it via
+        // `RunConfig.api` instead of routing by name.
+        if normalizedProvider.lowercased() == "openai-websocket"
+            || normalizedProvider.lowercased() == "openai-ws" {
+            if let api = apis[normalizedProvider.lowercased()] {
+                return api
+            }
+            let webSocket = OpenAIResponsesWebSocket()
+            guard webSocket.apiKey != nil else {
+                throw ProviderError.missingAPIKey("OpenAI")
+            }
+            apis[normalizedProvider.lowercased()] = webSocket
+            return webSocket
+        }
         // Create Google if requested
         if normalizedProvider.lowercased() == "google" {
             let google = GoogleAPI()

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftMCP
 
 public extension Response.Input {
     /// Represents the different types of elements that can be part of a response input
@@ -45,6 +46,14 @@ public extension Response.Input {
 
         /// An apply_patch tool call output.
         case applyPatchCallOutput(ApplyPatchCallOutputResult)
+
+        /// A server item captured verbatim as raw JSON, replayed byte-for-byte.
+        ///
+        /// Used for items this SDK doesn't model field-by-field but must forward
+        /// unchanged — notably the `compaction` summary from
+        /// `/responses/compact`, whose opaque `encrypted_content` must survive
+        /// the round-trip intact. Encodes as the wrapped JSON object directly.
+        case raw(JSONValue)
 
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -114,6 +123,11 @@ public extension Response.Input {
 
                 case let .applyPatchCallOutput(output):
                     try singleContainer.encode(output)
+
+                case let .raw(value):
+                    // Forward a verbatim server item (e.g. a compaction
+                    // summary) byte-for-byte, discriminator and all.
+                    try singleContainer.encode(value)
 
 			// --- Encoding for other types if needed for input ---
 			// Add encoding logic here if fileSearch, computerCall, etc.,

@@ -133,7 +133,14 @@ public actor Runner {
 
         repeat {
             let modelSpec = config.model ?? currentAgent.model ?? "gpt-4.1"
-            let api = try await ProviderRegistry.shared.api(for: modelSpec)
+            // An explicit `config.api` (e.g. a per-session
+            // `OpenAIResponsesWebSocket`) wins over provider-name routing; the
+            // injected client runs through the same stateful detection below.
+            let api: API = if let injected = config.api {
+                injected
+            } else {
+                try await ProviderRegistry.shared.api(for: modelSpec)
+            }
             let model = modelSpec.modelNameWithoutProviderPrefix
 
             // Reset the per-agent nextInput pointer to the original user
@@ -459,31 +466,23 @@ public actor Runner {
                         let previousResponseId = await tracker.previousResponseId
                         let conversationId = await tracker.conversationId
 
-                        // When the chain pointer or conversation handle is
-                        // present, the server already has prior context;
-                        // send only the new turn. Otherwise (fresh run, or
-                        // resumed via a Session that wasn't paired with a
-                        // chain id), pass the full session history so the
-                        // server can reconstruct the conversation.
-                        let stateLessInput: Response.Input
-                        if previousResponseId != nil || conversationId != nil {
-                            stateLessInput = turnState.nextInput
-                        } else {
-                            let sessionItems = try await session.getItems()
-                            stateLessInput = sessionItems.isEmpty
-                                ? turnState.nextInput
-                                : .array(sessionItems)
-                        }
-
-                        let response = try await stateful.dispatchCreateResponse(
-                            input: stateLessInput,
+                        // Send only the new delta when the server already holds
+                        // prior context (chain pointer / conversation handle),
+                        // else replay full session history; on a lost
+                        // previous_response_id, recover by resending full
+                        // context as a fresh chain. See `dispatchStatefulTurn`.
+                        let response = try await Self.dispatchStatefulTurn(
+                            stateful: stateful,
+                            nextInput: turnState.nextInput,
                             model: model,
                             instructions: agent.instructions,
                             previousResponseId: previousResponseId,
                             conversationId: conversationId,
                             textFormat: agent.outputType,
                             tools: tools,
-                            modelSettings: agent.modelSettings
+                            modelSettings: agent.modelSettings,
+                            tracker: tracker,
+                            session: session
                         )
 
                         if api.statePolicy.responseIdsAreOpenAIRoutable {

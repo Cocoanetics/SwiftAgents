@@ -174,6 +174,44 @@ open class OpenAI: API, @unchecked Sendable {
         return request
     }
 
+    // MARK: - ServerHistoryAPI
+
+    /// Dispatch a single stateful Responses turn. The `ServerHistoryAPI`
+    /// conformance is declared in `ServerHistoryAPI.swift`, but the witness
+    /// lives here on the class body — not in that extension — so subclasses can
+    /// `override` it. (Methods declared in extensions are statically dispatched
+    /// and cannot be overridden; `OpenAIResponsesWebSocket` routes this turn
+    /// over a WebSocket by overriding exactly this method.)
+    package func dispatchCreateResponse(
+        input: Response.Input,
+        model: String,
+        instructions: String?,
+        previousResponseId: String?,
+        conversationId: String?,
+        textFormat: TextFormat?,
+        tools: [Tool]?,
+        modelSettings: ModelSettings
+    ) async throws -> Response {
+        try await createResponse(
+            input: input,
+            model: model,
+            conversation: conversationId,
+            instructions: instructions,
+            maxOutputTokens: modelSettings.maxCompletionTokens,
+            metadata: modelSettings.metadata,
+            parallelToolCalls: modelSettings.parallelToolCalls,
+            previousResponseId: previousResponseId,
+            reasoning: modelSettings.reasoning,
+            store: modelSettings.store,
+            temperature: modelSettings.temperature,
+            textFormat: textFormat,
+            toolChoice: modelSettings.toolChoice,
+            tools: tools,
+            topP: modelSettings.topP,
+            truncation: modelSettings.truncation
+        )
+    }
+
     /// Fetches an ephemeral OpenAI API key from a backend mint endpoint. Mobile
     /// and other client apps should mint short-lived tokens server-side rather
     /// than embedding a long-lived key in the bundle (per OpenAI's guidance).
