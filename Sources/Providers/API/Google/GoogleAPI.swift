@@ -89,16 +89,18 @@ public class GoogleAPI: API, @unchecked Sendable {
         user: String? = nil,
         options: GenerationOptions? = nil
     ) async throws -> ChatCompletionResponse {
-        // Realize the neutral image intent as Gemini's request shape:
-        // `responseModalities: ["IMAGE"]` triggers image output, and
-        // `imageConfig` carries any portable sizing. An `.image` request with
-        // no sizing still flips the modality but sends no (empty) imageConfig.
+        // Realize the neutral media intent as Gemini's request shape:
+        // `responseModalities` lists *every* requested modality (so a
+        // text+image request keeps its textual answer, not just the image),
+        // and `imageConfig` carries any portable sizing. An `.image` request
+        // with no sizing still flips the modality but sends no imageConfig.
         let media = options?.requestedMedia ?? []
         let imageConfig: GoogleImageConfig? = media.firstImageOptions.flatMap { options in
             guard options.size != nil || options.aspectRatio != nil else { return nil }
             return GoogleImageConfig(aspectRatio: options.aspectRatio, imageSize: options.size)
         }
-        let responseModalities: [String]? = media.requestsImage ? ["IMAGE"] : nil
+        let modalities = Self.googleResponseModalities(for: media)
+        let responseModalities: [String]? = modalities.isEmpty ? nil : modalities
 
         return try await createChatCompletion(
             model: model,
@@ -290,6 +292,19 @@ public class GoogleAPI: API, @unchecked Sendable {
     }
 
     // MARK: - Private Helpers
+
+    /// Maps neutral `RequestedMedia` to Gemini's `responseModalities` strings,
+    /// preserving order and including every requested modality. Audio is
+    /// omitted — `:generateContent` doesn't support audio output.
+    static func googleResponseModalities(for media: [RequestedMedia]) -> [String] {
+        media.compactMap { entry in
+            switch entry {
+                case .text: "TEXT"
+                case .image: "IMAGE"
+                case .audio: nil
+            }
+        }
+    }
 
     private func buildGenerateContentRequest(
         from messages: [ChatMessage],

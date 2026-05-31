@@ -169,4 +169,30 @@ struct RequestedMediaTests {
         }
         #expect(tool.quality == "high", "explicit tool's options should win")
     }
+
+    // MARK: - Gemini responseModalities mapping
+
+    @Test("Gemini responseModalities include every requested modality")
+    func googleResponseModalitiesMapping() {
+        // Text + image must keep TEXT, not collapse to image-only.
+        #expect(GoogleAPI.googleResponseModalities(for: [.text, .image(ImageOptions())]) == ["TEXT", "IMAGE"])
+        #expect(GoogleAPI.googleResponseModalities(for: [.image(ImageOptions())]) == ["IMAGE"])
+        // Audio isn't supported on :generateContent.
+        #expect(GoogleAPI.googleResponseModalities(for: [.audio(AudioOptions())]).isEmpty)
+    }
+
+    // MARK: - Streaming guard for media output
+
+    @Test("Streaming an image agent on a chat-completion provider fails fast")
+    func streamingImageOnChatProviderThrows() async {
+        // GoogleAPI streams only the chat-completion shape; image output can't
+        // ride that path, so the run should throw rather than loop to maxTurns.
+        let api = GoogleAPI(apiKey: "test")
+        let agent = ImageAgent(name: "ImageGen", model: "gemini-3-pro-image-preview")
+        let stream = Runner.runStreamed(agent: agent, input: "a cat", config: RunConfig(api: api))
+
+        await #expect(throws: RunnerError.mediaOutputNotStreamable) {
+            for try await _ in stream.events {}
+        }
+    }
 }
