@@ -39,6 +39,9 @@ public enum OutputItem: Codable, Sendable {
     /// An apply_patch tool call.
     case applyPatchCall(ApplyPatchCallOutput)
 
+    /// An image generation tool call carrying the generated image bytes.
+    case imageGenerationCall(ImageGenerationCall)
+
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
@@ -70,6 +73,8 @@ public enum OutputItem: Codable, Sendable {
                 self = try .mcpCall(MCPCallOutput(from: decoder))
             case "apply_patch_call":
                 self = try .applyPatchCall(ApplyPatchCallOutput(from: decoder))
+            case "image_generation_call":
+                self = try .imageGenerationCall(ImageGenerationCall(from: decoder))
             default:
                 throw DecodingError.dataCorruptedError(
                     forKey: .type,
@@ -112,6 +117,9 @@ public enum OutputItem: Codable, Sendable {
                 try output.encode(to: encoder)
             case let .applyPatchCall(output):
                 try container.encode("apply_patch_call", forKey: .type)
+                try output.encode(to: encoder)
+            case let .imageGenerationCall(output):
+                try container.encode("image_generation_call", forKey: .type)
                 try output.encode(to: encoder)
         }
     }

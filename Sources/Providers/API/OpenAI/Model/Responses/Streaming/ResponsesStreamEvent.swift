@@ -93,6 +93,18 @@ public struct ResponsesStreamEvent: Sendable {
         /// Emitted when a web search call is completed.
         case webSearchCallCompleted(WebSearchCallInfo)
 
+        /// Emitted when an image generation call begins.
+        case imageGenerationCallInProgress(ImageGenerationCallInfo)
+
+        /// Emitted while an image generation call is actively rendering.
+        case imageGenerationCallGenerating(ImageGenerationCallInfo)
+
+        /// Emitted when a partial (progressively refined) image is available.
+        case imageGenerationCallPartialImage(ImageGenerationPartialImageInfo)
+
+        /// Emitted when an image generation call is completed.
+        case imageGenerationCallCompleted(ImageGenerationCallInfo)
+
         /// Emitted when a new reasoning summary part is added.
         case reasoningSummaryPartAdded(ReasoningSummaryPartInfo)
 

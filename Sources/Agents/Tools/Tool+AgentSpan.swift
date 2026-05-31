@@ -36,6 +36,8 @@ extension Tool {
                 return "mcp"
             case .applyPatch:
                 return "apply_patch"
+            case .imageGeneration:
+                return "image_generation"
         }
     }
 }

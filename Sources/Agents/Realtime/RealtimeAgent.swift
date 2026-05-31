@@ -22,7 +22,7 @@ extension Tool {
         switch self {
             case .function, .mcp:
                 return true
-            case .fileSearch, .webSearch, .computer, .applyPatch:
+            case .fileSearch, .webSearch, .computer, .applyPatch, .imageGeneration:
                 return false
         }
     }

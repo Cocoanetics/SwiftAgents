@@ -142,6 +142,22 @@ public extension ResponsesStreamEvent.Object {
                 self = try .webSearchCallCompleted(
                     decoder.decode(ResponsesStreamEvent.WebSearchCallInfo.self, from: json)
                 )
+            case "response.image_generation_call.in_progress":
+                self = try .imageGenerationCallInProgress(
+                    decoder.decode(ResponsesStreamEvent.ImageGenerationCallInfo.self, from: json)
+                )
+            case "response.image_generation_call.generating":
+                self = try .imageGenerationCallGenerating(
+                    decoder.decode(ResponsesStreamEvent.ImageGenerationCallInfo.self, from: json)
+                )
+            case "response.image_generation_call.partial_image":
+                self = try .imageGenerationCallPartialImage(
+                    decoder.decode(ResponsesStreamEvent.ImageGenerationPartialImageInfo.self, from: json)
+                )
+            case "response.image_generation_call.completed":
+                self = try .imageGenerationCallCompleted(
+                    decoder.decode(ResponsesStreamEvent.ImageGenerationCallInfo.self, from: json)
+                )
             case "response.reasoning_summary_part.added":
                 self = try .reasoningSummaryPartAdded(
                     decoder.decode(ResponsesStreamEvent.ReasoningSummaryPartInfo.self, from: json)

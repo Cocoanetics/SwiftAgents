@@ -28,6 +28,10 @@ public enum Tool: Codable, Sendable {
     /// An apply_patch tool for creating, updating, and deleting files via V4A diffs.
     case applyPatch
 
+    /// An image generation tool. The model decides when to generate or edit an
+    /// image and returns the bytes on an `image_generation_call` output item.
+    case imageGeneration(ImageGenerationTool)
+
     private enum CodingKeys: String, CodingKey {
         case type
         case name
@@ -43,6 +47,18 @@ public enum Tool: Codable, Sendable {
         case serverURL = "server_url"
         case requireApproval = "require_approval"
         case allowedTools = "allowed_tools"
+        // image_generation knobs — keys under the `tools` path are written
+        // verbatim, so the snake_case spellings live here directly.
+        case model
+        case action
+        case size
+        case quality
+        case background
+        case moderation
+        case outputFormat = "output_format"
+        case outputCompression = "output_compression"
+        case partialImages = "partial_images"
+        case inputImageMask = "input_image_mask"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -80,6 +96,18 @@ public enum Tool: Codable, Sendable {
                 try container.encodeIfPresent(tool.allowedTools, forKey: .allowedTools)
             case .applyPatch:
                 try container.encode("apply_patch", forKey: .type)
+            case let .imageGeneration(tool):
+                try container.encode("image_generation", forKey: .type)
+                try container.encodeIfPresent(tool.model, forKey: .model)
+                try container.encodeIfPresent(tool.action, forKey: .action)
+                try container.encodeIfPresent(tool.size, forKey: .size)
+                try container.encodeIfPresent(tool.quality, forKey: .quality)
+                try container.encodeIfPresent(tool.background, forKey: .background)
+                try container.encodeIfPresent(tool.moderation, forKey: .moderation)
+                try container.encodeIfPresent(tool.outputFormat, forKey: .outputFormat)
+                try container.encodeIfPresent(tool.outputCompression, forKey: .outputCompression)
+                try container.encodeIfPresent(tool.partialImages, forKey: .partialImages)
+                try container.encodeIfPresent(tool.inputImageMask, forKey: .inputImageMask)
         }
     }
 
@@ -123,6 +151,22 @@ public enum Tool: Codable, Sendable {
                 ))
             case "apply_patch":
                 self = .applyPatch
+            case "image_generation":
+                self = .imageGeneration(ImageGenerationTool(
+                    model: try container.decodeIfPresent(String.self, forKey: .model),
+                    action: try container.decodeIfPresent(ImageGenerationTool.Action.self, forKey: .action),
+                    size: try container.decodeIfPresent(String.self, forKey: .size),
+                    quality: try container.decodeIfPresent(String.self, forKey: .quality),
+                    background: try container.decodeIfPresent(String.self, forKey: .background),
+                    outputFormat: try container.decodeIfPresent(String.self, forKey: .outputFormat),
+                    outputCompression: try container.decodeIfPresent(Int.self, forKey: .outputCompression),
+                    moderation: try container.decodeIfPresent(String.self, forKey: .moderation),
+                    partialImages: try container.decodeIfPresent(Int.self, forKey: .partialImages),
+                    inputImageMask: try container.decodeIfPresent(
+                        ImageGenerationTool.InputImageMask.self,
+                        forKey: .inputImageMask
+                    )
+                ))
             default:
                 throw DecodingError.dataCorruptedError(
                     forKey: .type,

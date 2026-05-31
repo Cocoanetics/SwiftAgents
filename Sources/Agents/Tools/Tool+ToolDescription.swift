@@ -27,6 +27,12 @@ public extension [Tool] {
                     preconditionFailure("MCP Tools not supported")
                 case .applyPatch:
                     return ToolDescription(type: "apply_patch")
+                case .imageGeneration:
+                    // The image_generation built-in tool is Responses-only;
+                    // chat completions can't carry it. Emit the bare type so
+                    // the conversion stays total — the Responses path sends the
+                    // full `Tool` value, so this stub is never the live wire.
+                    return ToolDescription(type: "image_generation")
             }
         }
     }

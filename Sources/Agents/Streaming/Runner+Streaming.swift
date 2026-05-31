@@ -281,6 +281,7 @@ extension Runner {
             var completedResponse: Response?
             var roundResult = ""
             var roundReasoning: String?
+            var roundFile: GeneratedFile?
 
             try await withSpan { responseSpan in
                 responseSpan.spanData = ResponseSpanData(input: currentInput)
@@ -403,11 +404,16 @@ extension Runner {
             previousResponseId = completedResponse?.id
             resultRef.lastResponseId = previousResponseId
 
-            // Extract apply_patch calls from the completed response (streaming deltas may be incomplete)
+            // Extract apply_patch calls and any generated image from the
+            // completed response — the streaming deltas may be incomplete, but
+            // the final response carries the full output items.
             if let response = completedResponse {
                 for outputItem in response.output {
                     if case let .applyPatchCall(patchCall) = outputItem {
                         applyPatchCalls.append(patchCall)
+                    }
+                    if case let .imageGenerationCall(imageCall) = outputItem, let bytes = imageCall.result {
+                        roundFile = GeneratedFile(data: bytes, mimeType: imageCall.mimeType, id: imageCall.id)
                     }
                 }
             }
@@ -485,6 +491,12 @@ extension Runner {
             if A.OutputType.self == String.self {
                 // swiftlint:disable:next force_cast - guarded above by `A.OutputType.self == String.self`.
                 return .finalOutput(roundResult as! A.OutputType, roundReasoning)
+            } else if A.OutputType.self == GeneratedFile.self {
+                if let file = roundFile {
+                    // swiftlint:disable:next force_cast - guarded above by `A.OutputType.self == GeneratedFile.self`.
+                    return .finalOutput(file as! A.OutputType, roundReasoning)
+                }
+                // No image came back this turn — fall through and retry.
             } else if let data = roundResult.data(using: .utf8) {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601

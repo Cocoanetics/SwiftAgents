@@ -43,6 +43,10 @@ public extension OutputItem {
                 return .fileSearch(file)
             case let .webSearch(web):
                 return .webSearch(web)
+            case let .imageGenerationCall(call):
+                // Replayed as a bare `{ type, id }` reference so a later turn
+                // can edit or refer to the image without resending the bytes.
+                return .imageGenerationCall(call)
             case let .computer(comp):
                 return .computerCall(comp)
             case .reasoning:
