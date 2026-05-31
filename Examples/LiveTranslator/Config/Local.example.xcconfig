@@ -1,0 +1,7 @@
+// Copy this file to Config/Local.xcconfig and fill in your API key.
+// The translation WebSocket URL is derived from the default OpenAI endpoint
+// by the SwiftAgents package, so only the key (and optionally the model) are
+// needed here.
+
+OPENAI_API_KEY = sk-proj-REPLACE_ME
+OPENAI_REALTIME_TRANSLATE_MODEL = gpt-realtime-translate

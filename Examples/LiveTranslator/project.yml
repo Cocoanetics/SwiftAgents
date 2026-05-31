@@ -1,0 +1,53 @@
+name: LiveTranslator
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    PRODUCT_NAME: LiveTranslator
+packages:
+  SwiftAgents:
+    path: ../..
+targets:
+  LiveTranslator:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: App/Sources
+    dependencies:
+      - package: SwiftAgents
+        product: SwiftAgents
+    info:
+      path: App/Info.plist
+      properties:
+        NSMicrophoneUsageDescription: LiveTranslator needs the microphone so it can hear and translate speech around you.
+        OPENAI_API_KEY: $(OPENAI_API_KEY)
+        OPENAI_REALTIME_TRANSLATE_MODEL: $(OPENAI_REALTIME_TRANSLATE_MODEL)
+        UIBackgroundModes:
+          - audio
+        UILaunchScreen: {}
+    configFiles:
+      Debug: Config/Debug.xcconfig
+      Release: Config/Release.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oliver.experiments.LiveTranslator
+        TARGETED_DEVICE_FAMILY: 1
+        GENERATE_INFOPLIST_FILE: NO
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_STYLE: Automatic
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        DEVELOPMENT_TEAM: Z7L2YCUH45
+schemes:
+  LiveTranslator:
+    build:
+      targets:
+        LiveTranslator: all
+    run:
+      config: Debug
+    test:
+      config: Debug

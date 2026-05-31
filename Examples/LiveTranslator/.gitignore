@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Local app config / secrets
+Config/Local.xcconfig
+
+# Build products
+DerivedData/
+.build/
+
+# Xcode user data
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# SwiftPM
+.swiftpm/
+
+# Archives / exports
+*.ipa
+*.dSYM
