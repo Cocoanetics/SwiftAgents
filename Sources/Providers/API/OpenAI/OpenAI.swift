@@ -71,7 +71,8 @@ open class OpenAI: API, @unchecked Sendable {
         responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
         frequencyPenalty: Double? = nil,
         logitBias: [String: Int]? = nil,
-        user: String? = nil
+        user: String? = nil,
+        options _: GenerationOptions? = nil
     ) async throws -> ChatCompletionResponse {
         if let rateLimit {
             await rateLimit.waitForRateLimitReset()

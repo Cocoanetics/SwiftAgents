@@ -45,6 +45,20 @@ public extension ChatCompletionResponse {
                 }
             }
 
+            // Inline image parts — providers like Gemini return generated
+            // image bytes as an `image_url` content part (a `data:` URL) on a
+            // normal completion rather than via a tool call. Carry them as
+            // `outputImage` so `firstGeneratedFile` can surface the bytes.
+            if let parts = message.contentParts {
+                for part in parts {
+                    guard let parsed = part.decodedImageData() else { continue }
+                    content.append(.outputImage(OutputItem.OutputImage(
+                        data: parsed.data,
+                        mimeType: parsed.mimeType
+                    )))
+                }
+            }
+
             if !content.isEmpty {
                 let messageItem = OutputItem.message(OutputItem.MessageOutput(
                     id: UUID().uuidString,

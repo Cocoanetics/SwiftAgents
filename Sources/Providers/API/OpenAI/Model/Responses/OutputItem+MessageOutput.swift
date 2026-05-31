@@ -56,6 +56,12 @@ public extension OutputItem {
         /// Text output from the model.
         case outputText(OutputText)
 
+        /// Inline image output from the model. Not part of OpenAI's Responses
+        /// wire format — synthesised by the chat-completion adapter for
+        /// providers (e.g. Gemini) that return image bytes as a content part
+        /// on a normal completion, so the bytes survive to the Runner.
+        case outputImage(OutputImage)
+
         // MARK: - Codable
 
         private enum CodingKeys: String, CodingKey {
@@ -69,6 +75,8 @@ public extension OutputItem {
             switch type {
                 case "output_text":
                     self = try .outputText(OutputText(from: decoder))
+                case "output_image":
+                    self = try .outputImage(OutputImage(from: decoder))
                 default:
                     throw DecodingError.dataCorruptedError(
                         forKey: .type,
@@ -85,7 +93,31 @@ public extension OutputItem {
                 case let .outputText(outputText):
                     try container.encode("output_text", forKey: .type)
                     try outputText.encode(to: encoder)
+                case let .outputImage(outputImage):
+                    try container.encode("output_image", forKey: .type)
+                    try outputImage.encode(to: encoder)
             }
+        }
+    }
+
+    /// Inline image bytes produced by the model on a chat completion. Carrier
+    /// for the Gemini-style flow where image data arrives as a content part
+    /// rather than via the Responses `image_generation` tool.
+    struct OutputImage: Codable, Sendable {
+        /// The raw image bytes (base64 on the wire via `JSONEncoder`).
+        public let data: Data
+
+        /// The MIME type of the image, e.g. `image/png`.
+        public let mimeType: String
+
+        public init(data: Data, mimeType: String) {
+            self.data = data
+            self.mimeType = mimeType
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case data
+            case mimeType = "mime_type"
         }
     }
 

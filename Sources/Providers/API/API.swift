@@ -169,7 +169,8 @@ open class API: @unchecked Sendable {
         responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
         frequencyPenalty: Double? = nil,
         logitBias: [String: Int]? = nil,
-        user: String? = nil
+        user: String? = nil,
+        options _: GenerationOptions? = nil
     ) async throws -> ChatCompletionResponse {
         // Check rate limits before proceeding
         if let rateLimit {

@@ -217,6 +217,11 @@ extension Runner {
                     }
                 }
 
+                // Realize an image intent as the OpenAI image_generation tool
+                // (this branch is the OpenAI Responses streaming path).
+                let requestedMedia = config.requestedMedia ?? (currentAgent as? RequestsMedia)?.requestedMedia ?? []
+                tools = Self.realizingImageTool(tools, for: requestedMedia, api: api)
+
                 agentSpan.spanData = AgentSpanData(
                     name: currentAgent.name,
                     handoffs: currentAgent.handoffs.compactMap { $0.targetAgent?.name },

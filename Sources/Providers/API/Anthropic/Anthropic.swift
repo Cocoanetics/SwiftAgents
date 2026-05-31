@@ -132,7 +132,8 @@ public class Anthropic: API, @unchecked Sendable {
         responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
         frequencyPenalty _: Double? = nil,
         logitBias _: [String: Int]? = nil,
-        user: String? = nil
+        user: String? = nil,
+        options _: GenerationOptions? = nil
     ) async throws -> ChatCompletionResponse {
         let (system, anthropicMessages) = Anthropic.convertChatMessages(messages)
 

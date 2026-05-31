@@ -59,6 +59,26 @@ extension Runner {
         return collected
     }
 
+    /// Realizes an `.image` request as the OpenAI Responses built-in
+    /// `image_generation` tool — the provider-specific mechanism for image
+    /// output on OpenAI. This is where image realization lives, not in the
+    /// agent: agents only declare the neutral `requestedMedia` intent.
+    ///
+    /// No-ops (returns `tools` unchanged) when the provider isn't OpenAI's
+    /// Responses API (Gemini shapes image output through the request via
+    /// `responseModalities` + `imageConfig`; other providers don't support the
+    /// tool), no image was requested, or the caller already supplied an
+    /// explicit `image_generation` tool — which wins, carrying its own options.
+    static func realizingImageTool(_ tools: [Tool], for media: [RequestedMedia], api: API) -> [Tool] {
+        guard api.statePolicy.responseIdsAreOpenAIRoutable, media.requestsImage else { return tools }
+        let alreadyPresent = tools.contains { tool in
+            if case .imageGeneration = tool { true } else { false }
+        }
+        guard !alreadyPresent else { return tools }
+        let options = media.firstImageOptions ?? ImageOptions()
+        return [.imageGeneration(options.imageGenerationTool)] + tools
+    }
+
     /// Decides whether this turn should go through the provider's
     /// stateful path (Responses API) or fall back to chat completions.
     /// Bypass the stateful path for structured-output turns when the
@@ -378,6 +398,60 @@ extension Runner {
                             return nil
                     }
                 }
+        }
+    }
+
+    /// Builds the `GenerationSpanData` input-message dicts for a
+    /// chat-completion turn from the wire `[ChatMessage]`. Content parts are
+    /// collapsed to OpenAI's trace-ingest taxonomy (`text` / `image`, NOT
+    /// `image_url` / `input_text`): without this collapse, image-bearing
+    /// generation spans are rejected with "Invalid discriminator value.
+    /// Expected 'text' | 'image'" and silently dropped by the exporter.
+    static func chatInputMessageDicts(from messages: [ChatMessage]) -> [[String: JSONValue]] {
+        messages.map { msg in
+            var dict: [String: JSONValue] = [
+                "role": JSONValue(msg.role.rawValue)
+            ]
+
+            // only add content if it is not empty
+            if let content = msg.content {
+                switch content {
+                    case let .text(text):
+                        if !text.isEmpty {
+                            dict["content"] = JSONValue(text)
+                        }
+                    case let .parts(parts):
+                        let structured: [[String: JSONValue]] = parts.compactMap { part in
+                            if let text = part.text {
+                                return ["type": JSONValue("text"), "text": JSONValue(text)]
+                            }
+                            if let url = part.imageURL?.url {
+                                return ["type": JSONValue("image"), "image_url": JSONValue(url)]
+                            }
+                            return nil
+                        }
+                        if !structured.isEmpty {
+                            dict["content"] = JSONValue(structured)
+                        }
+                }
+            }
+
+            if let toolCalls = msg.toolCalls {
+                dict["tool_calls"] = JSONValue(toolCalls.map { call -> [String: JSONValue] in
+                    [
+                        "id": JSONValue(call.id),
+                        "type": JSONValue("function"),
+                        "function": JSONValue([
+                            "name": JSONValue(call.function?.name ?? ""),
+                            "arguments": JSONValue(call.function?.arguments ?? "")
+                        ])
+                    ]
+                })
+            }
+            if let toolCallID = msg.toolCallID {
+                dict["tool_call_id"] = JSONValue(toolCallID)
+            }
+            return dict
         }
     }
 

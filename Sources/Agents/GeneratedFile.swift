@@ -38,13 +38,27 @@ public struct GeneratedFile: Decodable, Sendable, Equatable {
 }
 
 public extension Sequence where Element == OutputItem {
-    /// The first image produced by the built-in `image_generation` tool in
-    /// these output items, surfaced as a `GeneratedFile`. Nil if none carries
-    /// image bytes.
+    /// The first image in these output items, surfaced as a `GeneratedFile`.
+    /// Covers both ways a model returns image bytes: the OpenAI Responses
+    /// built-in `image_generation` tool (`image_generation_call`), and an
+    /// inline `output_image` content part on an assistant message (the
+    /// Gemini-style chat-completion flow). Nil if none carries image bytes.
     var firstGeneratedFile: GeneratedFile? {
         lazy.compactMap { item -> GeneratedFile? in
-            guard case let .imageGenerationCall(call) = item, let bytes = call.result else { return nil }
-            return GeneratedFile(data: bytes, mimeType: call.mimeType, id: call.id)
+            switch item {
+                case let .imageGenerationCall(call):
+                    guard let bytes = call.result else { return nil }
+                    return GeneratedFile(data: bytes, mimeType: call.mimeType, id: call.id)
+                case let .message(message):
+                    for content in message.content {
+                        if case let .outputImage(image) = content {
+                            return GeneratedFile(data: image.data, mimeType: image.mimeType, id: nil)
+                        }
+                    }
+                    return nil
+                default:
+                    return nil
+            }
         }.first
     }
 }
