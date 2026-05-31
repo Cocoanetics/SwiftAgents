@@ -472,7 +472,52 @@ extension Runner {
                     "operation_type": JSONValue(patchCall.operation.type.rawValue),
                     "path": JSONValue(patchCall.operation.path)
                 ]
+            case let .imageGenerationCall(call):
+                // Record the metadata but not the (potentially large) base64
+                // image bytes.
+                return [
+                    "type": JSONValue("image_generation_call"),
+                    "id": JSONValue(call.id),
+                    "status": JSONValue(call.status ?? ""),
+                    "revised_prompt": JSONValue(call.revisedPrompt ?? ""),
+                    "size": JSONValue(call.size ?? ""),
+                    "byte_count": JSONValue(call.result?.count ?? 0)
+                ]
         }
+    }
+
+    /// Resolves a completed turn into the agent's typed final output.
+    ///
+    /// Three special cases sit ahead of the JSON path, each keyed on the
+    /// concrete `OutputType` so the `as!` casts are provably safe:
+    ///   - `String`: the raw assistant text.
+    ///   - `GeneratedFile`: the image bytes captured from an
+    ///     `image_generation_call` this turn (`nil` if none arrived yet).
+    ///   - everything else `Decodable`: decoded from the assistant text.
+    ///
+    /// Returns `nil` when the response can't be turned into the output type
+    /// (no image yet, or undecodable JSON) so the caller repeats the turn.
+    static func terminalOutput<A: Agent>(
+        for _: A.Type,
+        text: String,
+        file: GeneratedFile?,
+        reasoning: String?,
+        decoder: JSONDecoder
+    ) -> AgentResult<A.OutputType>? {
+        if A.OutputType.self == String.self {
+            // swiftlint:disable:next force_cast - guarded by the type check above.
+            return .finalOutput(text as! A.OutputType, reasoning)
+        }
+        if A.OutputType.self == GeneratedFile.self {
+            guard let file else { return nil }
+            // swiftlint:disable:next force_cast - guarded by the type check above.
+            return .finalOutput(file as! A.OutputType, reasoning)
+        }
+        if let data = text.data(using: .utf8),
+           let decoded = decoder.decodeWithResultsUnwrap(data, as: A.OutputType.self) {
+            return .finalOutput(decoded, reasoning)
+        }
+        return nil
     }
 
     static func checkOutputGuardrails<A: Agent>(

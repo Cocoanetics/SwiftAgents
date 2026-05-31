@@ -195,18 +195,7 @@ public class GoogleAPI: API, @unchecked Sendable {
 
             for (partIndex, part) in content.parts.enumerated() {
                 if let inlineData = part.inlineData {
-                    let fileExtension = switch inlineData.mimeType {
-                        case "image/png":
-                            "png"
-                        case "image/jpeg", "image/jpg":
-                            "jpg"
-                        case "image/webp":
-                            "webp"
-                        case "image/gif":
-                            "gif"
-                        default:
-                            "png"
-                    }
+                    let fileExtension = inlineData.mimeType.preferredFilenameExtension() ?? "png"
 
                     let filename =
                         "google_response_\(timestamp)_candidate\(index)_part\(partIndex).\(fileExtension)"

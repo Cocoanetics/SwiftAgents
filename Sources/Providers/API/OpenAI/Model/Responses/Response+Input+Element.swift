@@ -47,6 +47,11 @@ public extension Response.Input {
         /// An apply_patch tool call output.
         case applyPatchCallOutput(ApplyPatchCallOutputResult)
 
+        /// A reference to a prior image generation call. Replayed as input so a
+        /// later turn can edit or refer to that image by its ID alone, without
+        /// resending the bytes.
+        case imageGenerationCall(OutputItem.ImageGenerationCall)
+
         /// A server item captured verbatim as raw JSON, replayed byte-for-byte.
         ///
         /// Used for items this SDK doesn't model field-by-field but must forward
@@ -80,6 +85,8 @@ public extension Response.Input {
                         self = try .reasoning(Reasoning(from: decoder))
                     case "mcp_approval_response":
                         self = try .mcpApprovalResponse(MCPApprovalResponseInput(from: decoder))
+                    case "image_generation_call":
+                        self = try .imageGenerationCall(OutputItem.ImageGenerationCall(from: decoder))
                     default:
                         // If type is not one of the known types, try to decode as an item
                         self = try .item(ResponseItem(from: decoder))
@@ -124,6 +131,12 @@ public extension Response.Input {
                 case let .applyPatchCallOutput(output):
                     try singleContainer.encode(output)
 
+                case let .imageGenerationCall(call):
+                    // Refer to a prior image by ID alone. The Responses API
+                    // accepts a bare `{ type, id }` image_generation_call as an
+                    // input item and resolves the bytes server-side.
+                    try singleContainer.encode(ImageGenerationCallReferenceWire(id: call.id))
+
                 case let .raw(value):
                     // Forward a verbatim server item (e.g. a compaction
                     // summary) byte-for-byte, discriminator and all.
@@ -162,6 +175,18 @@ public extension Response.Input {
 
             private enum CodingKeys: String, CodingKey {
                 case id, callId, name, arguments, status, type
+            }
+        }
+
+        /// Wire shape for replaying a prior image generation call as an input
+        /// item by ID. Tags `type` so the Responses API recognises the
+        /// discriminator and resolves the referenced image server-side.
+        private struct ImageGenerationCallReferenceWire: Encodable {
+            let id: String
+            let type: String = "image_generation_call"
+
+            private enum CodingKeys: String, CodingKey {
+                case id, type
             }
         }
 

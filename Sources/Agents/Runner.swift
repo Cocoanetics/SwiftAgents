@@ -661,6 +661,9 @@ public actor Runner {
                     try await session.addItems(responseElements)
                 }
 
+                // Image produced by the built-in image_generation tool, if any.
+                let roundFile = response.output.firstGeneratedFile
+
                 var newInputs = [Response.Input.Element]()
                 var functionCalls = [OutputItem.FunctionCall]()
 
@@ -762,20 +765,16 @@ public actor Runner {
                     // Persist tool outputs / approvals so a resumed session
                     // sees them and a stateless provider replays them.
                     try await session.addItems(newInputs)
-                } else {
-                    if functionCalls.isEmpty {
-                        if A.OutputType.self == String.self {
-                            // swiftlint:disable:next force_cast - guarded above by `A.OutputType.self == String.self`.
-                            return AgentResult.finalOutput(roundResult as! A.OutputType, roundReasoning)
-                        } else if let data = roundResult.data(using: .utf8) {
-                            if let decoded = decoder.decodeWithResultsUnwrap(data, as: A.OutputType.self) {
-                                return AgentResult.finalOutput(decoded, roundReasoning)
-                            }
-                        }
-
-                        // invalid response, just do the same response a second time
-                        logAgent("Invalid response, repeating.\n\n\(roundResult)")
+                } else if functionCalls.isEmpty {
+                    // Resolve the turn into a typed final output; `nil` means the
+                    // response wasn't usable, so repeat the same turn.
+                    if let result = Self.terminalOutput(
+                        for: A.self, text: roundResult, file: roundFile,
+                        reasoning: roundReasoning, decoder: decoder
+                    ) {
+                        return result
                     }
+                    logAgent("Invalid response, repeating.\n\n\(roundResult)")
                 }
 
             } catch {

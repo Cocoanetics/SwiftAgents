@@ -14,6 +14,7 @@ extension Tool: Equatable {
             case (.computer, .computer): true
             case let (.mcp(lhsMcp), .mcp(rhsMcp)): lhsMcp == rhsMcp
             case (.applyPatch, .applyPatch): true
+            case let (.imageGeneration(lhsImg), .imageGeneration(rhsImg)): lhsImg == rhsImg
             default: false
         }
     }
