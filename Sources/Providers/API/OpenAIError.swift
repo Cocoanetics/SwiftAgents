@@ -16,6 +16,17 @@ public enum APIError: LocalizedError {
     case apiError(String)
     case otherError(String, String)
 
+    /// The `previous_response_id` a turn chained from is no longer resolvable
+    /// (it was never stored, or its connection-local cache entry was evicted —
+    /// the common case under `store=false` / Zero Data Retention). Recover by
+    /// starting a fresh chain and resending the full input. `param` is the
+    /// offending field, normally `previous_response_id`.
+    case previousResponseNotFound(param: String?)
+
+    /// A Responses WebSocket hit the server's 60-minute connection cap. The
+    /// transport reconnects and re-issues the turn.
+    case connectionLimitReached
+
     public var errorDescription: String? {
         switch self {
             case .invalidResponse:
@@ -38,6 +49,15 @@ public enum APIError: LocalizedError {
 
             case let .otherError(type, message):
                 return "Unknown Error \(type): \(message)"
+
+            case let .previousResponseNotFound(param):
+                if let param {
+                    return "Previous Response Not Found: \(param)"
+                }
+                return "Previous Response Not Found"
+
+            case .connectionLimitReached:
+                return "Connection Limit Reached"
         }
     }
 
@@ -63,6 +83,12 @@ public enum APIError: LocalizedError {
 
             case let .otherError(_, message):
                 return message
+
+            case .previousResponseNotFound:
+                return "The referenced previous_response_id could not be found server-side."
+
+            case .connectionLimitReached:
+                return "The WebSocket connection reached its 60-minute limit."
         }
     }
 
@@ -82,6 +108,10 @@ public enum APIError: LocalizedError {
                 return "api_error"
             case .otherError:
                 return "other_error"
+            case .previousResponseNotFound:
+                return "invalid_request_error"
+            case .connectionLimitReached:
+                return "invalid_request_error"
         }
     }
 }

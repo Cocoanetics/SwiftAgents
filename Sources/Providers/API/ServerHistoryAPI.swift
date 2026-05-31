@@ -30,34 +30,8 @@ package protocol ServerHistoryAPI: API {
     ) async throws -> Response
 }
 
-extension OpenAI: ServerHistoryAPI {
-    package func dispatchCreateResponse(
-        input: Response.Input,
-        model: String,
-        instructions: String?,
-        previousResponseId: String?,
-        conversationId: String?,
-        textFormat: TextFormat?,
-        tools: [Tool]?,
-        modelSettings: ModelSettings
-    ) async throws -> Response {
-        try await createResponse(
-            input: input,
-            model: model,
-            conversation: conversationId,
-            instructions: instructions,
-            maxOutputTokens: modelSettings.maxCompletionTokens,
-            metadata: modelSettings.metadata,
-            parallelToolCalls: modelSettings.parallelToolCalls,
-            previousResponseId: previousResponseId,
-            reasoning: modelSettings.reasoning,
-            store: modelSettings.store,
-            temperature: modelSettings.temperature,
-            textFormat: textFormat,
-            toolChoice: modelSettings.toolChoice,
-            tools: tools,
-            topP: modelSettings.topP,
-            truncation: modelSettings.truncation
-        )
-    }
-}
+// `OpenAI` satisfies the requirement with `dispatchCreateResponse` declared on
+// the class body (see `OpenAI.swift`) rather than here, so subclasses such as
+// `OpenAIResponsesWebSocket` can override it. `LMStudio` inherits the HTTP
+// implementation unchanged.
+extension OpenAI: ServerHistoryAPI {}

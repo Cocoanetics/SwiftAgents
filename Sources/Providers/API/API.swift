@@ -366,29 +366,57 @@ open class API: @unchecked Sendable {
         do {
             let errorResponse = try decoder.decode(ErrorResponse.self, from: data)
 
-            if errorResponse.error.code == "invalid_api_key" || response.statusCode == 401 {
+            // A 401 always reads as authentication, regardless of how the body
+            // labels itself.
+            if response.statusCode == 401 {
                 return APIError.authenticationError(errorResponse.error.message)
             }
 
-            switch errorResponse.error.type {
-                case "server_error":
-                    return APIError.serverError(errorResponse.error.message)
-
-                case "invalid_request_error":
-                    return APIError.invalidRequest(errorResponse.error.message)
-
-                case "insufficient_quota":
-                    return APIError.quotaError(errorResponse.error.message)
-
-                case "api_error":
-                    return APIError.apiError(errorResponse.error.message)
-
-                default:
-                    return APIError.otherError(errorResponse.error.type, errorResponse.error.message)
-            }
+            return apiError(from: errorResponse.error)
         } catch {
             let string = String(data: data, encoding: .utf8) ?? ""
             return APIError.otherError("\(response.statusCode)", string)
+        }
+    }
+
+    /// Maps a single `ErrorDetail` to the project error model.
+    ///
+    /// Shared by `errorFromResponse` (HTTP bodies) and the Responses WebSocket
+    /// transport (`error` frames and `response.failed` payloads), so an error
+    /// reads the same regardless of channel. Crucially it inspects `code` /
+    /// `param` / `message`, not just `type` — both `previous_response_not_found`
+    /// and `websocket_connection_limit_reached` are `invalid_request_error`s
+    /// that a type-only switch would flatten into `.invalidRequest`, losing the
+    /// signal the recovery logic depends on.
+    func apiError(from detail: ErrorDetail) -> Error {
+        if detail.code == "invalid_api_key" {
+            return APIError.authenticationError(detail.message)
+        }
+
+        if detail.code == "previous_response_not_found" {
+            return APIError.previousResponseNotFound(param: detail.param)
+        }
+
+        let lowerMessage = detail.message.lowercased()
+        if detail.code == "websocket_connection_limit_reached" || lowerMessage.contains("connection limit") {
+            return APIError.connectionLimitReached
+        }
+
+        switch detail.type {
+            case "server_error":
+                return APIError.serverError(detail.message)
+
+            case "invalid_request_error":
+                return APIError.invalidRequest(detail.message)
+
+            case "insufficient_quota":
+                return APIError.quotaError(detail.message)
+
+            case "api_error":
+                return APIError.apiError(detail.message)
+
+            default:
+                return APIError.otherError(detail.type, detail.message)
         }
     }
 
