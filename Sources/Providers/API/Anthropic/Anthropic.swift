@@ -6,9 +6,7 @@
 //
 
 import Foundation
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
+import SwiftCross
 import SwiftMCP
 
 public extension URL {

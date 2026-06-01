@@ -7,9 +7,7 @@
 //  SeeAlso: [List Responses API](https://platform.openai.com/docs/api-reference/responses/list)
 
 import Foundation
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
+import SwiftCross
 
 public extension OpenAI {
     // MARK: - Creating Responses

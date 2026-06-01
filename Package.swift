@@ -71,7 +71,11 @@ let package = Package(
 		// pin once SwiftMCP tags a release that includes the guard fix.
 		.package(url: "https://github.com/Cocoanetics/SwiftMCP", branch: "main"),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
-		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0")
+		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
+		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
+		// UTType, …) shared via SwiftCross instead of duplicated in Providers.
+		// No tags yet, so track `main`; swap to a version pin once it releases.
+		.package(url: "https://github.com/Cocoanetics/SwiftCross.git", branch: "main")
 	],
 	targets: [
 		.target(
@@ -85,6 +89,7 @@ let package = Package(
 			name: "Providers",
 			dependencies: [
 				"SwiftMCP",
+				"SwiftCross",
 				"Tracing",
 				.product(name: "Logging", package: "swift-log")
 			],

@@ -7,9 +7,7 @@
 
 import Foundation
 import Tracing
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
+import SwiftCross
 
 public extension URL {
     /// Default endpoint URL for the OpenAI Chat endpoint
