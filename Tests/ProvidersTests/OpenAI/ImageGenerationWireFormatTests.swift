@@ -37,7 +37,8 @@ struct ImageGenerationWireFormatTests {
             outputCompression: 50,
             moderation: "low",
             partialImages: 2,
-            inputImageMask: .init(fileId: "file_mask_123")
+            inputImageMask: .init(fileId: "file_mask_123"),
+            inputFidelity: "high"
         ))
 
         let object = try encodeToObject(tool)
@@ -52,6 +53,7 @@ struct ImageGenerationWireFormatTests {
         #expect(object["output_compression"] as? Int == 50)
         #expect(object["moderation"] as? String == "low")
         #expect(object["partial_images"] as? Int == 2)
+        #expect(object["input_fidelity"] as? String == "high")
 
         let mask = try #require(object["input_image_mask"] as? [String: Any], "mask should be an object")
         #expect(mask["file_id"] as? String == "file_mask_123")

@@ -59,6 +59,7 @@ public enum Tool: Codable, Sendable {
         case outputCompression = "output_compression"
         case partialImages = "partial_images"
         case inputImageMask = "input_image_mask"
+        case inputFidelity = "input_fidelity"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -108,6 +109,7 @@ public enum Tool: Codable, Sendable {
                 try container.encodeIfPresent(tool.outputCompression, forKey: .outputCompression)
                 try container.encodeIfPresent(tool.partialImages, forKey: .partialImages)
                 try container.encodeIfPresent(tool.inputImageMask, forKey: .inputImageMask)
+                try container.encodeIfPresent(tool.inputFidelity, forKey: .inputFidelity)
         }
     }
 
@@ -165,7 +167,8 @@ public enum Tool: Codable, Sendable {
                     inputImageMask: try container.decodeIfPresent(
                         ImageGenerationTool.InputImageMask.self,
                         forKey: .inputImageMask
-                    )
+                    ),
+                    inputFidelity: try container.decodeIfPresent(String.self, forKey: .inputFidelity)
                 ))
             default:
                 throw DecodingError.dataCorruptedError(

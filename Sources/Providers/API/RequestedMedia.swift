@@ -71,6 +71,10 @@ public struct ImageOptions: Codable, Sendable, Equatable {
     /// Mask marking the editable region of the first input image (OpenAI).
     public var inputImageMask: ImageGenerationTool.InputImageMask?
 
+    /// Input-image fidelity for edits, e.g. `high` / `low` (OpenAI). Omit for
+    /// `gpt-image-2`, which is always high-fidelity.
+    public var inputFidelity: String?
+
     public init(
         size: String? = nil,
         aspectRatio: String? = nil,
@@ -82,7 +86,8 @@ public struct ImageOptions: Codable, Sendable, Equatable {
         outputCompression: Int? = nil,
         moderation: String? = nil,
         partialImages: Int? = nil,
-        inputImageMask: ImageGenerationTool.InputImageMask? = nil
+        inputImageMask: ImageGenerationTool.InputImageMask? = nil,
+        inputFidelity: String? = nil
     ) {
         self.size = size
         self.aspectRatio = aspectRatio
@@ -95,6 +100,7 @@ public struct ImageOptions: Codable, Sendable, Equatable {
         self.moderation = moderation
         self.partialImages = partialImages
         self.inputImageMask = inputImageMask
+        self.inputFidelity = inputFidelity
     }
 }
 
@@ -113,7 +119,8 @@ public extension ImageOptions {
             outputCompression: outputCompression,
             moderation: moderation,
             partialImages: partialImages,
-            inputImageMask: inputImageMask
+            inputImageMask: inputImageMask,
+            inputFidelity: inputFidelity
         )
     }
 }
