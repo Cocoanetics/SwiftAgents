@@ -64,11 +64,12 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
-		// Pinned below 1.4.7 because that release made `mcpToolMetadata`
-		// async, which breaks the synchronous call sites in
-		// `Array+MCPToolProviding.swift` and `MCPToolProviding+ToolDescription.swift`.
-		// Lift this once those callers are migrated to `await`.
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP", "1.4.5" ..< "1.4.7"),
+		// Tracks SwiftMCP `main` during Android/Windows bring-up: main carries
+		// the `os(Linux)` -> `canImport(FoundationNetworking)` client guard fix
+		// (commit 011775f) on top of 1.4.7. The 1.4.7 async `mcpToolMetadata`
+		// migration is done here — call sites now `await`. Swap to a version
+		// pin once SwiftMCP tags a release that includes the guard fix.
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP", branch: "main"),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0")
 	],

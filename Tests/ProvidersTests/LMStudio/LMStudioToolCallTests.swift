@@ -40,7 +40,7 @@ struct LMStudioToolCallTests {
         let client = try TestClients.lmStudio()
         // SwiftMCP synthesises `toolDescriptions` from the `@MCPTool` macros
         // — same code path the Agents Runner uses.
-        let toolDescriptions: [ToolDescription] = LMStudioWeatherTools().toolDescriptions
+        let toolDescriptions: [ToolDescription] = await LMStudioWeatherTools().toolDescriptions
 
         let completion = try await client.createChatCompletion(
             model: lmStudioToolModel,

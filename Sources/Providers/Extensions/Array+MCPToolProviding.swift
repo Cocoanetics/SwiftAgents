@@ -11,7 +11,7 @@ import SwiftMCP
 public extension [MCPToolProviding] {
     func callTool(_ name: String, arguments: [String: JSONValue]) async throws -> any Encodable & Sendable {
         for toolProvider in self {
-            guard toolProvider.mcpToolMetadata.contains(where: { $0.name == name })
+            guard await toolProvider.mcpToolMetadata.contains(where: { $0.name == name })
             else { continue }
 
             return try await toolProvider.callTool(name, arguments: arguments)

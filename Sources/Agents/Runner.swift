@@ -155,7 +155,7 @@ public actor Runner {
             let requestedMedia = config.requestedMedia ?? (currentAgent as? RequestsMedia)?.requestedMedia ?? []
 
             let agentResult: AgentResult<A.OutputType> = try await withSpan { agentSpan in
-                var tools: [Tool] = currentAgent.createTools()
+                var tools: [Tool] = await currentAgent.createTools()
                 tools += try await Self.collectMCPTools(for: currentAgent)
                 // Realize an image intent as the OpenAI image_generation tool
                 // (no-op on other providers / when already present).

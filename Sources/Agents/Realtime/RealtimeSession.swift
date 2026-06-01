@@ -291,7 +291,7 @@ public actor RealtimeSession {
             tools.append(tool)
         }
 
-        for tool in agent.createTools() {
+        for tool in await agent.createTools() {
             appendTool(tool)
         }
 

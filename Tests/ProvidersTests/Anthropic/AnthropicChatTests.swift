@@ -50,7 +50,7 @@ struct AnthropicChatTests {
     func functionCalling() async throws {
         let client = try TestClients.anthropic()
         let tools: [MCPToolProviding] = [AnthropicChatTestTools()]
-        let toolDescriptions = tools.flatMap(\.toolDescriptions)
+        let toolDescriptions = await tools.toolDescriptions
 
         let systemPrompt = "You have access to a get_weather tool. Use it when asked about weather."
         let messages: [ChatMessage] = [

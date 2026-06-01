@@ -124,7 +124,7 @@ extension Runner {
                 guard requestedMedia.isEmpty else { throw RunnerError.mediaOutputNotStreamable }
 
                 let chatResult: AgentResult<A.OutputType> = try await withSpan { agentSpan in
-                    var tools: [Tool] = currentAgent.createTools()
+                    var tools: [Tool] = await currentAgent.createTools()
 
                     for proxy in currentAgent.mcpServers {
                         tools += try await withSpan { mcpListSpan in
@@ -197,7 +197,7 @@ extension Runner {
             }
 
             let result: AgentResult<A.OutputType> = try await withSpan { agentSpan in
-                var tools: [Tool] = currentAgent.createTools()
+                var tools: [Tool] = await currentAgent.createTools()
 
                 // List MCP server tools
                 for proxy in currentAgent.mcpServers {
