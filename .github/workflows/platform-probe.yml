@@ -1,0 +1,81 @@
+---
+name: Platform Probe
+
+# Diagnostic-only workflow, intentionally kept separate from swift.yml
+# so it can never affect the required Swift checks. It probes whether
+# the current toolchain can compile SwiftAgents on Windows and Android —
+# the two platforms swift.yml omits because SwiftMCP transitively pulls
+# in swift-nio (SwiftAgents has no direct NIO use). The open question is
+# simply whether swift-nio itself builds on these targets now; the CI
+# comment that declared it broken predates Swift 6.3, and SwiftMCP #120
+# (the Android libc-shim blocker) is fixed as of 1.4.6.
+#
+# These jobs are allowed to fail — they are informational. Once we know
+# the answer, the passing platforms get folded into swift.yml and this
+# file is deleted (or, if NIO still doesn't build, the findings drive a
+# SwiftMCP restructure that segregates the NIO/Transport layer).
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+
+  probe-windows:
+    # `Providers` is the probe target: it depends on SwiftMCP, which
+    # links NIOCore / NIOHTTP1 / NIOPosix / NIOFoundationCompat. If it
+    # compiles, swift-nio builds on Windows. Products are built one at a
+    # time (mirroring build-linux) to dodge the SwiftMCP aggregator
+    # build-tool / swift-syntax host-build race. Providers is built
+    # first so a NIO failure surfaces before the Process()-using
+    # TerminalUI / Coder targets, which can fail for unrelated reasons.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Swift
+        uses: SwiftyLab/setup-swift@latest
+        with:
+          swift-version: "6.3.1"
+      - name: Verify Swift version
+        run: swift --version
+      - name: Build Providers (Windows)
+        shell: pwsh
+        run: swift build -v --product Providers
+      - name: Build VectorStore (Windows)
+        shell: pwsh
+        run: swift build -v --product VectorStore
+      - name: Build TerminalUI (Windows)
+        shell: pwsh
+        run: swift build -v --product TerminalUI
+      - name: Build Coder (Windows)
+        shell: pwsh
+        run: swift build -v --product Coder
+      - name: Test (Windows)
+        shell: pwsh
+        run: swift test -v --filter ProvidersTests
+
+  probe-android:
+    # SwiftMCP #120 (per-platform libc shim) is fixed in 1.4.6, so the
+    # build now reaches the swift-nio layer instead of failing earlier
+    # in String+Hostname.swift. Build the Providers product (pulls
+    # SwiftMCP -> NIO) without tests: this keeps the probe a fast
+    # cross-compile check with no emulator boot. swift-version is pinned
+    # to a full patch so the host toolchain and Android SDK tarballs
+    # match (skiptools guidance — a floating "6.3" key drifts them).
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build Providers (Android)
+        uses: skiptools/swift-android-action@v2
+        with:
+          swift-version: "6.3.2"
+          free-disk-space: true
+          build-tests: false
+          run-tests: false
+          swift-build-flags: --product Providers
