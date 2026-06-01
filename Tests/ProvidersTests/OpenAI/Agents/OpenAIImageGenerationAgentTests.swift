@@ -54,9 +54,7 @@ struct OpenAIImageGenerationAgentTests {
             name: "ImageGen",
             model: model,
             instructions: "Generate the requested image.",
-            action: .generate,
-            quality: "low",
-            outputFormat: "png"
+            image: ImageOptions(action: .generate, quality: "low", outputFormat: "png")
         )
 
         let result = try await Runner.run(
@@ -77,7 +75,7 @@ struct OpenAIImageGenerationAgentTests {
     )
     func multiTurnViaResponseId() async throws {
         let openAI = try TestClients.openAI()
-        let agent = ImageAgent(name: "ImageGen", model: model, quality: "low")
+        let agent = ImageAgent(name: "ImageGen", model: model, image: ImageOptions(quality: "low"))
 
         let first = try await Runner.run(
             agent: agent,
@@ -103,7 +101,7 @@ struct OpenAIImageGenerationAgentTests {
     )
     func multiTurnViaImageId() async throws {
         let openAI = try TestClients.openAI()
-        let agent = ImageAgent(name: "ImageGen", model: model, quality: "low")
+        let agent = ImageAgent(name: "ImageGen", model: model, image: ImageOptions(quality: "low"))
 
         let first = try await Runner.run(
             agent: agent,
@@ -135,7 +133,7 @@ struct OpenAIImageGenerationAgentTests {
     )
     func streamingPartialImages() async throws {
         let openAI = try TestClients.openAI()
-        let agent = ImageAgent(name: "ImageGen", model: model, quality: "low", partialImages: 2)
+        let agent = ImageAgent(name: "ImageGen", model: model, image: ImageOptions(quality: "low", partialImages: 2))
 
         let stream = Runner.runStreamed(
             agent: agent,
@@ -176,7 +174,7 @@ struct OpenAIImageGenerationAgentTests {
         let referenceData = try VisionImageTestHelpers.visionFixtureData()
         let referenceURL = VisionImageTestHelpers.responseDataURL(for: referenceData, mimeType: "image/png")
 
-        let agent = ImageAgent(name: "ImageEditor", model: model, action: .edit, quality: "low")
+        let agent = ImageAgent(name: "ImageEditor", model: model, image: ImageOptions(action: .edit, quality: "low"))
 
         let input = Response.Input.array([
             .message(.init(role: .user, content: [
@@ -198,10 +196,7 @@ struct OpenAIImageGenerationAgentTests {
         let agent = ImageAgent(
             name: "ImageGen",
             model: model,
-            action: .generate,
-            size: "1024x1024",
-            quality: "low",
-            outputFormat: "jpeg"
+            image: ImageOptions(size: "1024x1024", action: .generate, quality: "low", outputFormat: "jpeg")
         )
 
         let result = try await Runner.run(

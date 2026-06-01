@@ -85,6 +85,11 @@ public struct ImageGenerationTool: Codable, Sendable, Equatable {
     /// Mask marking the region to edit on the first input image.
     public let inputImageMask: InputImageMask?
 
+    /// How strongly the model preserves details from input images during edits
+    /// and reference-image workflows, e.g. `high` / `low`. Omit for `gpt-image-2`,
+    /// which always processes image inputs at high fidelity.
+    public let inputFidelity: String?
+
     public init(
         model: String? = nil,
         action: Action? = nil,
@@ -95,7 +100,8 @@ public struct ImageGenerationTool: Codable, Sendable, Equatable {
         outputCompression: Int? = nil,
         moderation: String? = nil,
         partialImages: Int? = nil,
-        inputImageMask: InputImageMask? = nil
+        inputImageMask: InputImageMask? = nil,
+        inputFidelity: String? = nil
     ) {
         self.model = model
         self.action = action
@@ -107,5 +113,6 @@ public struct ImageGenerationTool: Codable, Sendable, Equatable {
         self.moderation = moderation
         self.partialImages = partialImages
         self.inputImageMask = inputImageMask
+        self.inputFidelity = inputFidelity
     }
 }

@@ -116,6 +116,13 @@ extension Runner {
             // `/v1/chat/completions` — route them through the
             // chat-completion streaming surface instead.
             guard let openAI = api as? OpenAI, openAI.endpointURL == URL.openAI else {
+                // Media output (image/audio) can't be streamed token-wise on the
+                // chat-completion path, and there's no stream event to carry the
+                // bytes — fail fast with guidance instead of looping to maxTurns.
+                // (OpenAI's Responses path streams images natively, above.)
+                let requestedMedia = config.requestedMedia ?? (currentAgent as? RequestsMedia)?.requestedMedia ?? []
+                guard requestedMedia.isEmpty else { throw RunnerError.mediaOutputNotStreamable }
+
                 let chatResult: AgentResult<A.OutputType> = try await withSpan { agentSpan in
                     var tools: [Tool] = currentAgent.createTools()
 
@@ -216,6 +223,11 @@ extension Runner {
                         return myTools
                     }
                 }
+
+                // Realize an image intent as the OpenAI image_generation tool
+                // (this branch is the OpenAI Responses streaming path).
+                let requestedMedia = config.requestedMedia ?? (currentAgent as? RequestsMedia)?.requestedMedia ?? []
+                tools = Self.realizingImageTool(tools, for: requestedMedia, api: api)
 
                 agentSpan.spanData = AgentSpanData(
                     name: currentAgent.name,

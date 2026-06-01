@@ -8,6 +8,8 @@ extension RunnerError: TracedError {
         switch self {
             case .exceededMaxTurns:
                 return "Exceeded maximum number of turns"
+            case .mediaOutputNotStreamable:
+                return "Media output is not streamable on chat-completion providers"
         }
     }
 }

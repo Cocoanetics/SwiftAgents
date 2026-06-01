@@ -86,8 +86,22 @@ public class GoogleAPI: API, @unchecked Sendable {
         responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
         frequencyPenalty: Double? = nil,
         logitBias: [String: Int]? = nil,
-        user: String? = nil
+        user: String? = nil,
+        options: GenerationOptions? = nil
     ) async throws -> ChatCompletionResponse {
+        // Realize the neutral media intent as Gemini's request shape:
+        // `responseModalities` lists *every* requested modality (so a
+        // text+image request keeps its textual answer, not just the image),
+        // and `imageConfig` carries any portable sizing. An `.image` request
+        // with no sizing still flips the modality but sends no imageConfig.
+        let media = options?.requestedMedia ?? []
+        let imageConfig: GoogleImageConfig? = media.firstImageOptions.flatMap { options in
+            guard options.size != nil || options.aspectRatio != nil else { return nil }
+            return GoogleImageConfig(aspectRatio: options.aspectRatio, imageSize: options.size)
+        }
+        let modalities = Self.googleResponseModalities(for: media)
+        let responseModalities: [String]? = modalities.isEmpty ? nil : modalities
+
         return try await createChatCompletion(
             model: model,
             messages: messages,
@@ -106,7 +120,8 @@ public class GoogleAPI: API, @unchecked Sendable {
             logitBias: logitBias,
             user: user,
             thinkingConfig: nil,
-            imageConfig: nil
+            imageConfig: imageConfig,
+            responseModalities: responseModalities
         )
     }
 
@@ -128,7 +143,8 @@ public class GoogleAPI: API, @unchecked Sendable {
         logitBias _: [String: Int]? = nil,
         user _: String? = nil,
         thinkingConfig: GoogleThinkingConfig? = nil,
-        imageConfig: GoogleImageConfig? = nil
+        imageConfig: GoogleImageConfig? = nil,
+        responseModalities: [String]? = nil
     ) async throws -> ChatCompletionResponse {
         let thinking = thinkingConfig ?? defaultThinkingConfig
         let requestPayload = buildGenerateContentRequest(
@@ -139,6 +155,7 @@ public class GoogleAPI: API, @unchecked Sendable {
                 aspectRatio: $0.aspectRatio,
                 imageSize: $0.imageSize
             ) },
+            responseModalities: responseModalities,
             responseFormat: responseFormat
         )
         let endpoint = "v1beta/models/\(model):generateContent"
@@ -276,11 +293,25 @@ public class GoogleAPI: API, @unchecked Sendable {
 
     // MARK: - Private Helpers
 
+    /// Maps neutral `RequestedMedia` to Gemini's `responseModalities` strings,
+    /// preserving order and including every requested modality. Audio is
+    /// omitted — `:generateContent` doesn't support audio output.
+    static func googleResponseModalities(for media: [RequestedMedia]) -> [String] {
+        media.compactMap { entry in
+            switch entry {
+                case .text: "TEXT"
+                case .image: "IMAGE"
+                case .audio: nil
+            }
+        }
+    }
+
     private func buildGenerateContentRequest(
         from messages: [ChatMessage],
         tools: [ToolDescription]?,
         thinkingConfig: GoogleThinkingConfig?,
         imageConfig: GoogleGenerateContentRequest.ImageConfig?,
+        responseModalities: [String]? = nil,
         responseFormat: ChatCompletionRequest.ResponseFormat? = nil
     ) -> GoogleGenerateContentRequest {
         var systemParts: [GoogleGenerateContent.Part] = []
@@ -384,15 +415,19 @@ public class GoogleAPI: API, @unchecked Sendable {
                 responseMimeType = "application/json"
         }
 
+        // Prefer the explicitly requested modalities; fall back to inferring
+        // "IMAGE" from a present imageConfig so existing callers are unchanged.
+        let effectiveModalities = responseModalities ?? (imageConfig != nil ? ["IMAGE"] : nil)
         let hasGenerationConfig = requestThinkingConfig != nil
             || imageConfig != nil
+            || effectiveModalities != nil
             || responseSchema != nil
             || responseMimeType != nil
         let generationConfig = hasGenerationConfig
             ? GoogleGenerateContentRequest.GenerationConfig(
                 thinkingConfig: requestThinkingConfig,
                 imageConfig: imageConfig,
-                responseModalities: imageConfig != nil ? ["IMAGE"] : nil,
+                responseModalities: effectiveModalities,
                 temperature: 1.0,
                 responseSchema: responseSchema,
                 responseMimeType: responseMimeType
@@ -456,7 +491,10 @@ public class GoogleAPI: API, @unchecked Sendable {
                         textSegments.append(text)
                         structuredParts.append(ChatMessage.ContentPart(text: text))
                     } else if let inline = part.inlineData {
-                        let dataURL = "data:\(inline.mimeType);base64,\(inline.data)"
+                        // `inline.data` is `Data`; it must be base64-encoded into
+                        // the data URL. Interpolating the `Data` directly yields
+                        // its description ("N bytes"), which no decoder accepts.
+                        let dataURL = "data:\(inline.mimeType);base64,\(inline.data.base64EncodedString())"
                         structuredParts.append(ChatMessage.ContentPart(imageURL: dataURL))
                     } else if let file = part.fileData, let uri = file.fileUri {
                         textSegments.append("file://\(uri)")

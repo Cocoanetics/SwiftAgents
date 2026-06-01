@@ -92,8 +92,14 @@ extension Anthropic {
                         return .text(.init(text: text))
                     case .imageURL:
                         return imageBlock(from: part)
-                    case .inputAudio, .file:
-                        // Audio + arbitrary files aren't supported by the Messages API.
+                    case .file:
+                        // An image uploaded to the Anthropic Files API, referenced
+                        // by file_id. (Document/PDF file_ids would need a document
+                        // block, which isn't modelled yet.)
+                        guard let fileID = part.file?.fileID else { return nil }
+                        return .image(.init(source: .file(fileID)))
+                    case .inputAudio:
+                        // Audio isn't supported by the Messages API.
                         return nil
                 }
             }
@@ -168,9 +174,11 @@ extension Anthropic {
                                                     )))
                                                 }
                                                 return .image(.init(source: .url(raw)))
-                                            case .inputImageFileID:
-                                                // OpenAI file IDs don't translate.
-                                                return nil
+                                            case let .inputImageFileID(fileID):
+                                                // A file_id from the Anthropic Files API.
+                                                // (Must be an Anthropic id, not an
+                                                // OpenAI/Gemini one — ids aren't portable.)
+                                                return .image(.init(source: .file(fileID)))
                                         }
                                     }
                                     if !blocks.isEmpty {

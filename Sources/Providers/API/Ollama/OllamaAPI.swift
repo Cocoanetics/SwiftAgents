@@ -29,7 +29,8 @@ public class OllamaAPI: API, @unchecked Sendable {
         responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
         frequencyPenalty: Double? = nil,
         logitBias: [String: Int]? = nil,
-        user: String? = nil
+        user: String? = nil,
+        options: GenerationOptions? = nil
     ) async throws -> ChatCompletionResponse {
         // inject the tools description into the system prompt
         let messages = inject(tools: tools, messages: messages)
@@ -49,7 +50,8 @@ public class OllamaAPI: API, @unchecked Sendable {
             responseFormat: responseFormat,
             frequencyPenalty: frequencyPenalty,
             logitBias: logitBias,
-            user: user
+            user: user,
+            options: options
         )
 
         let choices = response.choices.map { choice in

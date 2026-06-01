@@ -339,6 +339,8 @@ struct Coder: AsyncParsableCommand {
                     switch error {
                         case .exceededMaxTurns:
                             terminal.output("Error: Agent exceeded maximum number of turns.".red)
+                        case .mediaOutputNotStreamable:
+                            terminal.output("Error: Streaming isn't supported for media output.".red)
                     }
                     print("\n")
                 } catch {

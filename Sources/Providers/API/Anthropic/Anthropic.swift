@@ -132,7 +132,8 @@ public class Anthropic: API, @unchecked Sendable {
         responseFormat: ChatCompletionRequest.ResponseFormat? = nil,
         frequencyPenalty _: Double? = nil,
         logitBias _: [String: Int]? = nil,
-        user: String? = nil
+        user: String? = nil,
+        options _: GenerationOptions? = nil
     ) async throws -> ChatCompletionResponse {
         let (system, anthropicMessages) = Anthropic.convertChatMessages(messages)
 
@@ -210,7 +211,10 @@ public class Anthropic: API, @unchecked Sendable {
     /// (cache_control, thinking blocks, etc.) can use the native types
     /// directly.
     public func createMessage(_ request: AnthropicMessagesRequest) async throws -> AnthropicMessagesResponse {
-        let urlRequest = try createUrlRequest(httpMethod: "POST", path: "/v1/messages", body: request)
+        var urlRequest = try createUrlRequest(httpMethod: "POST", path: "/v1/messages", body: request)
+        if request.referencesUploadedFiles {
+            urlRequest.setValue(Anthropic.filesAPIBeta, forHTTPHeaderField: "anthropic-beta")
+        }
         let (data, response) = try await session.data(for: urlRequest)
         return try processAnthropicResponse(data: data, response: response)
     }
@@ -237,7 +241,10 @@ public class Anthropic: API, @unchecked Sendable {
                 metadata: request.metadata
             )
         }
-        let urlRequest = try createUrlRequest(httpMethod: "POST", path: "/v1/messages", body: streamingRequest)
+        var urlRequest = try createUrlRequest(httpMethod: "POST", path: "/v1/messages", body: streamingRequest)
+        if streamingRequest.referencesUploadedFiles {
+            urlRequest.setValue(Anthropic.filesAPIBeta, forHTTPHeaderField: "anthropic-beta")
+        }
 
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 600

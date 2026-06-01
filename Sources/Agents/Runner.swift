@@ -148,9 +148,18 @@ public actor Runner {
             // handoffs.
             var currentNextInput = nextInput
 
+            // Effective output modalities: a per-run override (config) wins
+            // over what the agent declares via `RequestsMedia`, mirroring how
+            // `config.model` overrides the agent's model. Agents that don't
+            // conform request no media. Provider adapters translate downstream.
+            let requestedMedia = config.requestedMedia ?? (currentAgent as? RequestsMedia)?.requestedMedia ?? []
+
             let agentResult: AgentResult<A.OutputType> = try await withSpan { agentSpan in
                 var tools: [Tool] = currentAgent.createTools()
                 tools += try await Self.collectMCPTools(for: currentAgent)
+                // Realize an image intent as the OpenAI image_generation tool
+                // (no-op on other providers / when already present).
+                tools = Self.realizingImageTool(tools, for: requestedMedia, api: api)
 
                 agentSpan.spanData = AgentSpanData(
                     name: currentAgent.name,
@@ -210,6 +219,7 @@ public actor Runner {
                         maxTurns: maxTurns,
                         model: model,
                         api: api,
+                        requestedMedia: requestedMedia,
                         turnState: &turnState,
                         session: session,
                         tracker: tracker,
@@ -303,6 +313,9 @@ public actor Runner {
             turns: 0
         )
 
+        // Same override precedence as the non-guardrail path.
+        let requestedMedia = config.requestedMedia ?? (agent as? RequestsMedia)?.requestedMedia ?? []
+
         // Track if the agent finished before any guardrail
         var agentFinishedFirst = false
         var guardrailResults: [(name: String, result: InputGuardrailResult)] = []
@@ -320,6 +333,7 @@ public actor Runner {
                         maxTurns: maxTurns,
                         model: model,
                         api: api,
+                        requestedMedia: requestedMedia,
                         turnState: &turnState,
                         session: session,
                         tracker: tracker,
@@ -431,6 +445,7 @@ public actor Runner {
         maxTurns: Int,
         model: String,
         api: API,
+        requestedMedia: [RequestedMedia],
         turnState: inout TurnState,
         session: Providers.Session,
         tracker: ConversationStateTracker,
@@ -536,7 +551,8 @@ public actor Runner {
                             responseFormat: agent.responseFormat,
                             frequencyPenalty: agent.modelSettings.frequencyPenalty,
                             logitBias: nil,
-                            user: nil
+                            user: nil,
+                            options: requestedMedia.isEmpty ? nil : GenerationOptions(requestedMedia: requestedMedia)
                         )
 
                         // Convert completion to Response
@@ -547,65 +563,7 @@ public actor Runner {
                         )
 
                         // Build span data for generation
-                        let inputMessages: [[String: JSONValue]] = messages.map { msg in
-                            var dict: [String: JSONValue] = [
-                                "role": JSONValue(msg.role.rawValue)
-                            ]
-
-                            // only add content if it is not empty
-                            if let content = msg.content {
-                                switch content {
-                                    case let .text(text):
-                                        if !text.isEmpty {
-                                            dict["content"] = JSONValue(text)
-                                        }
-                                    case let .parts(parts):
-                                        // OpenAI's traces ingest accepts
-                                        // only `text` and `image` content
-                                        // discriminators — NOT the
-                                        // `image_url` / `input_text` /
-                                        // `output_text` shapes the chat
-                                        // and Responses APIs use. Without
-                                        // this collapse, image-bearing
-                                        // generation spans get rejected
-                                        // with "Invalid discriminator
-                                        // value. Expected 'text' | 'image'"
-                                        // and silently swallowed by
-                                        // OpenAITraceExporter — that's
-                                        // why LM Studio image runs never
-                                        // appeared on the dashboard.
-                                        let structured: [[String: JSONValue]] = parts.compactMap { part in
-                                            if let text = part.text {
-                                                return ["type": JSONValue("text"), "text": JSONValue(text)]
-                                            }
-                                            if let url = part.imageURL?.url {
-                                                return ["type": JSONValue("image"), "image_url": JSONValue(url)]
-                                            }
-                                            return nil
-                                        }
-                                        if !structured.isEmpty {
-                                            dict["content"] = JSONValue(structured)
-                                        }
-                                }
-                            }
-
-                            if let toolCalls = msg.toolCalls {
-                                dict["tool_calls"] = JSONValue(toolCalls.map { call -> [String: JSONValue] in
-                                    [
-                                        "id": JSONValue(call.id),
-                                        "type": JSONValue("function"),
-                                        "function": JSONValue([
-                                            "name": JSONValue(call.function?.name ?? ""),
-                                            "arguments": JSONValue(call.function?.arguments ?? "")
-                                        ])
-                                    ]
-                                })
-                            }
-                            if let toolCallID = msg.toolCallID {
-                                dict["tool_call_id"] = JSONValue(toolCallID)
-                            }
-                            return dict
-                        }
+                        let inputMessages = Self.chatInputMessageDicts(from: messages)
 
                         let outputMessages: [[String: JSONValue]] = response.output.map(Self.outputItemToDict)
 

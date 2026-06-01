@@ -23,6 +23,12 @@ public struct RunConfig {
     /// same stateful/chat-completion detection as a registry-resolved one.
     public var api: API?
 
+    /// Per-run override of the output modalities to request, e.g.
+    /// `[.image(.init(size: "2K"))]`. When non-nil it replaces what the agent
+    /// declares via `RequestsMedia` for this run, mirroring how `model`
+    /// overrides the agent's default. When nil the agent's value is used.
+    public var requestedMedia: [RequestedMedia]?
+
     /// The work flow name, used for tracing spans if no other name is set
     var workFlowName: String
 
@@ -44,11 +50,13 @@ public struct RunConfig {
     public init(
         model: String? = nil,
         api: API? = nil,
+        requestedMedia: [RequestedMedia]? = nil,
         workFlowName: String = "Agent Workflow",
         dateDecodingStrategy: JSONDecoder.DateDecodingStrategy = .iso8601
     ) {
         self.model = model
         self.api = api
+        self.requestedMedia = requestedMedia
         self.workFlowName = workFlowName
         self.dateDecodingStrategy = dateDecodingStrategy
     }

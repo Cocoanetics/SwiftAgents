@@ -73,8 +73,8 @@ public struct AnthropicTextBlock: Codable, Sendable {
     }
 }
 
-/// Image content block. Sources are either `base64` (`mediaType` + `data`) or
-/// `url` (remote URL fetched server-side).
+/// Image content block. Sources are `base64` (`mediaType` + `data`), `url`
+/// (remote URL fetched server-side), or `file` (a `file_id` from the Files API).
 public struct AnthropicImageBlock: Codable, Sendable {
     public let type: String
     public let source: Source
@@ -89,27 +89,35 @@ public struct AnthropicImageBlock: Codable, Sendable {
         public let mediaType: String?
         public let data: String?
         public let url: String?
+        public let fileID: String?
 
         private enum CodingKeys: String, CodingKey {
             case type
             case mediaType = "media_type"
             case data
             case url
+            case fileID = "file_id"
         }
 
         public static func base64(mediaType: String, data: String) -> Source {
-            Source(type: "base64", mediaType: mediaType, data: data, url: nil)
+            Source(type: "base64", mediaType: mediaType, data: data, url: nil, fileID: nil)
         }
 
         public static func url(_ url: String) -> Source {
-            Source(type: "url", mediaType: nil, data: nil, url: url)
+            Source(type: "url", mediaType: nil, data: nil, url: url, fileID: nil)
         }
 
-        public init(type: String, mediaType: String?, data: String?, url: String?) {
+        /// References an image uploaded to the Anthropic Files API by `file_id`.
+        public static func file(_ fileID: String) -> Source {
+            Source(type: "file", mediaType: nil, data: nil, url: nil, fileID: fileID)
+        }
+
+        public init(type: String, mediaType: String?, data: String?, url: String?, fileID: String? = nil) {
             self.type = type
             self.mediaType = mediaType
             self.data = data
             self.url = url
+            self.fileID = fileID
         }
     }
 }
