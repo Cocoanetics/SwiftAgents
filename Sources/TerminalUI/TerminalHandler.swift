@@ -91,7 +91,10 @@ public class TerminalHandler: @unchecked Sendable {
             print(string.removingANSISequences(), terminator: terminator)
         }
 
-        fflush(stdout)
+        // `nil` flushes every open output stream. It avoids naming the C
+        // `stdout` global, which Swift 6 treats as shared mutable state on
+        // Glibc (where it's imported as a `var`).
+        fflush(nil)
         previousVisualLines = 1
     }
 
@@ -143,7 +146,7 @@ public class TerminalHandler: @unchecked Sendable {
                 print(displayText, terminator: "")
                 previousVisualLines = visualLineCount(prompt + inputBuffer)
             }
-            fflush(stdout)
+            fflush(nil)
         } else {
             if inputBuffer.isEmpty {
                 print("\(prompt)\(placeholder)", terminator: "")
@@ -198,7 +201,7 @@ public class TerminalHandler: @unchecked Sendable {
             // Beep and stay on the same line if input is empty
             guard !inputBuffer.isEmpty else {
                 print("\u{07}", terminator: "")
-                fflush(stdout)
+                fflush(nil)
                 return
             }
 
