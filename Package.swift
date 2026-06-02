@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.1
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -64,10 +64,11 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
-		// SwiftMCP 1.4.7 ships the cross-platform client fix (SwiftCross-based
-		// SSE, no `os(Linux)` split) plus the async `mcpToolMetadata` that the
-		// tool-description call sites here `await`.
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.4.7"),
+		// Link only SwiftMCP's NIO-free core + the `Client` trait (the MCP
+		// client we use) — NOT the `Server` HTTP transport — so swift-nio stays
+		// out of SwiftAgents' graph and we build on Windows. Tracking `main`
+		// until the trait work (SwiftMCP #129) is tagged.
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP", branch: "main", traits: ["Client"]),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
 		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
@@ -152,5 +153,9 @@ let package = Package(
 			path: "Tests/ProvidersTests",
 			resources: [.process("Resources")]
 		)
-	]
+	],
+	// Bumped to tools 6.1 for package-trait selection on SwiftMCP. Pin the
+	// language mode to .v5 to keep current build behavior (the bump is only
+	// to gain `traits:`, not a Swift 6 language-mode migration).
+	swiftLanguageModes: [.v5]
 )
