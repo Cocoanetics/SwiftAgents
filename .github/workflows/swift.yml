@@ -138,11 +138,13 @@ jobs:
         run: swift test -v --filter ProvidersTests
 
   build-android:
-    # Cross-compiles the SwiftAgents target + ProvidersTests under the Android
-    # SDK via skiptools and runs the offline test subset in an emulator (the
-    # key-gated live-API tests skip without secrets). `--filter ProvidersTests`
-    # scopes the run to that target's graph — not SwiftMCP's demo executables
-    # (Android signal gaps). Android also relied on SwiftMCP's `os(Linux)` →
+    # Cross-compiles ProvidersTests under the Android SDK via skiptools and
+    # runs the offline subset in an emulator (key-gated live-API tests skip
+    # without secrets). skiptools builds with `swift build --build-tests`,
+    # which is mutually exclusive with `--target`; ProvidersTests is the only
+    # test target, so the build already covers just it + its library graph
+    # (not SwiftMCP's demo executables). `--filter ProvidersTests` scopes the
+    # emulator run. Android also relied on SwiftMCP's `os(Linux)` →
     # `canImport(FoundationNetworking)` client fix (NIO itself builds here).
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -157,5 +159,4 @@ jobs:
           free-disk-space: true
           build-tests: true
           run-tests: true
-          swift-build-flags: --target SwiftAgents
           swift-test-flags: --filter ProvidersTests
