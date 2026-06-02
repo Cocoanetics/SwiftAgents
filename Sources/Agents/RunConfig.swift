@@ -9,7 +9,7 @@ import Providers
  - model: Optional OpenAI model identifier to use for this run
  - workFlowName: Name identifier for the workflow being executed
  */
-public struct RunConfig {
+public struct RunConfig: Sendable {
     /// The model to use for a run
     public var model: String?
 

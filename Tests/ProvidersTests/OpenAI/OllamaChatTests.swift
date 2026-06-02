@@ -4,7 +4,7 @@ import SwiftMCP
 import Testing
 
 @MCPServer
-private class OllamaTools {
+private final class OllamaTools {
     @MCPTool(description: "Echoes provided text")
     func say(_ text: String) -> String {
         text

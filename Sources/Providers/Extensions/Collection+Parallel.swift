@@ -1,9 +1,9 @@
 import Foundation
 
 public extension Collection {
-    func concurrentMap<T>(
-        _ transform: @escaping (Element) async throws -> T
-    ) async throws -> [T] {
+    func concurrentMap<T: Sendable>(
+        _ transform: @escaping @Sendable (Element) async throws -> T
+    ) async throws -> [T] where Element: Sendable {
         try await withThrowingTaskGroup(of: (Int, T).self) { group in
             // placeholders so that results are assembled in same order
             var results = [T?](repeating: nil, count: self.count)

@@ -11,7 +11,7 @@ import SwiftMCP
 import Testing
 
 @MCPServer
-private class AnthropicChatTestTools {
+private final class AnthropicChatTestTools {
     @MCPTool(description: "Echoes the provided text back")
     func say(_ text: String) -> String {
         text

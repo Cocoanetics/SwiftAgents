@@ -155,8 +155,8 @@ let package = Package(
 			resources: [.process("Resources")]
 		)
 	],
-	// Bumped to tools 6.1 for package-trait selection on SwiftMCP. Pin the
-	// language mode to .v5 to keep current build behavior (the bump is only
-	// to gain `traits:`, not a Swift 6 language-mode migration).
-	swiftLanguageModes: [.v5]
+	// Tools 6.1 (needed for SwiftMCP package-trait selection) defaults to the
+	// Swift 6 language mode; the package builds clean under full strict
+	// concurrency.
+	swiftLanguageModes: [.v6]
 )

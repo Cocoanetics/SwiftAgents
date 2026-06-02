@@ -22,7 +22,11 @@ public enum TraceContext {
      - Returns: The result of the operation
      - Throws: Any error thrown by the operation
      */
-    public static func withTrace<T>(_ trace: Trace, operation: () async throws -> T) async throws -> T {
+    public static func withTrace<T>(
+        _ trace: Trace,
+        isolation: isolated (any Actor)? = #isolation,
+        operation: () async throws -> T
+    ) async throws -> T {
         let needsNotification = currentTrace?.id != trace.id
 
         if needsNotification {
@@ -47,7 +51,11 @@ public enum TraceContext {
      - Parameter operation: The operation to execute within the span context
      - Throws: Any error thrown by the operation
      */
-    public static func withSpan(_ span: TraceSpan, operation: () async throws -> Void) async throws {
+    public static func withSpan(
+        _ span: TraceSpan,
+        isolation: isolated (any Actor)? = #isolation,
+        operation: () async throws -> Void
+    ) async throws {
         try await $currentSpan.withValue(span) {
             try await operation()
         }
@@ -59,7 +67,10 @@ public enum TraceContext {
      - Parameter operation: The operation to execute with no span context
      - Throws: Any error thrown by the operation
      */
-    public static func clearCurrentSpan(operation: () async throws -> Void) async throws {
+    public static func clearCurrentSpan(
+        isolation: isolated (any Actor)? = #isolation,
+        operation: () async throws -> Void
+    ) async throws {
         try await $currentSpan.withValue(nil) {
             try await operation()
         }

@@ -24,6 +24,7 @@ public func withSpan<T>(
     traceID: String? = nil,
     parentID: String? = nil,
     spanData: SpanData? = nil,
+    isolation: isolated (any Actor)? = #isolation,
     operation: (TraceSpan) async throws -> T
 ) async throws -> T {
     // 1. Determine Trace ID
@@ -116,6 +117,7 @@ public func withTrace<T>(
     traceID: String = .traceID, // Generate ID by default
     groupID: String? = nil,
     metadata: [String: String]? = nil,
+    isolation: isolated (any Actor)? = #isolation,
     operation: () async throws -> T
 ) async throws -> T {
     let traceToUse = TraceContext.currentTrace ?? Trace(

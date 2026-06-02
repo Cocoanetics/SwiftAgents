@@ -18,7 +18,7 @@ The JSON schema should be:
 """
 
 @MCPServer
-private class ChatTestTools {
+private final class ChatTestTools {
     @MCPTool(description: "Echoes provided text")
     func say(_ text: String) -> String {
         text

@@ -12,7 +12,7 @@ import Foundation
 
  - SeeAlso: For more information, see [Vector Store API Documentation](https://platform.openai.com/docs/api-reference/vector-stores).
  */
-public struct VectorStore: Codable {
+public struct VectorStore: Codable, Sendable {
     /// Unique identifier for the vector store, which can be referenced in API endpoints.
     public var id: String
 
@@ -87,7 +87,7 @@ struct VectorStoreOptionals: Codable {
 /**
  Represents an expiration policy for a vector store.
  */
-public struct ExpirationPolicy: Codable {
+public struct ExpirationPolicy: Codable, Sendable {
     /// The anchor point for calculating expiration, e.g., "last_active_at".
     let anchor: String
 

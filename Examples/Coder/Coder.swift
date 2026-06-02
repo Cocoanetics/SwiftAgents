@@ -10,6 +10,14 @@ import TerminalUI
 import SwiftDotenv
 #endif
 
+/// Reference box holding the rolling response id across REPL turns.
+/// `@unchecked Sendable`: the input handler runs each turn's `Task` to
+/// completion (via the semaphore) before returning, so accesses to `value`
+/// never overlap.
+private final class ResponseIdBox: @unchecked Sendable {
+    var value: String?
+}
+
 /// Flushes buffered text, rendering complete markdown inline markers (**bold**, *italic*, `code`).
 /// Returns the remaining buffer (text after an unmatched opening marker).
 /// Check if a `*` at the given position is a bullet point (not inline italic)
@@ -233,7 +241,7 @@ struct Coder: AsyncParsableCommand {
 
         // Handle user input
         let model = model
-        var lastResponseId: String?
+        let lastResponseId = ResponseIdBox()
         terminal.handleInput = { input in
             guard !input.trimmingCharacters(in: .whitespaces).isEmpty else { return }
             let sema = DispatchSemaphore(value: 0)
@@ -246,7 +254,7 @@ struct Coder: AsyncParsableCommand {
                     agent: agent,
                     input: input,
                     maxTurns: 50,
-                    previousResponseId: lastResponseId,
+                    previousResponseId: lastResponseId.value,
                     config: config
                 )
 
@@ -334,7 +342,7 @@ struct Coder: AsyncParsableCommand {
                     } else {
                         print("\n\n")
                     }
-                    lastResponseId = result.lastResponseId
+                    lastResponseId.value = result.lastResponseId
                 } catch let error as RunnerError {
                     switch error {
                         case .exceededMaxTurns:

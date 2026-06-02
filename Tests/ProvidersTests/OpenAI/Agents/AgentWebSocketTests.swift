@@ -109,7 +109,7 @@ struct AgentWebSocketTests {
 }
 
 @MCPServer
-class WebSocketCalculatorTool {
+final class WebSocketCalculatorTool {
     @MCPTool(description: "Multiply two numbers")
     func multiply(lhs: Double, rhs: Double) -> Double {
         lhs * rhs

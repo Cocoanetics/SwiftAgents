@@ -29,7 +29,7 @@ import FoundationNetworking
 ///
 /// Public so advanced callers can supply a custom transport (a proxy, an
 /// instrumented socket) via ``OpenAIResponsesWebSocket``'s `connectionFactory`.
-public protocol ResponsesWebSocketConnection: AnyObject {
+public protocol ResponsesWebSocketConnection: AnyObject, Sendable {
     /// Begin the socket handshake. Mirrors `URLSessionTask.resume()`.
     func resume()
 

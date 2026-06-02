@@ -34,7 +34,7 @@ private let geminiModel = "gemini-2.5-flash"
 // MARK: - Tool-call fixtures
 
 @MCPServer
-private class GeminiRunnerWeatherTools {
+private final class GeminiRunnerWeatherTools {
     @MCPTool(description: "Returns the current weather for a city")
     func get_weather(city: String) -> String {
         "It is 18°C and partly cloudy in \(city)."

@@ -4,7 +4,7 @@ import SwiftMCP
 import Tracing
 
 public protocol Agent: AnyObject, Sendable {
-    associatedtype OutputType: Decodable
+    associatedtype OutputType: Decodable & Sendable
 
     var name: String { get }
     var instructions: String { get }
@@ -137,7 +137,7 @@ public extension Agent {
 
         var newInputs = [Response.Input.Element]()
 
-        try await withThrowingTaskGroup(of: (String, any Codable).self) { group in
+        try await withThrowingTaskGroup(of: (String, any Codable & Sendable).self) { group in
             // Build provider list including self if it conforms to MCPToolProviding
             var allProviders = self.toolProviders
             if let selfProvider = self as? MCPToolProviding {
@@ -177,7 +177,7 @@ public extension Agent {
                             )
 
                             // swiftlint:disable:next force_cast - callTool returns Encodable; protocol return requires Codable. Concrete return paths conform in practice.
-                            return (call.callId, result as! any Codable)
+                            return (call.callId, result as! (any Codable & Sendable))
                         }
                     }
                 } else {
@@ -209,7 +209,7 @@ public extension Agent {
                                     )
 
                                     // swiftlint:disable:next force_cast - callTool returns Encodable; protocol return requires Codable. Concrete return paths conform in practice.
-                                    return (call.callId, result as! any Codable)
+                                    return (call.callId, result as! (any Codable & Sendable))
                                 }
                             }
 

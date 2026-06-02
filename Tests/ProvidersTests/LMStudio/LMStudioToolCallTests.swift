@@ -21,7 +21,7 @@ import SwiftMCP
 import Testing
 
 @MCPServer
-private class LMStudioWeatherTools {
+private final class LMStudioWeatherTools {
     @MCPTool(description: "Returns the current weather for a city")
     func get_weather(city: String) -> String {
         "It is 18°C and partly cloudy in \(city)."

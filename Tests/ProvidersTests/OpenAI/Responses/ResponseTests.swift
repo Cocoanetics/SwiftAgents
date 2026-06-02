@@ -5,7 +5,7 @@ import SwiftMCP
 import Testing
 
 @MCPServer
-class Calculator {
+final class Calculator {
     @MCPTool(description: "Adds two integers")
     func add(number1: Int, number2: Int) -> Int {
         number1 + number2

@@ -114,7 +114,7 @@ struct SessionRoundTripOfflineTests {
 // MARK: - Live: cross-Runner.run session reuse with tools + structured output
 
 @MCPServer
-private class RoundTripWeatherTools {
+private final class RoundTripWeatherTools {
     @MCPTool(description: "Returns the current weather for a city")
     func get_weather(city: String) -> String {
         "It is 18°C and partly cloudy in \(city)."

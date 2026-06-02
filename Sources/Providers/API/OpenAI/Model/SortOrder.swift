@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum SortOrder: String {
+public enum SortOrder: String, Sendable {
     case descending = "desc"
     case ascending = "asc"
 }
