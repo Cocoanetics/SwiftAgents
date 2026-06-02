@@ -40,11 +40,15 @@ concurrency:
 jobs:
 
   probe-windows:
+    # Windows is blocked by upstream apple/swift-nio (NIOPosix: IPPROTO /
+    # BinaryFloatingPoint, non-Sendable NIOLockedValueBox, UnsafeMutableRawPointer
+    # Sendable). Nothing fixable here, so this job is MANUAL-ONLY — it doesn't run
+    # on every PR push (which would keep posting a known-failing check). Trigger it
+    # by hand ("Run workflow") to re-check whether swift-nio's Windows port has
+    # matured. continue-on-error keeps even a manual run from failing the workflow.
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
     timeout-minutes: 30
-    # Diagnostic: let the job fail without failing the workflow run, so a
-    # cross-platform gap never surfaces as a red PR check or blocks branches
-    # that require all checks. Failed steps stay visible inside the job.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v6
