@@ -117,7 +117,7 @@ jobs:
     # ends up compiling SwiftMCP's demo executables, which carry their own
     # unrelated Windows gaps. `--target` scopes the build to what we ship.
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
       - name: Setup Swift
@@ -129,24 +129,33 @@ jobs:
       - name: Build SwiftAgents (Windows)
         shell: pwsh
         run: swift build -v --target SwiftAgents
+      - name: Test (Windows)
+        shell: pwsh
+        timeout-minutes: 15
+        # `swift test --filter` builds only the ProvidersTests dependency
+        # graph (not SwiftMCP's demo executables), then runs the offline
+        # subset; the key-gated live-API tests skip without secrets.
+        run: swift test -v --filter ProvidersTests
 
   build-android:
-    # Cross-compiles the `SwiftAgents` umbrella target under the Android SDK
-    # via skiptools (same `--target` rationale as Windows). Build-only — the
-    # emulator/tests are off; this gates that our code + deps compile for
-    # Bionic. Android also relied on SwiftMCP's `os(Linux)` →
+    # Cross-compiles the SwiftAgents target + ProvidersTests under the Android
+    # SDK via skiptools and runs the offline test subset in an emulator (the
+    # key-gated live-API tests skip without secrets). `--filter ProvidersTests`
+    # scopes the run to that target's graph — not SwiftMCP's demo executables
+    # (Android signal gaps). Android also relied on SwiftMCP's `os(Linux)` →
     # `canImport(FoundationNetworking)` client fix (NIO itself builds here).
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
-      - name: Build SwiftAgents (Android)
+      - name: Build & test SwiftAgents (Android)
         uses: skiptools/swift-android-action@v2
         with:
           # Full patch version so host toolchain and Android SDK tarballs
           # match (skiptools guidance — a floating "6.3" key drifts them).
           swift-version: "6.3.2"
           free-disk-space: true
-          build-tests: false
-          run-tests: false
+          build-tests: true
+          run-tests: true
           swift-build-flags: --target SwiftAgents
+          swift-test-flags: --filter ProvidersTests

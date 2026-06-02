@@ -1,12 +1,5 @@
 import Foundation
-
-#if canImport(Darwin)
-import Darwin
-#elseif canImport(Glibc)
-import Glibc
-#elseif canImport(Musl)
-import Musl
-#endif
+import SwiftCross
 
 enum APIKey {
     private static let envLoaded: Void = {
@@ -21,9 +14,9 @@ enum APIKey {
     /// `malformedKeyValuePair` on the first empty value and bails out
     /// of the rest of the file — which silently strands every key
     /// declared below the first empty one (e.g. `LMSTUDIO_URL` after
-    /// an empty `GEMINI_API_KEY=`). Uses `setenv` so the values land
-    /// in `ProcessInfo.processInfo.environment` just like the
-    /// SwiftDotenv path did.
+    /// an empty `GEMINI_API_KEY=`). Uses `SwiftCross.Environment.set`
+    /// (cross-platform `setenv`) so the values land in
+    /// `ProcessInfo.processInfo.environment` just like the SwiftDotenv path did.
     private static func loadDotenv(at url: URL) {
         guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return }
         for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: false) {
@@ -33,7 +26,7 @@ enum APIKey {
             let key = line[..<separator].trimmingCharacters(in: .whitespaces)
             let value = line[line.index(after: separator)...].trimmingCharacters(in: .whitespaces)
             guard !key.isEmpty, !value.isEmpty else { continue }
-            setenv(key, value, 1)
+            Environment.set(key, value)
         }
     }
 

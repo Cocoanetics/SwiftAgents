@@ -149,7 +149,8 @@ let package = Package(
 				"Agents",
 				"Tracing",
 				"VectorStore",
-				"SwiftMCP"
+				"SwiftMCP",
+				"SwiftCross"
 			],
 			path: "Tests/ProvidersTests",
 			resources: [.process("Resources")]
