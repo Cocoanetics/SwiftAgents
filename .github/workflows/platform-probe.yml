@@ -40,13 +40,11 @@ concurrency:
 jobs:
 
   probe-windows:
-    # Windows is blocked by upstream apple/swift-nio (NIOPosix: IPPROTO /
-    # BinaryFloatingPoint, non-Sendable NIOLockedValueBox, UnsafeMutableRawPointer
-    # Sendable). Nothing fixable here, so this job is MANUAL-ONLY — it doesn't run
-    # on every PR push (which would keep posting a known-failing check). Trigger it
-    # by hand ("Run workflow") to re-check whether swift-nio's Windows port has
-    # matured. continue-on-error keeps even a manual run from failing the workflow.
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    # swift-nio is no longer in SwiftAgents' graph (we link only SwiftMCP's
+    # `Client` trait), so Windows compiles again — this runs on every PR/push.
+    # Kept continue-on-error while we shake out any remaining Windows-only
+    # portability gaps in our own code; flip to a gating job (and fold into
+    # swift.yml) once it's reliably green.
     runs-on: windows-latest
     timeout-minutes: 30
     continue-on-error: true

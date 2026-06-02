@@ -9,15 +9,15 @@ import Foundation
 
 public extension String {
     static var timestamp: String {
-        var timestamp = timespec()
-        clock_gettime(CLOCK_REALTIME, &timestamp)
-
-        let seconds = timestamp.tv_sec
-        let nanoseconds = timestamp.tv_nsec
-        let microseconds = nanoseconds / 1000
+        // Wall-clock time since 1970. `Date` is cross-platform — POSIX
+        // `clock_gettime` / `CLOCK_REALTIME` aren't available on Windows — and
+        // microsecond precision is plenty for trace timestamps.
+        let now = Date().timeIntervalSince1970
+        let seconds = now.rounded(.down)
+        let microseconds = Int((now - seconds) * 1_000_000)
 
         // Format the seconds portion using Date
-        let date = Date(timeIntervalSince1970: TimeInterval(seconds))
+        let date = Date(timeIntervalSince1970: seconds)
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
