@@ -6,25 +6,27 @@
 //
 
 import Foundation
+import SwiftCross
 
 public extension String {
     static var timestamp: String {
-        // Wall-clock time since 1970. `Date` is cross-platform — POSIX
-        // `clock_gettime` / `CLOCK_REALTIME` aren't available on Windows — and
-        // microsecond precision is plenty for trace timestamps.
-        let now = Date().timeIntervalSince1970
-        let seconds = now.rounded(.down)
-        let microseconds = Int((now - seconds) * 1_000_000)
+        // Wall-clock time at nanosecond resolution. OpenAI's trace ingestion
+        // needs nanosecond-precision timestamps, and Foundation's `Date` can't
+        // represent them (its `Double` seconds carry only ~100 ns of
+        // granularity near the current epoch), so source the time from
+        // SwiftCross's `WallClock` — `clock_gettime(CLOCK_REALTIME)` on POSIX,
+        // `GetSystemTimePreciseAsFileTime` on Windows.
+        let (seconds, nanoseconds) = WallClock.now()
 
-        // Format the seconds portion using Date
-        let date = Date(timeIntervalSince1970: seconds)
+        // Format the seconds portion using Date.
+        let date = Date(timeIntervalSince1970: TimeInterval(seconds))
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.locale = Locale(identifier: "en_US_POSIX")
 
         let base = formatter.string(from: date)
-        let microsString = String(format: "%06d", microseconds)
-        return "\(base).\(microsString)+00:00"
+        let nanosString = String(format: "%09d", nanoseconds)
+        return "\(base).\(nanosString)+00:00"
     }
 }

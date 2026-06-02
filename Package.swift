@@ -79,7 +79,8 @@ let package = Package(
 		.target(
 			name: "Tracing",
 			dependencies: [
-				"SwiftMCP"
+				"SwiftMCP",
+				"SwiftCross"
 			],
 			path: "Sources/Tracing"
 		),
