@@ -12,7 +12,7 @@ private func logAgent(_ message: @autoclosure () -> String) {
 }
 
 /// Enum to represent outcomes from the task group for guardrails
-private enum GuardrailOutcome<OutputType: Sendable> {
+private enum GuardrailOutcome<OutputType: Sendable>: @unchecked Sendable {
     case agent(AgentResult<OutputType>)
     case guardrail(name: String, result: InputGuardrailResult)
     case taskError(Error)
@@ -155,7 +155,7 @@ public actor Runner {
             let requestedMedia = config.requestedMedia ?? (currentAgent as? RequestsMedia)?.requestedMedia ?? []
 
             let agentResult: AgentResult<A.OutputType> = try await withSpan { agentSpan in
-                var tools: [Tool] = currentAgent.createTools()
+                var tools: [Tool] = await currentAgent.createTools()
                 tools += try await Self.collectMCPTools(for: currentAgent)
                 // Realize an image intent as the OpenAI image_generation tool
                 // (no-op on other providers / when already present).
@@ -281,6 +281,19 @@ public actor Runner {
         var turns: Int
     }
 
+    /// Reference box that lets the agent child task own and mutate a
+    /// `TurnState`, then hand the final value back to the parent after the
+    /// task group completes — without the parent sharing a mutable `var`
+    /// capture (which Swift 6 forbids across the `sending` boundary).
+    ///
+    /// `@unchecked Sendable` is sound here: the child task is the only writer,
+    /// and the parent reads `value` only after awaiting the group, which
+    /// establishes a happens-after ordering with no overlapping access.
+    private final class TurnStateBox: @unchecked Sendable {
+        var value: TurnState
+        init(_ value: TurnState) { self.value = value }
+    }
+
     /// Result type for the executeWithInputGuardrails function to include continuation state
     private struct GuardrailExecutionResult<T> {
         let result: AgentResult<T>
@@ -308,10 +321,10 @@ public actor Runner {
         config: RunConfig
     ) async throws -> GuardrailExecutionResult<A.OutputType> {
         // Initialize turn state
-        var turnState = TurnState(
+        let turnStateBox = TurnStateBox(TurnState(
             nextInput: nextInput,
             turns: 0
-        )
+        ))
 
         // Same override precedence as the non-guardrail path.
         let requestedMedia = config.requestedMedia ?? (agent as? RequestsMedia)?.requestedMedia ?? []
@@ -326,6 +339,7 @@ public actor Runner {
             // Start agent task
             group.addTask {
                 do {
+                    var localTurnState = turnStateBox.value
                     let result = try await executeAgentTurns(
                         agent: agent,
                         agentSpan: agentSpan,
@@ -334,11 +348,12 @@ public actor Runner {
                         model: model,
                         api: api,
                         requestedMedia: requestedMedia,
-                        turnState: &turnState,
+                        turnState: &localTurnState,
                         session: session,
                         tracker: tracker,
                         decoder: decoder
                     )
+                    turnStateBox.value = localTurnState
                     return .agent(result)
                 } catch {
                     return .taskError(error)
@@ -428,7 +443,7 @@ public actor Runner {
             if let result = storedAgentResult {
                 return GuardrailExecutionResult(
                     result: result,
-                    continuation: .continueWithState(state: turnState)
+                    continuation: .continueWithState(state: turnStateBox.value)
                 )
             }
 

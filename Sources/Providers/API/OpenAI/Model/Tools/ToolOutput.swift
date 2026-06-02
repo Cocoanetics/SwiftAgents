@@ -8,7 +8,7 @@
 import Foundation
 
 /// Represents the output of a tool call.
-public struct ToolOutput: Codable {
+public struct ToolOutput: Codable, Sendable {
     /// The ID of the tool call.
     public let toolCallId: String
 

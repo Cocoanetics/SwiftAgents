@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 /**
  Protocol defining the interface for trace exporters.
@@ -7,7 +7,7 @@ import SwiftMCP
  Trace exporters are responsible for exporting traces and spans to an external system,
  such as a logging service, a monitoring system, or a storage backend.
  */
-public protocol TracingExporter {
+public protocol TracingExporter: Sendable {
     /**
      Exports a collection of trace or span items.
 

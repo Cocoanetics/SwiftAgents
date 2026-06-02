@@ -10,7 +10,7 @@ import Foundation
 /**
  Represents the status of a file in a vector store.
  */
-public enum FileStatus: String, Codable {
+public enum FileStatus: String, Codable, Sendable {
     /// Indicates that the file has expired.
     case expired
 

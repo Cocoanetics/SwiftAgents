@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 /** A processor that batches traces and spans before exporting them.
 

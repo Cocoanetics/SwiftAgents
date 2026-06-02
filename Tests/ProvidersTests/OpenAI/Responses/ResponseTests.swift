@@ -5,7 +5,7 @@ import SwiftMCP
 import Testing
 
 @MCPServer
-class Calculator {
+final class Calculator {
     @MCPTool(description: "Adds two integers")
     func add(number1: Int, number2: Int) -> Int {
         number1 + number2
@@ -409,7 +409,7 @@ struct ResponseTests {
     @Test("Response with tool choice", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
     func responseWithTool() async throws {
         let openAI = try TestClients.openAI()
-        let tools = calculatorTools()
+        let tools = await calculatorTools()
 
         let response = try await openAI.createResponse(
             input: .text("What is 42 + 58?"),
@@ -500,8 +500,8 @@ struct ResponseTests {
 
     // MARK: - Helpers
 
-    private func calculatorTools() -> [Tool] {
-        Calculator().toolDescriptions.compactMap { description in
+    private func calculatorTools() async -> [Tool] {
+        await Calculator().toolDescriptions.compactMap { description in
             guard let function = description.function else { return nil }
             return .function(FunctionTool(
                 name: function.name,

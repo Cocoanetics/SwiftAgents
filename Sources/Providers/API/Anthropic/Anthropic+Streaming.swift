@@ -12,9 +12,7 @@
 
 import Foundation
 import SwiftMCP
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
+import SwiftCross
 
 extension Anthropic {
     /// Parses Anthropic's SSE byte stream into typed events. Each SSE block has

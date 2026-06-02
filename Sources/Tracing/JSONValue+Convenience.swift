@@ -2,7 +2,7 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import SwiftMCP
+import JSONValue
 
 public extension JSONValue {
     /// Read a value out of a `.object(...)` by key. Returns nil for non-objects.

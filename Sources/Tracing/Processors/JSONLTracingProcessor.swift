@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 /**
  A `TracingProcessor` that writes one JSON-line per trace/span lifecycle event

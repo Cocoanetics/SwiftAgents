@@ -4,7 +4,7 @@ import SwiftMCP
 import Tracing
 
 public protocol Agent: AnyObject, Sendable {
-    associatedtype OutputType: Decodable
+    associatedtype OutputType: Decodable & Sendable
 
     var name: String { get }
     var instructions: String { get }
@@ -111,7 +111,7 @@ public extension Agent {
 
     /// Creates a list of tools from the agent's tool providers.
     /// - Returns: An array of tools that the agent can use.
-    func createTools() -> [Tool] {
+    func createTools() async -> [Tool] {
         // Collect tools from toolProviders and from self if it conforms to MCPToolProviding
         var allProviders = toolProviders
         if let selfProvider = self as? MCPToolProviding {
@@ -119,12 +119,12 @@ public extension Agent {
         }
 
         let providedTools: [Tool] = if tools.contains(.applyPatch) {
-            allProviders.tools.filter {
+            await allProviders.tools.filter {
                 if case let .function(function) = $0 { return !["edit", "write"].contains(function.name) }
                 return true
             }
         } else {
-            allProviders.tools
+            await allProviders.tools
         }
 
         return tools + providedTools + handoffTools
@@ -137,7 +137,7 @@ public extension Agent {
 
         var newInputs = [Response.Input.Element]()
 
-        try await withThrowingTaskGroup(of: (String, any Codable).self) { group in
+        try await withThrowingTaskGroup(of: (String, any Codable & Sendable).self) { group in
             // Build provider list including self if it conforms to MCPToolProviding
             var allProviders = self.toolProviders
             if let selfProvider = self as? MCPToolProviding {
@@ -146,8 +146,13 @@ public extension Agent {
 
             // Start all function calls in parallel
             for call in functionCalls {
-                if let toolProvider = allProviders
-                    .first(where: { $0.mcpToolMetadata.contains(where: { $0.name == call.name }) }) {
+                var matchedProvider: (any MCPToolProviding)?
+                for provider in allProviders
+                    where await provider.mcpToolMetadata.contains(where: { $0.name == call.name }) {
+                    matchedProvider = provider
+                    break
+                }
+                if let toolProvider = matchedProvider {
                     group.addTask {
                         try await withSpan { functionSpan in
                             let result: Encodable
@@ -172,7 +177,7 @@ public extension Agent {
                             )
 
                             // swiftlint:disable:next force_cast - callTool returns Encodable; protocol return requires Codable. Concrete return paths conform in practice.
-                            return (call.callId, result as! any Codable)
+                            return (call.callId, result as! (any Codable & Sendable))
                         }
                     }
                 } else {
@@ -204,7 +209,7 @@ public extension Agent {
                                     )
 
                                     // swiftlint:disable:next force_cast - callTool returns Encodable; protocol return requires Codable. Concrete return paths conform in practice.
-                                    return (call.callId, result as! any Codable)
+                                    return (call.callId, result as! (any Codable & Sendable))
                                 }
                             }
 

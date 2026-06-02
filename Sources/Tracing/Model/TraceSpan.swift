@@ -1,13 +1,18 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
+// `@unchecked Sendable`: a span is created, mutated (`end()`, `spanData`,
+// `error`), and ended within its owning task before being handed to the
+// actor-isolated processors, so its mutable fields aren't touched
+// concurrently. It stays a reference type so `end()` updates propagate
+// through the `TraceContext.currentSpan` task-local.
 /**
  Represents a single span within a trace.
 
  A span represents a unit of work or operation within a trace. It can contain
  specific data about the operation and can be nested within other spans.
  */
-public class TraceSpan: Identifiable {
+public final class TraceSpan: Identifiable, @unchecked Sendable {
     /** Unique identifier for the span */
     public let id: String
     /** Identifier of the trace this span belongs to */

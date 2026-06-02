@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 /**
  Represents span data in a trace.
@@ -7,7 +7,7 @@ import SwiftMCP
  Implement this protocol to define custom types of span data that can be
  exported as part of a trace.
  */
-public protocol SpanData {
+public protocol SpanData: Sendable {
     /** Returns the type identifier for this span data. */
     var type: String { get }
 

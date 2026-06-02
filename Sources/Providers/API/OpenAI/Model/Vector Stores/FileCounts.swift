@@ -10,7 +10,7 @@ import Foundation
 /**
  Represents counts of files in different processing states.
  */
-public struct FileCounts: Codable {
+public struct FileCounts: Codable, Sendable {
     /// The number of files currently in progress.
     var inProgress: Int = 0
 

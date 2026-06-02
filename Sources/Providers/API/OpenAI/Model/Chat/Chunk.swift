@@ -8,12 +8,12 @@
 import Foundation
 
 /// Decodes a chunk of the streaming response
-public struct Chunk: Codable {
-    public struct Choice: Codable {
+public struct Chunk: Codable, Sendable {
+    public struct Choice: Codable, Sendable {
         /// The index of the choice, starting from 0.
         public let index: Int
 
-        public struct Delta: Codable {
+        public struct Delta: Codable, Sendable {
             public let role: Role?
             public let content: String?
             public let toolCalls: [ToolCallDelta]?
@@ -100,14 +100,14 @@ public struct Chunk: Codable {
     }
 }
 
-public struct ToolCallDelta: Codable {
+public struct ToolCallDelta: Codable, Sendable {
     public var index: Int?
     public var id: String?
     public var type: String?
     public var function: FunctionCallDelta?
 }
 
-public struct FunctionCallDelta: Codable {
+public struct FunctionCallDelta: Codable, Sendable {
     public var name: String?
     public var arguments: String?
 }

@@ -1,11 +1,13 @@
 import Foundation
 
+// `@unchecked Sendable`: the real shared state (the processor list) lives in
+// `processorsActor`; `isDisabled` is a set-once startup flag.
 /**
  The main trace provider that coordinates trace and span creation.
 
  This singleton class manages trace processors and controls the global tracing state.
  */
-public final class TraceProvider {
+public final class TraceProvider: @unchecked Sendable {
     /** Shared instance of the trace provider */
     public static let shared = TraceProvider()
 

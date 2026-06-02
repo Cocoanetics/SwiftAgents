@@ -21,7 +21,7 @@ import SwiftMCP
 import Testing
 
 @MCPServer
-private class LMStudioWeatherTools {
+private final class LMStudioWeatherTools {
     @MCPTool(description: "Returns the current weather for a city")
     func get_weather(city: String) -> String {
         "It is 18°C and partly cloudy in \(city)."
@@ -40,7 +40,7 @@ struct LMStudioToolCallTests {
         let client = try TestClients.lmStudio()
         // SwiftMCP synthesises `toolDescriptions` from the `@MCPTool` macros
         // — same code path the Agents Runner uses.
-        let toolDescriptions: [ToolDescription] = LMStudioWeatherTools().toolDescriptions
+        let toolDescriptions: [ToolDescription] = await LMStudioWeatherTools().toolDescriptions
 
         let completion = try await client.createChatCompletion(
             model: lmStudioToolModel,

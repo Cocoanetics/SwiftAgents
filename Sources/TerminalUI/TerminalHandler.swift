@@ -8,7 +8,13 @@ import Foundation
 // still build on Windows / Android / iOS.
 #if canImport(Darwin) || canImport(Glibc)
 
-public class TerminalHandler {
+// `@unchecked Sendable`: an interactive terminal handler is driven from a
+// single logical context at a time — the REPL runs each turn's work to
+// completion (via its turn semaphore) before reading the next line. The
+// mutable state below isn't lock-protected, so callers must not drive one
+// instance concurrently; the same single-context assumption already backs
+// the `nonisolated(unsafe)` signal-handler reference.
+public class TerminalHandler: @unchecked Sendable {
     public let supportsANSI: Bool
 
     private var originalTermios = termios()
@@ -42,7 +48,10 @@ public class TerminalHandler {
     }
 
     /// Global reference so the SIGWINCH C handler can trigger a redraw.
-    private weak static var activeHandler: TerminalHandler?
+    /// `nonisolated(unsafe)`: a C signal handler can't capture context, so it
+    /// reaches the active handler through this weak static — a single
+    /// weak-pointer read/write around terminal setup, benign for a resize.
+    private nonisolated(unsafe) weak static var activeHandler: TerminalHandler?
 
     private func setupTerminal() {
         if supportsANSI {
@@ -82,7 +91,10 @@ public class TerminalHandler {
             print(string.removingANSISequences(), terminator: terminator)
         }
 
-        fflush(stdout)
+        // `nil` flushes every open output stream. It avoids naming the C
+        // `stdout` global, which Swift 6 treats as shared mutable state on
+        // Glibc (where it's imported as a `var`).
+        fflush(nil)
         previousVisualLines = 1
     }
 
@@ -134,7 +146,7 @@ public class TerminalHandler {
                 print(displayText, terminator: "")
                 previousVisualLines = visualLineCount(prompt + inputBuffer)
             }
-            fflush(stdout)
+            fflush(nil)
         } else {
             if inputBuffer.isEmpty {
                 print("\(prompt)\(placeholder)", terminator: "")
@@ -189,7 +201,7 @@ public class TerminalHandler {
             // Beep and stay on the same line if input is empty
             guard !inputBuffer.isEmpty else {
                 print("\u{07}", terminator: "")
-                fflush(stdout)
+                fflush(nil)
                 return
             }
 
@@ -267,7 +279,7 @@ public class TerminalHandler {
 // CLI is a terminal-only experience and there's nothing useful to do
 // on non-terminal platforms. The class is kept so the dependent target
 // compiles.
-public class TerminalHandler {
+public class TerminalHandler: @unchecked Sendable {
     public let supportsANSI: Bool = false
     public var handleInput: ((String) -> Void)?
     public var slashCommandHandler = SlashCommandHandler()

@@ -6,7 +6,7 @@ import Foundation
  Trace processors receive notifications about trace and span lifecycle events
  and can perform actions such as exporting or storing trace data.
  */
-public protocol TracingProcessor {
+public protocol TracingProcessor: Sendable {
     /**
      Called when a trace is started.
 

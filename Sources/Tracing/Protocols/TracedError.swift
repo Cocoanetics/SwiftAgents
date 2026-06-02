@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 /**
  Errors that want custom rendering on a span can conform to this protocol.

@@ -4,7 +4,7 @@ import SwiftMCP
 import Testing
 
 @MCPServer
-private class OllamaTools {
+private final class OllamaTools {
     @MCPTool(description: "Echoes provided text")
     func say(_ text: String) -> String {
         text
@@ -68,7 +68,7 @@ struct OllamaChatTests {
     func chatFunctionCalling() async throws {
         let ollama = try TestClients.ollama()
         let tools: [MCPToolProviding] = [OllamaTools()]
-        let toolDescriptions = tools.flatMap(\.toolDescriptions)
+        let toolDescriptions = await tools.toolDescriptions
 
         let systemPrompt = ChatMessage(role: .system, content: .text("You are a helpful and witty assistant"))
         let userMessage = ChatMessage(

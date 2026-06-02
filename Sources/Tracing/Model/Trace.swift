@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 /**
  Represents a single trace in the system.
@@ -7,7 +7,7 @@ import SwiftMCP
  A trace is a logical unit of work that can contain multiple spans. It typically
  represents an entire operation or workflow in the system.
  */
-public struct Trace: Identifiable, Codable {
+public struct Trace: Identifiable, Codable, Sendable {
     /** Unique identifier for the trace */
     public let id: String
     /** Name of the workflow this trace represents */

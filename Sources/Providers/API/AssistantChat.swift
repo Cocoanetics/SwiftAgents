@@ -94,7 +94,7 @@ public class AssistantChat: GenericChat {
             var toolDescriptions = [ToolDescription.fileSearch, ToolDescription.codeInterpreter]
 
             if let tools {
-                toolDescriptions += tools.flatMap(\.toolDescriptions)
+                toolDescriptions += await tools.toolDescriptions
             }
 
             assistant = try await api.createAssistant(

@@ -6,9 +6,7 @@
 //
 
 import Foundation
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
+import SwiftCross
 import SwiftMCP
 
 open class OpenAI: API, @unchecked Sendable {

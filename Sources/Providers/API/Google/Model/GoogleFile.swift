@@ -92,13 +92,15 @@ public struct GoogleFile: Codable, Sendable {
         try container.encode(source, forKey: .source)
     }
 
-    private static let iso8601WithFractional: ISO8601DateFormatter = {
+    // ISO8601DateFormatter is configured once and only used for formatting
+    // afterwards (thread-safe), so the shared static is safe to read concurrently.
+    private nonisolated(unsafe) static let iso8601WithFractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 
-    private static let iso8601WithoutFractional: ISO8601DateFormatter = {
+    private nonisolated(unsafe) static let iso8601WithoutFractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter

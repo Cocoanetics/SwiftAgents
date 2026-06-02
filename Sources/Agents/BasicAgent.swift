@@ -84,14 +84,16 @@ public final class BasicAgent: Agent, @unchecked Sendable {
 
 public extension [MCPToolProviding] {
     var tools: [Tool] {
-        return flatMap(\.toolDescriptions).compactMap { desc -> Tool? in
-            guard let function = desc.function else { return nil }
-            return Tool.function(FunctionTool(
-                name: function.name,
-                description: function.description,
-                parameters: function.parameters,
-                strict: true
-            ))
+        get async {
+            await toolDescriptions.compactMap { desc -> Tool? in
+                guard let function = desc.function else { return nil }
+                return Tool.function(FunctionTool(
+                    name: function.name,
+                    description: function.description,
+                    parameters: function.parameters,
+                    strict: true
+                ))
+            }
         }
     }
 }

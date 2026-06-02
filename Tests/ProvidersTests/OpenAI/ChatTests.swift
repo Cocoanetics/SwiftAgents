@@ -18,7 +18,7 @@ The JSON schema should be:
 """
 
 @MCPServer
-private class ChatTestTools {
+private final class ChatTestTools {
     @MCPTool(description: "Echoes provided text")
     func say(_ text: String) -> String {
         text
@@ -100,7 +100,7 @@ struct ChatTests {
     func chatFunctionCalls() async throws {
         let openAI = try TestClients.openAI()
         let tools: [MCPToolProviding] = [ChatTestTools()]
-        let toolDescriptions = tools.flatMap(\.toolDescriptions)
+        let toolDescriptions = await tools.toolDescriptions
 
         let systemPrompt = ChatMessage(role: .system, content: .text("You are a helpful and witty assistant"))
         let userMessage = ChatMessage(

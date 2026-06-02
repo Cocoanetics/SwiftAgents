@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.1
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -64,19 +64,25 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
-		// Pinned below 1.4.7 because that release made `mcpToolMetadata`
-		// async, which breaks the synchronous call sites in
-		// `Array+MCPToolProviding.swift` and `MCPToolProviding+ToolDescription.swift`.
-		// Lift this once those callers are migrated to `await`.
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP", "1.4.5" ..< "1.4.7"),
+		// Link only SwiftMCP's NIO-free core + the `Client` trait (the MCP
+		// client we use) — NOT the `Server` HTTP transport — so swift-nio stays
+		// out of SwiftAgents' graph and we build on Windows.
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.5.0", traits: ["Client"]),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
-		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0")
+		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
+		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
+		// UTType, …) shared via SwiftCross instead of duplicated in Providers.
+		.package(url: "https://github.com/Cocoanetics/SwiftCross.git", from: "1.0.0")
 	],
 	targets: [
 		.target(
 			name: "Tracing",
 			dependencies: [
-				"SwiftMCP"
+				// Tracing only needs the JSONValue value type (span-data export),
+				// not the MCP client or macros — link the lightweight, NIO-free
+				// JSONValue product rather than the full SwiftMCP module.
+				.product(name: "JSONValue", package: "SwiftMCP"),
+				"SwiftCross"
 			],
 			path: "Sources/Tracing"
 		),
@@ -84,6 +90,7 @@ let package = Package(
 			name: "Providers",
 			dependencies: [
 				"SwiftMCP",
+				"SwiftCross",
 				"Tracing",
 				.product(name: "Logging", package: "swift-log")
 			],
@@ -144,10 +151,15 @@ let package = Package(
 				"Agents",
 				"Tracing",
 				"VectorStore",
-				"SwiftMCP"
+				"SwiftMCP",
+				"SwiftCross"
 			],
 			path: "Tests/ProvidersTests",
 			resources: [.process("Resources")]
 		)
-	]
+	],
+	// Tools 6.1 (needed for SwiftMCP package-trait selection) defaults to the
+	// Swift 6 language mode; the package builds clean under full strict
+	// concurrency.
+	swiftLanguageModes: [.v6]
 )

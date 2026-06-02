@@ -71,7 +71,7 @@ public class Chat: GenericChat {
 
         switch stream {
             case true:
-                let tools = tools?.flatMap(\.toolDescriptions)
+                let tools = await tools?.toolDescriptions
                 let stream = try await api.createChatCompletionStream(
                     model: model,
                     messages: messages,
@@ -95,7 +95,7 @@ public class Chat: GenericChat {
                 try await handleResponse(assembler.response)
 
             case false:
-                let tools = tools?.flatMap(\.toolDescriptions)
+                let tools = await tools?.toolDescriptions
                 let response = try await api.createChatCompletion(
                     model: model,
                     messages: messages,

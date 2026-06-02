@@ -9,7 +9,10 @@ import Foundation
 import Providers
 import SwiftMCP
 
-public struct AgentToolProvider: MCPToolProviding {
+// `@unchecked Sendable`: wraps an agent + a run closure; it's a value-type
+// config object used as a (now-Sendable) tool provider. The stored closure
+// captures the agent, which is treated as immutable run configuration.
+public struct AgentToolProvider: MCPToolProviding, @unchecked Sendable {
     public let toolName: String
     public let toolDescription: String
 

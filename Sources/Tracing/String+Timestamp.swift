@@ -6,17 +6,21 @@
 //
 
 import Foundation
+import SwiftCross
 
 public extension String {
     static var timestamp: String {
-        var timestamp = timespec()
-        clock_gettime(CLOCK_REALTIME, &timestamp)
-
-        let seconds = timestamp.tv_sec
-        let nanoseconds = timestamp.tv_nsec
+        // UTC trace timestamp with 6 fractional (microsecond) digits — the
+        // exact format used before. The value is sourced from SwiftCross's
+        // `WallClock`, a true nanosecond clock (clock_gettime(CLOCK_REALTIME)
+        // on POSIX, GetSystemTimePreciseAsFileTime on Windows), so the
+        // microseconds are exact and the same source works on every platform.
+        // Foundation's `Date` can't supply this (its Double seconds carry only
+        // ~100ns of granularity), which is why the clock lives in SwiftCross.
+        let (seconds, nanoseconds) = WallClock.now()
         let microseconds = nanoseconds / 1000
 
-        // Format the seconds portion using Date
+        // Format the seconds portion using Date.
         let date = Date(timeIntervalSince1970: TimeInterval(seconds))
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
