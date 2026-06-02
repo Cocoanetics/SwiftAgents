@@ -11,6 +11,12 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# Cancel superseded runs on the same ref — the Windows/Android cold builds
+# below are expensive and only the latest commit on a branch matters.
+concurrency:
+  group: swift-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
   build-macos:
@@ -103,13 +109,44 @@ jobs:
         timeout-minutes: 5
         run: swift test -v --filter ProvidersTests
 
-  # Windows and Android jobs are intentionally not present. SwiftMCP
-  # transitively depends on swift-nio, whose Windows port has open
-  # compile errors against current toolchains (`IPPROTO` /
-  # `BinaryFloatingPoint`, non-Sendable `NIOLockedValueBox<…>`,
-  # `UnsafeMutableRawPointer` Sendable unavailable in
-  # `NIOPosix/ThreadWindows.swift`). Android via
-  # `skiptools/swift-android-action` hits the same NIO wall once
-  # SwiftMCP's libc-shim work (Cocoanetics/SwiftMCP#120) lets the
-  # build progress past `String+Hostname.swift`. Re-add these jobs
-  # once swift-nio has a clean Windows / Android story.
+  build-windows:
+    # swift-nio (whose Windows port doesn't compile) is out of the graph —
+    # SwiftAgents links only SwiftMCP's NIO-free `Client` trait — so Windows
+    # builds. We build the `SwiftAgents` umbrella TARGET, not a product:
+    # `swift build --product` is ignored for automatic library products and
+    # ends up compiling SwiftMCP's demo executables, which carry their own
+    # unrelated Windows gaps. `--target` scopes the build to what we ship.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Swift
+        uses: SwiftyLab/setup-swift@latest
+        with:
+          swift-version: "6.3.1"
+      - name: Verify Swift version
+        run: swift --version
+      - name: Build SwiftAgents (Windows)
+        shell: pwsh
+        run: swift build -v --target SwiftAgents
+
+  build-android:
+    # Cross-compiles the `SwiftAgents` umbrella target under the Android SDK
+    # via skiptools (same `--target` rationale as Windows). Build-only — the
+    # emulator/tests are off; this gates that our code + deps compile for
+    # Bionic. Android also relied on SwiftMCP's `os(Linux)` →
+    # `canImport(FoundationNetworking)` client fix (NIO itself builds here).
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build SwiftAgents (Android)
+        uses: skiptools/swift-android-action@v2
+        with:
+          # Full patch version so host toolchain and Android SDK tarballs
+          # match (skiptools guidance — a floating "6.3" key drifts them).
+          swift-version: "6.3.2"
+          free-disk-space: true
+          build-tests: false
+          run-tests: false
+          swift-build-flags: --target SwiftAgents
