@@ -20,6 +20,23 @@ struct TracingTests {
         #expect(String.groupID.hasPrefix("group_"))
     }
 
+    @Test("String.timestamp keeps the exact OpenAI trace format")
+    func timestampFormat() {
+        let timestamp = String.timestamp
+
+        // The OpenAI trace ingestion expects exactly this shape:
+        //   yyyy-MM-dd'T'HH:mm:ss.SSSSSS+00:00   e.g. 2026-06-02T14:43:15.123456+00:00
+        // an ISO-8601 date-time, a PERIOD, exactly SIX fractional (microsecond)
+        // digits, and a literal `+00:00` offset. This has held since tracing was
+        // introduced; only the clock source ever changed. Guard against drift to
+        // 3-digit (milli) or 9-digit (nano) fractions, a comma, or a `Z` offset.
+        let pattern = #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+00:00$"#
+        #expect(
+            timestamp.range(of: pattern, options: .regularExpression) != nil,
+            "String.timestamp '\(timestamp)' must match yyyy-MM-dd'T'HH:mm:ss.SSSSSS+00:00"
+        )
+    }
+
     @Test("Span lifecycle records timestamps")
     func spanLifecycle() throws {
         let trace = Trace(id: .traceID, workflowName: "TestWorkflow")
