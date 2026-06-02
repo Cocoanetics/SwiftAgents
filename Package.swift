@@ -74,8 +74,7 @@ let package = Package(
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
 		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
 		// UTType, …) shared via SwiftCross instead of duplicated in Providers.
-		// No tags yet, so track `main`; swap to a version pin once it releases.
-		.package(url: "https://github.com/Cocoanetics/SwiftCross.git", branch: "main")
+		.package(url: "https://github.com/Cocoanetics/SwiftCross.git", from: "1.0.0")
 	],
 	targets: [
 		.target(
