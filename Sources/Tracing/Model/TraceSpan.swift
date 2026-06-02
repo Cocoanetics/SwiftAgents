@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 // `@unchecked Sendable`: a span is created, mutated (`end()`, `spanData`,
 // `error`), and ended within its owning task before being handed to the

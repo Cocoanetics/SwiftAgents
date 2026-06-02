@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 /**
  Represents a single trace in the system.

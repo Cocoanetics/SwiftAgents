@@ -66,9 +66,8 @@ let package = Package(
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
 		// Link only SwiftMCP's NIO-free core + the `Client` trait (the MCP
 		// client we use) — NOT the `Server` HTTP transport — so swift-nio stays
-		// out of SwiftAgents' graph and we build on Windows. Tracking `main`
-		// until the trait work (SwiftMCP #129) is tagged.
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP", branch: "main", traits: ["Client"]),
+		// out of SwiftAgents' graph and we build on Windows.
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.5.0", traits: ["Client"]),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
 		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
@@ -79,7 +78,10 @@ let package = Package(
 		.target(
 			name: "Tracing",
 			dependencies: [
-				"SwiftMCP",
+				// Tracing only needs the JSONValue value type (span-data export),
+				// not the MCP client or macros — link the lightweight, NIO-free
+				// JSONValue product rather than the full SwiftMCP module.
+				.product(name: "JSONValue", package: "SwiftMCP"),
 				"SwiftCross"
 			],
 			path: "Sources/Tracing"

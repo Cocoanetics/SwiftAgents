@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 /**
  Protocol defining the interface for trace exporters.

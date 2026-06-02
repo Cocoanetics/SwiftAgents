@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONValue
 
 // MARK: - Convenience Functions
 
