@@ -13,8 +13,8 @@
 //  indexing skips unchanged files and prunes deleted ones; and results render
 //  a `source:path:start:end` citation.
 //
-//  Backed by SwiftPorts' `SQLiteKit`; gated behind the package's opt-in
-//  `SQLiteVectorStore` trait, so the default build never pulls SwiftPorts in.
+//  Backed by `SQLiteKit` (Cocoanetics/SQLiteKit); gated behind the package's
+//  opt-in `SQLiteVectorStore` trait, so the default build never compiles it.
 //
 
 #if SQLiteVectorStore

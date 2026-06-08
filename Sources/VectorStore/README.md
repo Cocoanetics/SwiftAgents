@@ -27,9 +27,9 @@ SQLite engine. In your `Package.swift`:
 ])
 ```
 
-`LocalVectorStore` needs no trait. (`SQLiteVectorStore` pulls in SwiftPorts'
-`SQLiteKit`; building it requires the `SQLiteVectorStore` trait — locally,
-`swift build --traits SQLiteVectorStore`.)
+`LocalVectorStore` needs no trait. (`SQLiteVectorStore` pulls in
+[`SQLiteKit`](https://github.com/Cocoanetics/SQLiteKit); building it requires
+the `SQLiteVectorStore` trait — locally, `swift build --traits SQLiteVectorStore`.)
 
 ## Quick start
 

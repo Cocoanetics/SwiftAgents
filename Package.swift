@@ -62,14 +62,14 @@ let package = Package(
 			targets: ["Coder"]
 		)
 	],
-	// Opt-in trait gating the SwiftPorts-backed `SQLiteVectorStore`
+	// Opt-in trait gating the SQLiteKit-backed `SQLiteVectorStore`
 	// (sqlite-vec `vec0` + FTS5). OFF by default so the standard build
-	// stays lean and the Windows / Android jobs don't compile SwiftPorts'
+	// stays lean and the Windows / Android jobs don't compile SQLiteKit's
 	// closure. Enable with `swift build --traits SQLiteVectorStore`.
 	traits: [
 		.trait(
 			name: "SQLiteVectorStore",
-			description: "Persistent SQLite vector + full-text store (SwiftPorts SQLiteKit)."
+			description: "Persistent SQLite vector + full-text store (Cocoanetics/SQLiteKit)."
 		)
 	],
 	dependencies: [
@@ -84,12 +84,12 @@ let package = Package(
 		// UTType, …) shared via SwiftCross instead of duplicated in Providers.
 		.package(url: "https://github.com/Cocoanetics/SwiftCross.git", from: "1.0.0"),
 		// SQLiteKit's `vec0` (sqlite-vec) + FTS5 engines back the opt-in
-		// `SQLiteVectorStore`. Pinned to `main`: the SQLiteVec / FTS5 traits
-		// and parameter binding aren't on a release tag yet — switch to a
-		// version once SwiftPorts tags them. Resolved always, but only
-		// compiled when the `SQLiteVectorStore` trait is on (see VectorStore).
+		// `SQLiteVectorStore`. Standalone package (extracted from SwiftPorts);
+		// its only closure is the vendored CSQLite amalgamation. Pinned to
+		// `main` until it tags a release. Resolved always, but only compiled
+		// when the `SQLiteVectorStore` trait is on (see VectorStore).
 		.package(
-			url: "https://github.com/Cocoanetics/SwiftPorts",
+			url: "https://github.com/Cocoanetics/SQLiteKit",
 			branch: "main",
 			traits: ["SQLiteVec", "FTS5"]
 		)
@@ -140,10 +140,10 @@ let package = Package(
 				"Providers",
 				// Linked only when the `SQLiteVectorStore` trait is enabled,
 				// so the default VectorStore build (the NaturalLanguage local
-				// store) stays free of the SwiftPorts dependency.
+				// store) stays free of the SQLiteKit dependency.
 				.product(
 					name: "SQLiteKit",
-					package: "SwiftPorts",
+					package: "SQLiteKit",
 					condition: .when(traits: ["SQLiteVectorStore"])
 				)
 			],
