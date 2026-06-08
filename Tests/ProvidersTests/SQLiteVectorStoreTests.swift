@@ -304,6 +304,32 @@ struct SQLiteVectorStoreTests {
         let results = try await store.search(text: "When did Leopold Pasching die?", topN: 3)
         #expect(results.prefix(3).contains { $0.path == "pasching.txt" })
     }
+
+    // Deterministic counterpart to the live OpenAI test above: real recorded
+    // 1536-d vectors (no key), so the full pipeline — chunk, pack float32,
+    // vec0 cosine KNN — runs against real embedding geometry on every platform.
+    @Test("Recorded OpenAI embeddings rank by meaning (no key)")
+    func recordedOpenAISemanticSearch() async throws {
+        let store = try SQLiteVectorStore(embeddingProvider: try RecordedEmbeddingProvider())
+        try await store.indexText(
+            "Leopold Pasching, an Austrian engineer, died on 13 February 1962 in Vienna.",
+            path: "pasching.txt"
+        )
+        try await store.indexText(
+            "The Eiffel Tower is an iron lattice tower on the Champ de Mars in Paris, France.",
+            path: "eiffel.txt"
+        )
+        try await store.indexText(
+            "Honeybees communicate the location of nectar to the hive through a waggle dance.",
+            path: "bees.txt"
+        )
+        try await store.indexText(
+            "The central bank raised its benchmark interest rate by half a percentage point.",
+            path: "bank.txt"
+        )
+        let results = try await store.search(text: "When did Leopold Pasching die?", topN: 1)
+        #expect(results.first?.path == "pasching.txt")
+    }
 }
 
 #endif

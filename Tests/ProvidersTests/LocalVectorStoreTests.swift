@@ -67,6 +67,32 @@ struct LocalVectorStoreTests {
         try await assertPaschingResult(in: vectors, query: "When did Leopold Pasching die?")
     }
 
+    // Deterministic counterpart to the live OpenAI test: real recorded
+    // text-embedding-3-small vectors (no key), so the brute-force store's
+    // ranking is exercised against real embedding geometry on every platform.
+    @Test("Recorded OpenAI embeddings rank by meaning (no key)")
+    func recordedOpenAIEmbeddings() async throws {
+        let store = LocalVectorStore(embeddingProvider: try RecordedEmbeddingProvider())
+        try await store.indexText(
+            "Leopold Pasching, an Austrian engineer, died on 13 February 1962 in Vienna.",
+            source: "pasching.txt"
+        )
+        try await store.indexText(
+            "The Eiffel Tower is an iron lattice tower on the Champ de Mars in Paris, France.",
+            source: "eiffel.txt"
+        )
+        try await store.indexText(
+            "Honeybees communicate the location of nectar to the hive through a waggle dance.",
+            source: "bees.txt"
+        )
+        try await store.indexText(
+            "The central bank raised its benchmark interest rate by half a percentage point.",
+            source: "bank.txt"
+        )
+        let results = try await store.search(text: "When did Leopold Pasching die?", topN: 1)
+        #expect(results.first?.source == "pasching.txt")
+    }
+
     // MARK: - Helpers
 
     private func assertPaschingResult(in store: LocalVectorStore, query: String) async throws {
