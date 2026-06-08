@@ -266,14 +266,11 @@ struct SQLiteVectorStoreTests {
 
     // MARK: - Apple on-device embeddings (NLContextualEmbedding)
 
+    // Apple-only (`#if canImport(NaturalLanguage)`), so it runs on the macOS CI
+    // job and compiles out elsewhere. The first call downloads the on-device
+    // asset on a fresh runner, so the CI step that runs this allows extra time.
     #if canImport(NaturalLanguage)
-    @Test(
-        "Apple on-device NL embeddings drive vec0 search",
-        .enabled(
-            if: ProcessInfo.processInfo.environment["CI"] == nil,
-            "Skipped on CI — NLContextualEmbedding asset download stalls fresh runners"
-        )
-    )
+    @Test("Apple on-device NL embeddings drive vec0 search")
     func appleContextualEmbeddings() async throws {
         // No provider passed → on Apple platforms the store uses
         // ContextualEmbeddingProvider (NLContextualEmbedding): on-device, no
