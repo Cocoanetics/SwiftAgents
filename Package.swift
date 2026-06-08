@@ -62,6 +62,16 @@ let package = Package(
 			targets: ["Coder"]
 		)
 	],
+	// Opt-in trait gating the SQLiteKit-backed `SQLiteVectorStore`
+	// (sqlite-vec `vec0` + FTS5). OFF by default so the standard build
+	// stays lean and the Windows / Android jobs don't compile SQLiteKit's
+	// closure. Enable with `swift build --traits SQLiteVectorStore`.
+	traits: [
+		.trait(
+			name: "SQLiteVectorStore",
+			description: "Persistent SQLite vector + full-text store (Cocoanetics/SQLiteKit)."
+		)
+	],
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
 		// Link only SwiftMCP's NIO-free core + the `Client` trait (the MCP
@@ -72,7 +82,17 @@ let package = Package(
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
 		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
 		// UTType, …) shared via SwiftCross instead of duplicated in Providers.
-		.package(url: "https://github.com/Cocoanetics/SwiftCross.git", from: "1.0.0")
+		.package(url: "https://github.com/Cocoanetics/SwiftCross.git", from: "1.0.0"),
+		// SQLiteKit's `vec0` (sqlite-vec) + FTS5 engines back the opt-in
+		// `SQLiteVectorStore`. Standalone package (extracted from SwiftPorts);
+		// its only closure is the vendored CSQLite amalgamation. Pinned to
+		// `main` until it tags a release. Resolved always, but only compiled
+		// when the `SQLiteVectorStore` trait is on (see VectorStore).
+		.package(
+			url: "https://github.com/Cocoanetics/SQLiteKit",
+			branch: "main",
+			traits: ["SQLiteVec", "FTS5"]
+		)
 	],
 	targets: [
 		.target(
@@ -116,7 +136,17 @@ let package = Package(
 		),
 		.target(
 			name: "VectorStore",
-			dependencies: ["Providers"],
+			dependencies: [
+				"Providers",
+				// Linked only when the `SQLiteVectorStore` trait is enabled,
+				// so the default VectorStore build (the NaturalLanguage local
+				// store) stays free of the SQLiteKit dependency.
+				.product(
+					name: "SQLiteKit",
+					package: "SQLiteKit",
+					condition: .when(traits: ["SQLiteVectorStore"])
+				)
+			],
 			path: "Sources/VectorStore"
 		),
 		.target(

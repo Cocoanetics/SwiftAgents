@@ -21,7 +21,7 @@ jobs:
 
   build-macos:
     runs-on: macos-26
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       # Pin Xcode 26.4.1 to pick up Swift 6.3-era Swift Testing fixes.
@@ -41,9 +41,16 @@ jobs:
       - name: Test (macOS)
         # 5-min step ceiling: passing runs finish in under a minute, so
         # this fails fast on a hang instead of consuming the full
-        # 15-min job budget.
+        # job budget.
         timeout-minutes: 5
         run: swift test -v --skip-build
+      - name: Test SQLiteVectorStore (macOS)
+        # The opt-in SQLite store: vec0/FTS5/hybrid + provenance, plus the
+        # on-device NLContextualEmbedding path (Apple-only). The asset
+        # downloads on a fresh runner, so allow extra time rather than a tight
+        # ceiling. The OpenAI test skips without OPENAI_API_KEY.
+        timeout-minutes: 14
+        run: swift test -v --traits SQLiteVectorStore --filter SQLiteVectorStoreTests
 
   build-ios:
     # Compile-only check on `generic/platform=iOS`. The `Coder` executable
@@ -108,6 +115,11 @@ jobs:
       - name: Test (Linux)
         timeout-minutes: 5
         run: swift test -v --filter ProvidersTests
+      - name: Test SQLiteVectorStore (Linux)
+        # vec0 + FTS5 compile on Linux; the stub-embedder tests run, the NL
+        # test compiles out (no NaturalLanguage), the OpenAI test skips.
+        timeout-minutes: 10
+        run: swift test -v --traits SQLiteVectorStore --filter SQLiteVectorStoreTests
 
   build-windows:
     # swift-nio (whose Windows port doesn't compile) is out of the graph —
@@ -136,6 +148,12 @@ jobs:
         # graph (not SwiftMCP's demo executables), then runs the offline
         # subset; the key-gated live-API tests skip without secrets.
         run: swift test -v --filter ProvidersTests
+      - name: Test SQLiteVectorStore (Windows)
+        # vec0 + FTS5 compile from the vendored amalgamation (no system sqlite
+        # / vcpkg). Stub-embedder tests run; NL compiles out, OpenAI skips.
+        shell: pwsh
+        timeout-minutes: 25
+        run: swift test -v --traits SQLiteVectorStore --filter SQLiteVectorStoreTests
 
   build-android:
     # Cross-compiles ProvidersTests under the Android SDK via skiptools and
@@ -159,4 +177,8 @@ jobs:
           free-disk-space: true
           build-tests: true
           run-tests: true
-          swift-test-flags: --filter ProvidersTests
+          # Build with the SQLiteVectorStore trait so the vec0 + FTS5 store
+          # compiles for Android and its stub-embedder tests run in the
+          # emulator (NL compiles out; the OpenAI test skips without a key).
+          swift-build-flags: --traits SQLiteVectorStore
+          swift-test-flags: --traits SQLiteVectorStore --filter ProvidersTests
