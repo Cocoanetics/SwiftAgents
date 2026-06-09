@@ -239,6 +239,50 @@ struct SQLiteVectorStoreTests {
         #expect(fused.first?.path == "banana.txt")
     }
 
+    // MARK: - Query expansion (offline)
+
+    /// Records that it was asked, and returns a fixed expansion set.
+    private final class SpyExpander: QueryExpander, @unchecked Sendable {
+        let expansions: [ExpandedQuery]
+        private(set) var callCount = 0
+        init(_ expansions: [ExpandedQuery]) { self.expansions = expansions }
+        func expand(_ query: String, intent: String?) async throws -> [ExpandedQuery] {
+            callCount += 1
+            return expansions
+        }
+    }
+
+    @Test("template expander yields hyde + raw lex/vec")
+    func templateExpanderTypedQueries() async throws {
+        let expansions = try await TemplateQueryExpander().expand("rotate the key", intent: nil)
+        #expect(expansions.contains { $0.kind == .hyde && $0.text == "Information about rotate the key" })
+        #expect(expansions.contains { $0.kind == .lex && $0.text == "rotate the key" })
+        #expect(expansions.contains { $0.kind == .vec && $0.text == "rotate the key" })
+    }
+
+    @Test("expandedSearch surfaces chunks the literal query misses")
+    func expandedSearchSurfacesExpansionTargets() async throws {
+        let store = try SQLiteVectorStore(embeddingProvider: StubEmbeddingProvider(table: [
+            "orig": [1, 0, 0, 0],     // the query — near a/b, orthogonal to c
+            "near": [0.9, 0.1, 0, 0],
+            "far": [0, 0, 1, 0],      // c
+            "exp": [0, 0, 1, 0]       // a vec expansion pointing right at c
+        ]))
+        try await store.indexText("orig", path: "a.txt")
+        try await store.indexText("near", path: "b.txt")
+        try await store.indexText("far", path: "c.txt")
+
+        // The literal query's top-2 vectors don't include c (orthogonal).
+        let plain = try await store.search(text: "orig", topN: 2)
+        #expect(!plain.contains { $0.path == "c.txt" })
+
+        // A vec expansion pointing at c pulls it into the fused top-2.
+        let expander = SpyExpander([ExpandedQuery(kind: .vec, text: "exp")])
+        let expanded = try await store.expandedSearch(text: "orig", using: expander, topN: 2)
+        #expect(expander.callCount == 1)
+        #expect(expanded.contains { $0.path == "c.txt" })
+    }
+
     // MARK: - Incremental sync (offline)
 
     @Test("indexing a file skips re-embedding when content is unchanged")
