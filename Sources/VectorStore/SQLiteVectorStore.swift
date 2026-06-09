@@ -129,7 +129,8 @@ public final class SQLiteVectorStore {
         // the non-Sendable SQLite handles off the await path.
         var pending: [(chunk: LineChunk, embedding: Vector)] = []
         for chunk in LineChunker.chunk(text) {
-            guard let embedding = try await embeddingProvider.embedding(for: chunk.text) else { continue }
+            guard let embedding = try await embeddingProvider.embedding(for: chunk.text, role: .document)
+            else { continue }
             pending.append((chunk, embedding))
         }
         guard let first = pending.first else {
@@ -246,7 +247,7 @@ public final class SQLiteVectorStore {
     /// restricted to the given `sources`. `score` is cosine similarity.
     public func search(text: String, topN: Int, sources: [String]? = nil) async throws -> [MemoryMatch] {
         guard topN > 0, dimensions != nil,
-              let query = try await embeddingProvider.embedding(for: text) else { return [] }
+              let query = try await embeddingProvider.embedding(for: text, role: .query) else { return [] }
         let candidates = try vectorCandidates(query, limit: candidateLimit(topN, sources))
         return Array(try hydrate(candidates, sources: sources).prefix(topN))
     }
@@ -282,7 +283,7 @@ public final class SQLiteVectorStore {
             keyword = (try? keywordCandidates(matching: ftsQuery, limit: limit)) ?? []
         }
         var vector: [(id: Int64, score: Double)] = []
-        if let query = try await embeddingProvider.embedding(for: text) {
+        if let query = try await embeddingProvider.embedding(for: text, role: .query) {
             vector = try vectorCandidates(query, limit: limit)
         }
 
@@ -324,7 +325,7 @@ public final class SQLiteVectorStore {
 
         var lists: [(items: [Int64], weight: Double)] = []
         for (index, text) in vectorQueries.enumerated() {
-            guard let query = try await embeddingProvider.embedding(for: text) else { continue }
+            guard let query = try await embeddingProvider.embedding(for: text, role: .query) else { continue }
             let ids = try vectorCandidates(query, limit: limit).map(\.id)
             lists.append((ids, index == 0 ? originalWeight : expansionWeight))
         }
