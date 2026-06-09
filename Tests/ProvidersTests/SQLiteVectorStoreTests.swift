@@ -198,6 +198,47 @@ struct SQLiteVectorStoreTests {
         #expect(hybrid.first?.path == "banana.txt")
     }
 
+    // MARK: - RRF fusion (offline)
+
+    @Test("RRF rewards items that rank across multiple lists")
+    func rrfRewardsConsensus() {
+        // "b" is the only item in both lists (and tops the second) — it wins.
+        let fused = reciprocalRankFusion([
+            (items: ["a", "b", "c"], weight: 1.0),
+            (items: ["b", "d"], weight: 1.0)
+        ])
+        #expect(fused.first?.item == "b")
+        #expect(Set(fused.map(\.item)) == ["a", "b", "c", "d"])
+    }
+
+    @Test("RRF honors per-list weights")
+    func rrfHonorsWeights() {
+        // Each item tops its own list; the heavier list breaks the tie.
+        let fused = reciprocalRankFusion([
+            (items: ["heavy"], weight: 2.0),
+            (items: ["light"], weight: 1.0)
+        ])
+        #expect(fused.first?.item == "heavy")
+    }
+
+    @Test("fusedSearch merges vector + keyword legs via RRF")
+    func fusedSearchMergesLegs() async throws {
+        let store = try SQLiteVectorStore(embeddingProvider: StubEmbeddingProvider(table: [
+            "ripe banana": [1, 0, 0, 0],            // the query — closest to apple by vector
+            "fresh apple juice": [0.85, 0.5, 0, 0], // best vector, no shared terms
+            "ripe banana fruit": [0.8, 0.55, 0, 0], // weaker vector, matches both terms
+            "banana bread recipe": [0, 1, 0, 0]     // far vector, one shared term
+        ]))
+        try await store.indexText("fresh apple juice", path: "apple.txt")
+        try await store.indexText("ripe banana fruit", path: "banana.txt")
+        try await store.indexText("banana bread recipe", path: "bread.txt")
+
+        // The vector leg alone favors apple; fusing the keyword leg via RRF lifts
+        // the chunk both legs agree on (banana — matches both query terms) to #1.
+        let fused = try await store.fusedSearch(vector: ["ripe banana"], keyword: ["ripe banana"], topN: 1)
+        #expect(fused.first?.path == "banana.txt")
+    }
+
     // MARK: - Incremental sync (offline)
 
     @Test("indexing a file skips re-embedding when content is unchanged")

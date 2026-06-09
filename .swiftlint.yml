@@ -33,9 +33,11 @@ identifier_name:
   #   - `n`: OpenAI's parameter name for "number of completions" on every
   #     `createChatCompletion` signature and the Image Generation request.
   #   - `id`: standard short name for object identifiers.
+  #   - `k`: the Reciprocal Rank Fusion rank constant (RankFusion.swift).
   excluded:
     - id
     - n
+    - k
 
 # Doc comments wrap differently from code and shouldn't count against the
 # 120-char code line limit. URLs in comments are common (e.g. links to the
