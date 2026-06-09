@@ -325,6 +325,37 @@ struct SQLiteVectorStoreTests {
         #expect(ungated.callCount == 1)
     }
 
+    // MARK: - Reranking (offline)
+
+    @Test("rerank blends reranker score with fusion position")
+    func rerankBlendsWithPosition() async throws {
+        let store = try SQLiteVectorStore(embeddingProvider: StubEmbeddingProvider(table: [
+            "alpha": [1, 0, 0, 0], "beta": [0.9, 0.1, 0, 0], "gamma": [0.8, 0.2, 0, 0]
+        ]))
+        try await store.indexText("alpha", path: "a.txt")
+        try await store.indexText("beta", path: "b.txt")
+        try await store.indexText("gamma", path: "c.txt")
+
+        let fused = try await store.fusedSearch(vector: ["alpha"], keyword: [], topN: 3)
+        #expect(fused.map(\.path) == ["a.txt", "b.txt", "c.txt"])
+
+        // A reranker that loves the last candidate (gamma/c) lifts it above b —
+        // but a's strong fusion position keeps it on top.
+        let reranker = LLMReranker { _, document in document == "gamma" ? 0.9 : 0.1 }
+        let reranked = try await store.rerank(query: "alpha", candidates: fused, using: reranker)
+        #expect(reranked.map(\.path) == ["a.txt", "c.txt", "b.txt"])
+    }
+
+    @Test("LLM reranker prepends intent to the query")
+    func llmRerankerPrependsIntent() async throws {
+        // Scores 1 only when the rerank query carries the intent prefix.
+        let reranker = LLMReranker { query, _ in query.contains("billing context") ? 1 : 0 }
+        let withIntent = try await reranker.scores(query: "refund", candidates: ["doc"], intent: "billing context")
+        let without = try await reranker.scores(query: "refund", candidates: ["doc"], intent: nil)
+        #expect(withIntent == [1])
+        #expect(without == [0])
+    }
+
     // MARK: - Incremental sync (offline)
 
     @Test("indexing a file skips re-embedding when content is unchanged")
