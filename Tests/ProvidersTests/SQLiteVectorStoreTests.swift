@@ -46,10 +46,9 @@ struct SQLiteVectorStoreTests {
 
     // MARK: - Chunker
 
-    @Test("line chunker tracks 1-indexed source line spans")
+    @Test("chunker tracks 1-indexed source line spans")
     func lineChunkerTracksLineSpans() {
-        // maxChars floors at 32 (openclaw's `max(32, …)`); two ~14-char lines
-        // fit per chunk, the third tips over.
+        // Budget floors at 32; the best break-point lands after "four five six".
         let content = "one two three\nfour five six\nseven eight\nnine ten"
         let chunks = LineChunker.chunk(content, maxChars: 32, overlapChars: 0)
 
@@ -59,18 +58,43 @@ struct SQLiteVectorStoreTests {
         #expect(chunks[1].text == "seven eight\nnine ten")
     }
 
-    @Test("line chunker overlaps consecutive chunks")
-    func lineChunkerOverlapsChunks() {
-        let content = (1 ... 8).map { "line number \($0) here" }.joined(separator: "\n")
-        let chunks = LineChunker.chunk(content, maxChars: 32, overlapChars: 16)
+    @Test("chunker overlaps consecutive chunks")
+    func chunkerOverlapsChunks() {
+        let content = (1 ... 40).map { "Sentence number \($0) with a handful of words." }
+            .joined(separator: "\n") + "\n"
+        let chunks = LineChunker.chunk(content, maxChars: 200, overlapChars: 60)
 
         #expect(chunks.count >= 2)
         #expect(chunks.first?.startLine == 1)
-        #expect(chunks.last?.endLine == 8)
+        #expect((chunks.last?.endLine ?? 0) >= 40)
         // Overlap: each chunk begins at or before the previous chunk's last line.
         for (previous, next) in zip(chunks, chunks.dropFirst()) {
             #expect(next.startLine <= previous.endLine)
         }
+    }
+
+    @Test("chunker breaks at heading boundaries")
+    func chunkerBreaksAtHeadings() {
+        func section(_ title: String) -> String {
+            "## \(title)\n\n" + String(repeating: "word ", count: 25) + "\n"
+        }
+        let doc = "# Doc\n\n" + section("Alpha") + "\n" + section("Beta") + "\n" + section("Gamma")
+        let chunks = LineChunker.chunk(doc, maxChars: 150, overlapChars: 0, windowChars: 130)
+
+        #expect(chunks.count >= 2)
+        // The scored break-points chose a heading boundary over weaker breaks.
+        #expect(chunks.dropFirst().contains { $0.text.hasPrefix("## ") })
+    }
+
+    @Test("chunker never splits inside a code fence")
+    func chunkerProtectsCodeFences() {
+        let doc = "Alpha paragraph that is reasonably wordy to take up space here.\n\n"
+            + "```\nx = 1\n\ny = 2\n```\n\n"
+            + "Omega paragraph that is also reasonably wordy down here.\n"
+        let chunks = LineChunker.chunk(doc, maxChars: 70, overlapChars: 0, windowChars: 70)
+
+        let body = chunks.first { $0.text.contains("x = 1") }
+        #expect(body?.text.contains("y = 2") == true)
     }
 
     // MARK: - Vector search (offline)
