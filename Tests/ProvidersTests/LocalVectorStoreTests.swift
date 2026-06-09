@@ -35,6 +35,22 @@ struct LocalVectorStoreTests {
 
         #expect(meetingSimilarity > addressSimilarity)
     }
+
+    @Test(
+        "Short, language-ambiguous text still embeds via the system-language fallback",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CI"] == nil,
+            "Skipped on CI — NLContextualEmbedding asset download stalls fresh runners"
+        )
+    )
+    func contextualEmbeddingShortQueryFallsBack() async throws {
+        // A one-word query is too short for NLLanguageRecognizer to decide a
+        // language; the provider must fall back to the system language (then
+        // English) and still return a vector rather than throwing.
+        let provider = ContextualEmbeddingProvider()
+        let vector = try await provider.embedding(for: "cat")
+        #expect(vector != nil)
+    }
     #endif
 
     @Test("Embeddings from local LLM endpoint", .enabled(if: TestClients.hasLocalLLM, "Requires LOCAL_LLM_URL"))

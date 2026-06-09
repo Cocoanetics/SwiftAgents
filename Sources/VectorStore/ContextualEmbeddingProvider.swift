@@ -12,12 +12,11 @@ import NaturalLanguage
 import Providers
 
 enum EmbeddingsModelError: Error {
-    case unknownLanguage
     case noModelAvailableForLanguage
 }
 
 /// A built-in embedding provider using `NLContextualEmbedding`. This is multi-language where languages of the same
-/// script (e.g. Latin) whare one model.
+/// script (e.g. Latin) share one model.
 public class ContextualEmbeddingProvider {
     public var embeddingModelIdentifier: String = "AppleContextualEmbeddingProvider"
 
@@ -26,22 +25,40 @@ public class ContextualEmbeddingProvider {
 
     public init() {}
 
-    func embeddingVector(for text: String, language: NLLanguage? = nil) async throws -> Vector? {
-        guard let language = language ?? NLLanguageRecognizer.dominantLanguage(for: text) else {
-            throw EmbeddingsModelError.unknownLanguage
+    /// The user's preferred language. Used when the text is too short or
+    /// ambiguous for `NLLanguageRecognizer` to detect one (e.g. a one-word
+    /// query), so such text still embeds instead of failing.
+    static var systemLanguage: NLLanguage {
+        if let code = Locale.current.language.languageCode?.identifier {
+            return NLLanguage(code)
         }
-
-        let model = try await model(for: language)
-
-        return calculateAverageVector(from: model, for: text)
+        return .english
     }
 
-    private func model(for language: NLLanguage) async throws -> NLContextualEmbedding {
-        let embedding: NLContextualEmbedding
+    func embeddingVector(for text: String, language: NLLanguage? = nil) async throws -> Vector? {
+        // NLLanguageRecognizer returns nil for very short / ambiguous text, so
+        // fall back to the system language. `model(for:)` falls back further to
+        // English if the resolved language has no installed model.
+        let preferred = language ?? NLLanguageRecognizer.dominantLanguage(for: text) ?? Self.systemLanguage
 
-        if let cached = embeddingsCache[language] {
-            embedding = cached
-        } else if let newEmbedding = NLContextualEmbedding(language: language) {
+        let (embedding, modelLanguage) = try await model(for: preferred)
+
+        return calculateAverageVector(from: embedding, for: text, language: modelLanguage)
+    }
+
+    /// Loads (and caches) an `NLContextualEmbedding`, preferring `language` and
+    /// falling back to the system language then English, so a missing or
+    /// mis-detected language still yields a usable model. Returns the model and
+    /// the language it was loaded for (one the model is guaranteed to support).
+    private func model(for language: NLLanguage) async throws -> (NLContextualEmbedding, NLLanguage) {
+        var tried: Set<NLLanguage> = []
+        for candidate in [language, Self.systemLanguage, .english] where tried.insert(candidate).inserted {
+            if let cached = embeddingsCache[candidate] {
+                return (cached, candidate)
+            }
+            guard let newEmbedding = NLContextualEmbedding(language: candidate) else {
+                continue
+            }
             // might need to download model first
             if !newEmbedding.hasAvailableAssets {
                 try await requestAssets(for: newEmbedding)
@@ -52,13 +69,10 @@ public class ContextualEmbeddingProvider {
             // cache same NSObject for all supported languages
             newEmbedding.languages.forEach { embeddingsCache[$0] = newEmbedding }
 
-            embedding = newEmbedding
-
-        } else {
-            throw EmbeddingsModelError.noModelAvailableForLanguage
+            return (newEmbedding, candidate)
         }
 
-        return embedding
+        throw EmbeddingsModelError.noModelAvailableForLanguage
     }
 
     private func requestAssets(for embedding: NLContextualEmbedding) async throws {
