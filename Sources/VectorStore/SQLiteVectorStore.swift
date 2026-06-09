@@ -382,6 +382,37 @@ public final class SQLiteVectorStore {
         return try await fusedSearch(vector: vectorQueries, keyword: keywordQueries, topN: topN, sources: sources)
     }
 
+    /// Reranks `candidates` (given in fused / RRF order) with `reranker`, blending
+    /// each candidate's reranker score with its fusion rank — position-aware, so
+    /// the reranker reorders the shortlist without overruling a strong retrieval
+    /// signal. Blend: `rrfWeight · (1 / rank) + (1 − rrfWeight) · rerankScore`,
+    /// where `rrfWeight` is 0.75 (rank 1–3) / 0.60 (4–10) / 0.40 (11+). Returns
+    /// the candidates re-sorted, each carrying its blended score. Typically run
+    /// over a `fusedSearch` / `expandedSearch` shortlist, then sliced to the final
+    /// result count.
+    public func rerank(
+        query: String,
+        candidates: [MemoryMatch],
+        using reranker: Reranker,
+        intent: String? = nil
+    ) async throws -> [MemoryMatch] {
+        guard !candidates.isEmpty else { return [] }
+        let scores = try await reranker.scores(
+            query: query, candidates: candidates.map(\.text), intent: intent)
+
+        let blended = candidates.enumerated().map { index, candidate -> MemoryMatch in
+            let rrfRank = index + 1                                   // 1-indexed fusion position
+            let rrfWeight = rrfRank <= 3 ? 0.75 : (rrfRank <= 10 ? 0.60 : 0.40)
+            let rerankScore = index < scores.count ? scores[index] : 0
+            let blendedScore = rrfWeight * (1.0 / Double(rrfRank)) + (1 - rrfWeight) * rerankScore
+            return MemoryMatch(
+                path: candidate.path, source: candidate.source,
+                startLine: candidate.startLine, endLine: candidate.endLine,
+                text: candidate.text, score: blendedScore)
+        }
+        return blended.sorted { $0.score != $1.score ? $0.score > $1.score : $0.path < $1.path }
+    }
+
     // MARK: - Retrieval legs
 
     private func candidateLimit(_ topN: Int, _ sources: [String]?) -> Int {
