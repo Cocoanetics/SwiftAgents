@@ -298,6 +298,48 @@ public final class SQLiteVectorStore {
         return Array(try hydrate(candidates, sources: sources).prefix(topN))
     }
 
+    /// Multi-query search fused with Reciprocal Rank Fusion. Every `vector` query
+    /// is embedded and run as vec0 cosine KNN; every `keyword` query is run as
+    /// FTS5 bm25; all the resulting ranked lists are merged by
+    /// `reciprocalRankFusion`. The first `vector` and first `keyword` query are
+    /// treated as the user's "original" and weighted `originalWeight`; any further
+    /// queries (e.g. lex/vec/hyde expansions) get `expansionWeight`.
+    ///
+    /// This is the seam query expansion plugs into: pass the raw query alone
+    /// (`vector: [q], keyword: [q]`) for a plain RRF hybrid, or the raw query plus
+    /// expansions for the full pipeline. Each leg over-samples `topN * oversample`
+    /// candidates. Returns up to `topN` chunks scored by their fused RRF rank.
+    public func fusedSearch(
+        vector vectorQueries: [String],
+        keyword keywordQueries: [String],
+        topN: Int,
+        originalWeight: Double = 2.0,
+        expansionWeight: Double = 1.0,
+        k: Int = 60,
+        oversample: Int = 8,
+        sources: [String]? = nil
+    ) async throws -> [MemoryMatch] {
+        guard topN > 0, dimensions != nil else { return [] }
+        let limit = candidateLimit(topN * max(1, oversample), sources)
+
+        var lists: [(items: [Int64], weight: Double)] = []
+        for (index, text) in vectorQueries.enumerated() {
+            guard let query = try await embeddingProvider.embedding(for: text) else { continue }
+            let ids = try vectorCandidates(query, limit: limit).map(\.id)
+            lists.append((ids, index == 0 ? originalWeight : expansionWeight))
+        }
+        for (index, text) in keywordQueries.enumerated() {
+            guard let ftsQuery = Self.buildFTSQuery(text) else { continue }
+            let ids = ((try? keywordCandidates(matching: ftsQuery, limit: limit)) ?? []).map(\.id)
+            lists.append((ids, index == 0 ? originalWeight : expansionWeight))
+        }
+        guard !lists.isEmpty else { return [] }
+
+        let fused = reciprocalRankFusion(lists, k: k).map { (id: $0.item, score: $0.score) }
+        let candidates = sources == nil ? Array(fused.prefix(topN)) : fused
+        return Array(try hydrate(candidates, sources: sources).prefix(topN))
+    }
+
     // MARK: - Retrieval legs
 
     private func candidateLimit(_ topN: Int, _ sources: [String]?) -> Int {
