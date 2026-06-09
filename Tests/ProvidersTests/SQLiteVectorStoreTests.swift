@@ -356,6 +356,32 @@ struct SQLiteVectorStoreTests {
         #expect(without == [0])
     }
 
+    // MARK: - Embedding role (offline)
+
+    /// Records the role of the last embedding call; overrides the role-aware
+    /// method so the store's dispatch can be observed.
+    private final class RoleStubEmbeddingProvider: EmbeddingProvider {
+        var embeddingModelIdentifier = "role-stub"
+        private(set) var lastRole: EmbeddingRole?
+        func embedding(for text: String) async throws -> Vector? { [1, 0, 0, 0] }
+        func embedding(for text: String, role: EmbeddingRole) async throws -> Vector? {
+            lastRole = role
+            return role == .document ? [1, 0, 0, 0] : [0, 1, 0, 0]
+        }
+    }
+
+    @Test("the store embeds documents on index and queries on search")
+    func embeddingRoleApplied() async throws {
+        let provider = RoleStubEmbeddingProvider()
+        let store = try SQLiteVectorStore(embeddingProvider: provider)
+
+        try await store.indexText("a document", path: "d.txt")
+        #expect(provider.lastRole == .document)
+
+        _ = try await store.search(text: "a query", topN: 1)
+        #expect(provider.lastRole == .query)
+    }
+
     // MARK: - Incremental sync (offline)
 
     @Test("indexing a file skips re-embedding when content is unchanged")
