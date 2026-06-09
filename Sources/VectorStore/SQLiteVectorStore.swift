@@ -342,24 +342,36 @@ public final class SQLiteVectorStore {
 
     /// Expansion-driven search: rewrites `text` into typed sub-queries via
     /// `expander` (`.lex` → keyword, `.vec` / `.hyde` → vector), then fuses the
-    /// original query together with every expansion through `fusedSearch` / RRF.
-    /// The original keeps weight `originalWeight`; expansions get `expansionWeight`,
-    /// so the user's literal query stays authoritative. Degrades to the plain
-    /// query if the expander throws.
+    /// original query together with every expansion through `fusedSearch` / RRF
+    /// (the original is weighted above its expansions). A strong-signal gate skips
+    /// the expansion entirely when a bm25 probe shows the literal query already has
+    /// a clear winner. Degrades to the plain query if the expander throws. For
+    /// custom fusion weights, route expansions through `fusedSearch` directly.
     public func expandedSearch(
         text: String,
         using expander: QueryExpander,
         intent: String? = nil,
         topN: Int,
-        originalWeight: Double = 2.0,
-        expansionWeight: Double = 1.0,
-        k: Int = 60,
-        oversample: Int = 8,
+        strongSignalGating: Bool = true,
+        strongSignalMinScore: Double = 0.85,
+        strongSignalMinGap: Double = 0.15,
         sources: [String]? = nil
     ) async throws -> [MemoryMatch] {
-        let expansions = (try? await expander.expand(text, intent: intent)) ?? []
+        // Strong-signal gate: a quick bm25 probe. When the top keyword hit is
+        // clearly ahead of the runner-up the literal query already nails it, so
+        // skip the (possibly expensive) expansion. An explicit `intent` always
+        // expands — it may disambiguate a non-obvious match.
+        if strongSignalGating, intent == nil, let ftsQuery = Self.buildFTSQuery(text) {
+            let probe = (try? keywordCandidates(matching: ftsQuery, limit: 2)) ?? []
+            let top = probe.first?.score ?? 0
+            let second = probe.count > 1 ? probe[1].score : 0
+            if top >= strongSignalMinScore, top - second >= strongSignalMinGap {
+                return try await fusedSearch(vector: [text], keyword: [text], topN: topN, sources: sources)
+            }
+        }
 
-        var vectorQueries = [text]    // index 0 is the user's original → originalWeight
+        let expansions = (try? await expander.expand(text, intent: intent)) ?? []
+        var vectorQueries = [text]    // index 0 is the user's original → highest RRF weight
         var keywordQueries = [text]
         for expansion in expansions {
             switch expansion.kind {
@@ -367,11 +379,7 @@ public final class SQLiteVectorStore {
                 case .vec, .hyde: vectorQueries.append(expansion.text)
             }
         }
-
-        return try await fusedSearch(
-            vector: vectorQueries, keyword: keywordQueries, topN: topN,
-            originalWeight: originalWeight, expansionWeight: expansionWeight,
-            k: k, oversample: oversample, sources: sources)
+        return try await fusedSearch(vector: vectorQueries, keyword: keywordQueries, topN: topN, sources: sources)
     }
 
     // MARK: - Retrieval legs

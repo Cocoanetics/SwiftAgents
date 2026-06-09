@@ -283,6 +283,48 @@ struct SQLiteVectorStoreTests {
         #expect(expanded.contains { $0.path == "c.txt" })
     }
 
+    @Test("LLM expander parses typed lines and drops ungrounded ones")
+    func llmExpanderParsesGrounds() async throws {
+        let expander = LLMQueryExpander { _ in
+            """
+            lex: rotate key
+            vec: how do I rotate the api key
+            hyde: To rotate the key, open settings and generate a new one.
+            vec: completely unrelated gibberish
+            """
+        }
+        let result = try await expander.expand("rotate key", intent: nil)
+        #expect(result.contains { $0.kind == .lex && $0.text == "rotate key" })
+        #expect(result.contains { $0.kind == .hyde })
+        // Shares no term with "rotate key" → the grounding filter drops it.
+        #expect(!result.contains { $0.text.contains("gibberish") })
+    }
+
+    @Test("LLM expander falls back to the template on an empty response")
+    func llmExpanderFallback() async throws {
+        let expander = LLMQueryExpander { _ in "" }
+        let result = try await expander.expand("hello world", intent: nil)
+        #expect(result.contains { $0.kind == .hyde && $0.text == "Information about hello world" })
+    }
+
+    @Test("strong-signal gating skips expansion when confident")
+    func strongSignalGatingSkips() async throws {
+        let store = try SQLiteVectorStore(embeddingProvider: StubEmbeddingProvider(fallback: [1, 0, 0, 0]))
+        try await store.indexText("xyzzy plugh frobozz", path: "doc.txt")
+
+        // A zero threshold makes any keyword hit "strong" → expansion is skipped.
+        let gated = SpyExpander([ExpandedQuery(kind: .vec, text: "xyzzy")])
+        let results = try await store.expandedSearch(
+            text: "xyzzy", using: gated, topN: 5, strongSignalMinScore: 0, strongSignalMinGap: 0)
+        #expect(gated.callCount == 0)
+        #expect(results.contains { $0.path == "doc.txt" })
+
+        // Gating disabled → the expander runs.
+        let ungated = SpyExpander([ExpandedQuery(kind: .vec, text: "xyzzy")])
+        _ = try await store.expandedSearch(text: "xyzzy", using: ungated, topN: 5, strongSignalGating: false)
+        #expect(ungated.callCount == 1)
+    }
+
     // MARK: - Incremental sync (offline)
 
     @Test("indexing a file skips re-embedding when content is unchanged")
