@@ -340,6 +340,40 @@ public final class SQLiteVectorStore {
         return Array(try hydrate(candidates, sources: sources).prefix(topN))
     }
 
+    /// Expansion-driven search: rewrites `text` into typed sub-queries via
+    /// `expander` (`.lex` → keyword, `.vec` / `.hyde` → vector), then fuses the
+    /// original query together with every expansion through `fusedSearch` / RRF.
+    /// The original keeps weight `originalWeight`; expansions get `expansionWeight`,
+    /// so the user's literal query stays authoritative. Degrades to the plain
+    /// query if the expander throws.
+    public func expandedSearch(
+        text: String,
+        using expander: QueryExpander,
+        intent: String? = nil,
+        topN: Int,
+        originalWeight: Double = 2.0,
+        expansionWeight: Double = 1.0,
+        k: Int = 60,
+        oversample: Int = 8,
+        sources: [String]? = nil
+    ) async throws -> [MemoryMatch] {
+        let expansions = (try? await expander.expand(text, intent: intent)) ?? []
+
+        var vectorQueries = [text]    // index 0 is the user's original → originalWeight
+        var keywordQueries = [text]
+        for expansion in expansions {
+            switch expansion.kind {
+                case .lex: keywordQueries.append(expansion.text)
+                case .vec, .hyde: vectorQueries.append(expansion.text)
+            }
+        }
+
+        return try await fusedSearch(
+            vector: vectorQueries, keyword: keywordQueries, topN: topN,
+            originalWeight: originalWeight, expansionWeight: expansionWeight,
+            k: k, oversample: oversample, sources: sources)
+    }
+
     // MARK: - Retrieval legs
 
     private func candidateLimit(_ topN: Int, _ sources: [String]?) -> Int {
