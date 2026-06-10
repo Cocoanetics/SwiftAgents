@@ -26,6 +26,11 @@ public class GoogleAPI: API, @unchecked Sendable {
     /// Default thinking configuration to apply to requests if none is provided.
     public var defaultThinkingConfig: GoogleThinkingConfig?
 
+    /// Model used by the `EmbeddingProvider` conformance (VectorStore target).
+    /// `gemini-embedding-2` carries its task as a prompt instruction; set
+    /// `gemini-embedding-001` to use the `taskType` parameter instead.
+    public var embeddingModelIdentifier: String = "gemini-embedding-2"
+
     // MARK: - Initialization
 
     override public init(apiKey: String? = nil, endpointURL: URL = .googleAI, versionPath: String = "v1beta") {

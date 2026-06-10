@@ -23,62 +23,6 @@ import Foundation
 import Providers
 import SQLiteKit
 
-/// Errors thrown by ``SQLiteVectorStore``.
-public enum SQLiteVectorStoreError: Error, CustomStringConvertible {
-    case dimensionMismatch(expected: Int, got: Int)
-
-    public var description: String {
-        switch self {
-            case let .dimensionMismatch(expected, got):
-                return "embedding dimension \(got) does not match store dimension \(expected)"
-        }
-    }
-}
-
-/// One search hit, carrying the chunk text, its score, and full provenance.
-public struct MemoryMatch: Equatable {
-    public let path: String
-    public let source: String
-    public let startLine: Int
-    public let endLine: Int
-    public let text: String
-    /// Relevance — cosine for vector search, normalized bm25 for keyword
-    /// search, the weighted blend for hybrid search. Higher is better.
-    public let score: Double
-
-    /// `source:path:startLine:endLine`, a citation the model can point at — and
-    /// re-read — the exact passage by.
-    public var citation: String { "\(source):\(path):\(startLine):\(endLine)" }
-}
-
-/// What happened when (re)indexing a file.
-public enum IndexOutcome: Equatable {
-    case indexed(chunks: Int)
-    case unchanged
-    case missing
-}
-
-/// Tally returned by ``SQLiteVectorStore/sync(files:source:workspaceDir:)``.
-public struct SyncSummary: Equatable {
-    public var indexed = 0
-    public var unchanged = 0
-    public var removed = 0
-    public var missing = 0
-}
-
-/// One in-memory document for ``SQLiteVectorStore/sync(documents:source:)`` —
-/// text that doesn't live in a file of its own (e.g. a description stored in
-/// metadata), indexed under the `path` it should be cited as.
-public struct SyncDocument: Equatable, Sendable {
-    public let path: String
-    public let text: String
-
-    public init(path: String, text: String) {
-        self.path = path
-        self.text = text
-    }
-}
-
 /// Stores text chunks and their embeddings in SQLite, searchable by semantic
 /// similarity (sqlite-vec `vec0`, cosine), full-text keyword match (FTS5), or a
 /// fusion of both — with file-level provenance and incremental re-indexing.
@@ -102,6 +46,12 @@ public final class SQLiteVectorStore {
     /// persists and recovers prior vectors on reopen. On Apple platforms the
     /// embedding provider defaults to on-device `NLContextualEmbedding` (no API
     /// key, no extra model); elsewhere supply one explicitly (e.g. `OpenAI`).
+    ///
+    /// Throws ``SQLiteVectorStoreError/embeddingConfigurationChanged(stored:current:)``
+    /// when a persisted index holds chunks embedded with a different model or
+    /// task-prefix format than the provider would produce now — the index is a
+    /// cache, so discard the file and rebuild (Canon's `WikiSearchIndex` does
+    /// exactly that).
     public init(storage: Storage = .memory, embeddingProvider: EmbeddingProvider? = nil) throws {
         #if canImport(NaturalLanguage)
         self.embeddingProvider = embeddingProvider ?? ContextualEmbeddingProvider()
@@ -122,6 +72,7 @@ public final class SQLiteVectorStore {
         self.database = try SQLiteDatabase(location)
         try ensureBaseSchema()
         self.dimensions = try Self.readConfiguredDimensions(database)
+        try checkEmbeddingFingerprint()
     }
 
     /// Number of indexed chunks.
@@ -618,6 +569,7 @@ public final class SQLiteVectorStore {
             CREATE INDEX IF NOT EXISTS idx_chunks_path ON chunks(path);
             CREATE INDEX IF NOT EXISTS idx_chunks_source ON chunks(source);
             CREATE TABLE IF NOT EXISTS vec_config(dimensions INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS embed_config(fingerprint TEXT NOT NULL);
             CREATE VIRTUAL TABLE IF NOT EXISTS fts_chunks USING fts5(text);
             """
         )
@@ -648,6 +600,77 @@ public final class SQLiteVectorStore {
         guard let row = try database.evaluate("SELECT dimensions FROM vec_config LIMIT 1;").first?.rows.first,
               case let .integer(dim) = row[0] else { return nil }
         return Int(dim)
+    }
+
+    // MARK: - Embedding fingerprint
+
+    /// Outcome of comparing the stored embedding fingerprint against the
+    /// current provider configuration on open.
+    enum FingerprintCheck: Equatable {
+        case accept    // matches — the stored geometry is current
+        case stamp     // adopt the current configuration (empty store, or legacy-safe)
+        case mismatch  // geometry drift — the index must be rebuilt
+    }
+
+    /// Captures everything that shapes stored vector geometry beyond the
+    /// dimension: the model id plus the rendered role prompts, so a change to
+    /// ``EmbeddingTaskPrefix`` invalidates affected indexes — drift the
+    /// dimension guard cannot see (same model, same width, different prompt).
+    /// Chunking parameters are deliberately excluded: they change granularity,
+    /// not geometry. Mirrors qmd's embedding fingerprint.
+    static func embeddingFingerprint(model: String) -> String {
+        let probe = "__svs_fingerprint_probe__"
+        let prefix = EmbeddingTaskPrefix.forModel(model)
+        return contentHash([
+            "model:\(model)",
+            "query:\(prefix?.apply(to: probe, role: .query) ?? probe)",
+            "document:\(prefix?.apply(to: probe, role: .document) ?? probe)"
+        ].joined(separator: "\n"))
+    }
+
+    /// Pure decision for ``checkEmbeddingFingerprint()``. A recorded mismatch
+    /// next to indexed chunks means rebuild — and so does an absent record
+    /// (an index from before fingerprinting) when today's prefix table would
+    /// embed differently than the bare legacy form. A legacy index for a
+    /// symmetric model embeds identically then and now, so it is adopted, and
+    /// an empty store always adopts the current configuration.
+    static func fingerprintCheck(
+        stored: String?,
+        current: String,
+        hasChunks: Bool,
+        prefixed: Bool
+    ) -> FingerprintCheck {
+        if stored == current { return .accept }
+        if hasChunks {
+            return (stored != nil || prefixed) ? .mismatch : .stamp
+        }
+        return .stamp
+    }
+
+    private func checkEmbeddingFingerprint() throws {
+        let model = embeddingProvider.embeddingModelIdentifier
+        let current = Self.embeddingFingerprint(model: model)
+        let stored = try storedFingerprint()
+        switch Self.fingerprintCheck(
+            stored: stored,
+            current: current,
+            hasChunks: (try count()) > 0,
+            prefixed: EmbeddingTaskPrefix.forModel(model) != nil
+        ) {
+            case .accept:
+                break
+            case .stamp:
+                try database.execute("DELETE FROM embed_config;")
+                try database.execute("INSERT INTO embed_config(fingerprint) VALUES (?);", [.text(current)])
+            case .mismatch:
+                throw SQLiteVectorStoreError.embeddingConfigurationChanged(stored: stored, current: current)
+        }
+    }
+
+    private func storedFingerprint() throws -> String? {
+        guard let row = try database.evaluate("SELECT fingerprint FROM embed_config LIMIT 1;").first?.rows.first,
+              case let .text(value) = row[0] else { return nil }
+        return value
     }
 
     // MARK: - Encoding helpers

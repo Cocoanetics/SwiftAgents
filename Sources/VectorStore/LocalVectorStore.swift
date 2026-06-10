@@ -66,7 +66,7 @@ class LocalVectorStore {
         var tmpArray = [TextChunk]()
 
         for section in sections {
-            guard let embedding = try await embeddingProvider.embedding(for: section) else {
+            guard let embedding = try await embeddingProvider.embedding(for: section, role: .document) else {
                 continue
             }
 
@@ -84,7 +84,7 @@ class LocalVectorStore {
     }
 
     func search(text: String, topN: Int) async throws -> [TextFragment] {
-        guard let queryVector = try await embeddingProvider.embedding(for: text) else {
+        guard let queryVector = try await embeddingProvider.embedding(for: text, role: .query) else {
             return []
         }
 
