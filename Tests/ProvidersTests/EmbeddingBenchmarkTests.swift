@@ -5,14 +5,17 @@
 //  Cross-provider retrieval benchmark over the Canon-style wiki corpus:
 //  every reachable embedding model (Apple on-device, OpenAI, Gemini,
 //  LM Studio) indexes the same ten markdown pages into a fresh
-//  `SQLiteVectorStore` and answers twelve hybrid-search queries — semantic
-//  paraphrases, exact rare keywords, German cross-lingual, and mixed.
-//  Models with role behavior run twice (role-aware vs. forced-symmetric)
-//  so the effect of task prefixes / task types is measurable, and a probe
-//  cosine verifies the role-aware path actually changes the embedding.
+//  `SQLiteVectorStore`, then answers ten English queries through all
+//  three search modes — `keywordSearch` (FTS5 bm25 only), `search`
+//  (vec0 cosine only), and `hybridSearch` (0.7/0.3 blend) — recording
+//  accuracy (top-1, MRR) and per-query latency for each mode, so the
+//  modes can be charted against each other per model.
+//
+//  (The earlier role-aware vs. bare prefix comparison lives at commit
+//  e2c0a31 if it needs re-running.)
 //
 //  Deliberately NOT part of any normal test run: gated on EMBED_BENCHMARK.
-//  Results are written as JSON for report generation:
+//  Results are written as JSON for report/chart generation:
 //      EMBED_BENCHMARK=1 swift test --traits SQLiteVectorStore \
 //          --filter EmbeddingBenchmarkTests
 //      output: $EMBED_BENCHMARK_OUT or /tmp/embedding-benchmark.json
@@ -137,6 +140,8 @@ struct EmbeddingBenchmarkTests {
         let kind: String
     }
 
+    /// English-only query set: semantic paraphrases (no content-word overlap
+    /// with the target), exact rare keywords, and mixed phrasings.
     private static let queries: [BenchQuery] = [
         BenchQuery(text: "a courageous wyrm", expected: "Characters/Stormy.md", kind: "semantic"),
         BenchQuery(text: "where do fishermen sell their catch", expected: "Places/Saltmere.md", kind: "semantic"),
@@ -149,8 +154,6 @@ struct EmbeddingBenchmarkTests {
         BenchQuery(text: "a wise bird who keeps old books", expected: "Characters/Vesper.md", kind: "semantic"),
         BenchQuery(text: "Vexglass", expected: "Lore/Shardfall.md", kind: "keyword"),
         BenchQuery(text: "Morrowseed", expected: "Places/Gloamwood.md", kind: "keyword"),
-        BenchQuery(text: "ein tapferer kleiner Drache", expected: "Characters/Stormy.md", kind: "german"),
-        BenchQuery(text: "Wo verkaufen Fischer ihren Fang?", expected: "Places/Saltmere.md", kind: "german"),
         BenchQuery(text: "glowing mushrooms in a dark forest", expected: "Places/Gloamwood.md", kind: "mixed"),
         BenchQuery(text: "the treaty with the sea spirits", expected: "Lore/Wardenpact.md", kind: "mixed")
     ]
@@ -163,26 +166,27 @@ struct EmbeddingBenchmarkTests {
         let expected: String
         let topPath: String
         let rank: Int     // 1-based rank of the expected page; 0 = absent
-        let gap: Double   // top score − runner-up score
+        let millis: Double
+    }
+
+    private struct ModeResult: Codable {
+        let mode: String  // "fts" | "vector" | "hybrid"
+        var top1 = 0
+        var queryCount = 0
+        var mrr = 0.0
+        var meanQueryMs = 0.0
+        var queries: [QueryResult] = []
     }
 
     private struct RunResult: Codable {
         let model: String
         let provider: String
-        let mode: String  // "role-aware" | "bare"
-        let prefixFamily: Bool
-        var prefixProbeCosine: Double?
         var indexSeconds = 0.0
-        var meanQuerySeconds = 0.0
-        var top1 = 0
-        var queryCount = 0
-        var mrr = 0.0
-        var meanGapOnCorrect = 0.0
+        var modes: [ModeResult] = []
         var error: String?
-        var queries: [QueryResult] = []
     }
 
-    // MARK: - Provider wrappers
+    // MARK: - Provider wrapper
 
     /// Retries transient API failures so one 429 doesn't void a whole run.
     private final class RetryingEmbeddingProvider: EmbeddingProvider {
@@ -218,28 +222,6 @@ struct EmbeddingBenchmarkTests {
         }
     }
 
-    /// Forces the symmetric path: the "bare" leg of the comparison, embedding
-    /// every text without role prefixes or task types.
-    private final class SymmetricOnlyProvider: EmbeddingProvider {
-        private let base: any EmbeddingProvider
-        var embeddingModelIdentifier: String {
-            get { base.embeddingModelIdentifier }
-            set { base.embeddingModelIdentifier = newValue }
-        }
-
-        init(_ base: any EmbeddingProvider) {
-            self.base = base
-        }
-
-        func embedding(for text: String) async throws -> Vector? {
-            try await base.embedding(for: text)
-        }
-
-        func embedding(for text: String, role: EmbeddingRole) async throws -> Vector? {
-            try await base.embedding(for: text)
-        }
-    }
-
     // MARK: - Benchmark
 
     @Test(
@@ -251,27 +233,12 @@ struct EmbeddingBenchmarkTests {
     )
     func benchmarkAllModels() async throws {
         var runs: [RunResult] = []
-
         for candidate in try await availableCandidates() {
-            let provider = RetryingEmbeddingProvider(candidate.provider)
-            let hasRoleBehavior = EmbeddingTaskPrefix.forModel(candidate.model) != nil
-                || candidate.model.contains("gemini-embedding-001")
-
-            var roleAware = await runBenchmark(
-                model: candidate.model, provider: candidate.kind,
-                mode: "role-aware", prefixFamily: hasRoleBehavior,
-                embeddingProvider: provider
-            )
-            roleAware.prefixProbeCosine = await probeCosine(provider)
-            runs.append(roleAware)
-
-            if hasRoleBehavior {
-                runs.append(await runBenchmark(
-                    model: candidate.model, provider: candidate.kind,
-                    mode: "bare", prefixFamily: true,
-                    embeddingProvider: SymmetricOnlyProvider(provider)
-                ))
-            }
+            runs.append(await runBenchmark(
+                model: candidate.model,
+                provider: candidate.kind,
+                embeddingProvider: RetryingEmbeddingProvider(candidate.provider)
+            ))
         }
 
         let encoder = JSONEncoder()
@@ -347,11 +314,9 @@ struct EmbeddingBenchmarkTests {
     private func runBenchmark(
         model: String,
         provider: String,
-        mode: String,
-        prefixFamily: Bool,
         embeddingProvider: any EmbeddingProvider
     ) async -> RunResult {
-        var run = RunResult(model: model, provider: provider, mode: mode, prefixFamily: prefixFamily)
+        var run = RunResult(model: model, provider: provider)
         do {
             let store = try SQLiteVectorStore(embeddingProvider: embeddingProvider)
 
@@ -361,47 +326,43 @@ struct EmbeddingBenchmarkTests {
             }
             run.indexSeconds = Date().timeIntervalSince(indexStart)
 
-            var ranks: [Int] = []
-            var gaps: [Double] = []
-            var totalQuerySeconds = 0.0
-            for query in Self.queries {
-                let queryStart = Date()
-                let hits = try await store.hybridSearch(text: query.text, topN: Self.wiki.count)
-                totalQuerySeconds += Date().timeIntervalSince(queryStart)
-
-                let rank = (hits.firstIndex { $0.path == query.expected }).map { $0 + 1 } ?? 0
-                let gap = hits.count > 1 ? hits[0].score - hits[1].score : 0
-                ranks.append(rank)
-                if rank == 1 { gaps.append(gap) }
-                run.queries.append(QueryResult(
-                    query: query.text, kind: query.kind, expected: query.expected,
-                    topPath: hits.first?.path ?? "", rank: rank, gap: gap
-                ))
-            }
-
-            run.queryCount = ranks.count
-            run.top1 = ranks.filter { $0 == 1 }.count
-            run.mrr = ranks.map { $0 > 0 ? 1.0 / Double($0) : 0 }.reduce(0, +) / Double(ranks.count)
-            run.meanGapOnCorrect = gaps.isEmpty ? 0 : gaps.reduce(0, +) / Double(gaps.count)
-            run.meanQuerySeconds = totalQuerySeconds / Double(Self.queries.count)
+            let topN = Self.wiki.count
+            run.modes = try await [
+                measureMode("fts") { try store.keywordSearch($0, topN: topN) },
+                measureMode("vector") { try await store.search(text: $0, topN: topN) },
+                measureMode("hybrid") { try await store.hybridSearch(text: $0, topN: topN) }
+            ]
         } catch {
             run.error = "\(error)"
         }
         return run
     }
 
-    /// Cosine between the role-aware query embedding and the bare embedding
-    /// of the same probe. ~1.0 → the role-aware path changed nothing;
-    /// noticeably below 1 → the prefix/task type actually engaged.
-    private func probeCosine(_ provider: any EmbeddingProvider) async -> Double? {
-        let probe = "a courageous wyrm"
-        guard let roleAware = try? await provider.embedding(for: probe, role: .query),
-              let bare = try? await provider.embedding(for: probe),
-              !roleAware.isEmpty, roleAware.count == bare.count else { return nil }
-        let dot = zip(roleAware, bare).map(*).reduce(0, +)
-        let magnitudes = sqrt(roleAware.map { $0 * $0 }.reduce(0, +))
-            * sqrt(bare.map { $0 * $0 }.reduce(0, +))
-        return magnitudes > 0 ? dot / magnitudes : nil
+    private func measureMode(
+        _ mode: String,
+        _ search: (String) async throws -> [MemoryMatch]
+    ) async rethrows -> ModeResult {
+        var result = ModeResult(mode: mode)
+        var ranks: [Int] = []
+        var totalMs = 0.0
+        for query in Self.queries {
+            let start = Date()
+            let hits = try await search(query.text)
+            let millis = Date().timeIntervalSince(start) * 1000
+            totalMs += millis
+
+            let rank = (hits.firstIndex { $0.path == query.expected }).map { $0 + 1 } ?? 0
+            ranks.append(rank)
+            result.queries.append(QueryResult(
+                query: query.text, kind: query.kind, expected: query.expected,
+                topPath: hits.first?.path ?? "", rank: rank, millis: millis
+            ))
+        }
+        result.queryCount = ranks.count
+        result.top1 = ranks.filter { $0 == 1 }.count
+        result.mrr = ranks.map { $0 > 0 ? 1.0 / Double($0) : 0 }.reduce(0, +) / Double(ranks.count)
+        result.meanQueryMs = totalMs / Double(ranks.count)
+        return result
     }
 }
 
