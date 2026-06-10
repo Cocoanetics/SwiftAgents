@@ -49,12 +49,28 @@ public struct EmbeddingTaskPrefix: Sendable, Equatable {
     /// `nomic-embed-text:latest` (Ollama), `embeddinggemma-300m`, …
     public static func forModel(_ modelID: String) -> EmbeddingTaskPrefix? {
         let id = modelID.lowercased()
-        if id.contains("nomic-embed") {
-            // https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe
+        if id.contains("nomic-embed") || id.contains("modernbert-embed") {
+            // https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe and
+            // https://huggingface.co/nomic-ai/modernbert-embed-base — the
+            // shared nomic task prefixes.
             return EmbeddingTaskPrefix(query: "search_query: ", document: "search_document: ")
         }
-        if id.contains("embeddinggemma") {
-            // https://ai.google.dev/gemma/docs/embeddinggemma — retrieval prompts.
+        if id.contains("mxbai-embed") {
+            // https://huggingface.co/mixedbread-ai/mxbai-embed-large-v1 —
+            // instructed queries, raw documents.
+            return EmbeddingTaskPrefix(
+                query: "Represent this sentence for searching relevant passages: ",
+                document: ""
+            )
+        }
+        if id.contains("embeddinggemma") || id.contains("gemini-embedding-2") {
+            // The shared Gemma retrieval prompt format:
+            // https://ai.google.dev/gemma/docs/embeddinggemma and
+            // https://ai.google.dev/gemini-api/docs/embeddings (Embeddings 2,
+            // which dropped the `taskType` API parameter in favor of prompt
+            // instructions). `gemini-embedding-001` predates prompt
+            // instructions and matches nothing here — its role handling is
+            // the `taskType` parameter, applied by `GoogleAPI`'s conformance.
             return EmbeddingTaskPrefix(query: "task: search result | query: ", document: "title: none | text: ")
         }
         if id.contains("qwen3-embedding") {

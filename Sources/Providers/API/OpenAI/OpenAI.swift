@@ -40,15 +40,8 @@ open class OpenAI: API, @unchecked Sendable {
         )
 
         let (data, response) = try await session.data(for: request)
-
-        do {
-            let embeddingResponse: EmbeddingResponse = try process(data: data, response: response)
-            return embeddingResponse.data
-        } catch {
-            print(error.localizedDescription)
-        }
-
-        preconditionFailure()
+        let embeddingResponse: EmbeddingResponse = try process(data: data, response: response)
+        return embeddingResponse.data
     }
 
     // MARK: - Helpers

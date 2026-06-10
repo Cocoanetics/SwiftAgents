@@ -106,6 +106,28 @@ struct HybridSearchLiveTests {
         try await assertHybridWikiSearch(embeddingProvider: client)
     }
 
+    @Test(
+        "Gemini embeddings drive Canon-style hybrid wiki search",
+        .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY")
+    )
+    func geminiHybridWikiSearch() async throws {
+        // Defaults to gemini-embedding-2, whose retrieval prompts arrive via
+        // the shared EmbeddingTaskPrefix table (the EmbeddingGemma format).
+        try await assertHybridWikiSearch(embeddingProvider: try TestClients.google())
+    }
+
+    @Test(
+        "Gemini embedding-001 task types drive Canon-style hybrid wiki search",
+        .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY")
+    )
+    func geminiLegacyTaskTypeHybridWikiSearch() async throws {
+        // The pre-instruction model: roles travel as the taskType API
+        // parameter (RETRIEVAL_QUERY / RETRIEVAL_DOCUMENT), not as prompts.
+        let client = try TestClients.google()
+        client.embeddingModelIdentifier = "gemini-embedding-001"
+        try await assertHybridWikiSearch(embeddingProvider: client)
+    }
+
     // MARK: - Shared flow
 
     /// Mirrors Canon's `WikiSearchIndex`: write the wiki to disk, `sync` it

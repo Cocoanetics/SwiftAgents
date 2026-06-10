@@ -38,10 +38,22 @@ struct EmbeddingTaskPrefixTests {
         #expect(EmbeddingTaskPrefix.forModel("text-embedding-nomic-embed-text-v1.5") == nomic)
         #expect(EmbeddingTaskPrefix.forModel("text-embedding-nomic-embed-text-v2-moe") == nomic)
         #expect(EmbeddingTaskPrefix.forModel("nomic-embed-text:latest") == nomic)
+        // modernbert-embed is a nomic model trained on the same prefixes.
+        #expect(EmbeddingTaskPrefix.forModel("nomicai-modernbert-embed-base") == nomic)
+
+        // mxbai instructs queries and embeds documents raw.
+        let mxbai = try? #require(EmbeddingTaskPrefix.forModel("text-embedding-mxbai-embed-large-v1"))
+        #expect(mxbai?.query == "Represent this sentence for searching relevant passages: ")
+        #expect(mxbai?.document.isEmpty == true)
 
         let gemma = EmbeddingTaskPrefix(query: "task: search result | query: ", document: "title: none | text: ")
         #expect(EmbeddingTaskPrefix.forModel("text-embedding-embeddinggemma-300m-qat") == gemma)
         #expect(EmbeddingTaskPrefix.forModel("embeddinggemma-300m") == gemma)
+        // gemini-embedding-2 shares the Gemma prompt format; 001 must NOT
+        // match — its role handling is the taskType API parameter, applied
+        // by GoogleAPI's own conformance.
+        #expect(EmbeddingTaskPrefix.forModel("gemini-embedding-2") == gemma)
+        #expect(EmbeddingTaskPrefix.forModel("gemini-embedding-001") == nil)
     }
 
     @Test("qwen3-embedding instructs queries and embeds documents raw")
