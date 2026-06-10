@@ -152,8 +152,14 @@ public final class SQLiteVectorStore {
     /// Indexes one document, skipping it when its text hash is unchanged since
     /// the last index (the incremental fast path). The core primitive behind
     /// both sync flavors — a file is just one way to obtain a document.
+    /// `mtime` is recorded in the `files` table the way qmd records a file's
+    /// modification date; documents without one default to the index time.
     @discardableResult
-    public func indexDocument(_ document: SyncDocument, source: String = "memory") async throws -> IndexOutcome {
+    public func indexDocument(
+        _ document: SyncDocument,
+        source: String = "memory",
+        mtime: Int? = nil
+    ) async throws -> IndexOutcome {
         let hash = Self.contentHash(document.text)
         if try fileHash(path: document.path, source: source) == hash {
             return .unchanged
@@ -163,15 +169,16 @@ public final class SQLiteVectorStore {
             path: document.path,
             source: source,
             hash: hash,
-            mtime: Int(Date().timeIntervalSince1970),
+            mtime: mtime ?? Int(Date().timeIntervalSince1970),
             size: document.text.utf8.count
         )
         return .indexed(chunks: chunkCount)
     }
 
-    /// Indexes a file on disk — reads it and delegates to ``indexDocument(_:source:)``,
-    /// so the incremental hash-skip is shared. `workspaceDir`, if given, is
-    /// stripped from the stored `path` so citations stay relative.
+    /// Indexes a file on disk — reads it and delegates to ``indexDocument(_:source:mtime:)``,
+    /// so the incremental hash-skip is shared. The file's modification date is
+    /// recorded (qmd's bookkeeping). `workspaceDir`, if given, is stripped from
+    /// the stored `path` so citations stay relative.
     @discardableResult
     public func indexFile(
         at filePath: String,
@@ -184,9 +191,12 @@ public final class SQLiteVectorStore {
         } catch {
             return .missing
         }
+        let attributes = try? FileManager.default.attributesOfItem(atPath: filePath)
+        let mtime = Int((attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
         return try await indexDocument(
             SyncDocument(path: Self.relativePath(filePath, to: workspaceDir), text: content),
-            source: source
+            source: source,
+            mtime: mtime
         )
     }
 
