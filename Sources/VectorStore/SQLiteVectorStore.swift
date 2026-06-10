@@ -66,6 +66,19 @@ public struct SyncSummary: Equatable {
     public var missing = 0
 }
 
+/// One in-memory document for ``SQLiteVectorStore/sync(documents:source:)`` —
+/// text that doesn't live in a file of its own (e.g. a description stored in
+/// metadata), indexed under the `path` it should be cited as.
+public struct SyncDocument: Equatable, Sendable {
+    public let path: String
+    public let text: String
+
+    public init(path: String, text: String) {
+        self.path = path
+        self.text = text
+    }
+}
+
 /// Stores text chunks and their embeddings in SQLite, searchable by semantic
 /// similarity (sqlite-vec `vec0`, cosine), full-text keyword match (FTS5), or a
 /// fusion of both — with file-level provenance and incremental re-indexing.
@@ -185,9 +198,29 @@ public final class SQLiteVectorStore {
         return pending.count
     }
 
-    /// Indexes a file on disk, skipping it when its content hash is unchanged
-    /// since the last index (the incremental fast path). `workspaceDir`, if
-    /// given, is stripped from the stored `path` so citations stay relative.
+    /// Indexes one document, skipping it when its text hash is unchanged since
+    /// the last index (the incremental fast path). The core primitive behind
+    /// both sync flavors — a file is just one way to obtain a document.
+    @discardableResult
+    public func indexDocument(_ document: SyncDocument, source: String = "memory") async throws -> IndexOutcome {
+        let hash = Self.contentHash(document.text)
+        if try fileHash(path: document.path, source: source) == hash {
+            return .unchanged
+        }
+        let chunkCount = try await indexText(document.text, path: document.path, source: source)
+        try upsertFile(
+            path: document.path,
+            source: source,
+            hash: hash,
+            mtime: Int(Date().timeIntervalSince1970),
+            size: document.text.utf8.count
+        )
+        return .indexed(chunks: chunkCount)
+    }
+
+    /// Indexes a file on disk — reads it and delegates to ``indexDocument(_:source:)``,
+    /// so the incremental hash-skip is shared. `workspaceDir`, if given, is
+    /// stripped from the stored `path` so citations stay relative.
     @discardableResult
     public func indexFile(
         at filePath: String,
@@ -200,18 +233,10 @@ public final class SQLiteVectorStore {
         } catch {
             return .missing
         }
-        let hash = Self.contentHash(content)
-        let storedPath = Self.relativePath(filePath, to: workspaceDir)
-
-        if try fileHash(path: storedPath, source: source) == hash {
-            return .unchanged
-        }
-
-        let chunkCount = try await indexText(content, path: storedPath, source: source)
-        let attributes = try? FileManager.default.attributesOfItem(atPath: filePath)
-        let mtime = Int((attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
-        try upsertFile(path: storedPath, source: source, hash: hash, mtime: mtime, size: content.utf8.count)
-        return .indexed(chunks: chunkCount)
+        return try await indexDocument(
+            SyncDocument(path: Self.relativePath(filePath, to: workspaceDir), text: content),
+            source: source
+        )
     }
 
     /// Indexes every file in `files` (incrementally), then prunes chunks for
@@ -235,6 +260,27 @@ public final class SQLiteVectorStore {
                     seen.insert(Self.relativePath(file, to: workspaceDir))
                 case .missing:
                     summary.missing += 1
+            }
+        }
+        summary.removed = try prune(source: source, keep: seen)
+        return summary
+    }
+
+    /// Indexes every in-memory document (incrementally — a document whose text
+    /// hash is unchanged is not re-embedded), then prunes chunks for any
+    /// previously-indexed path of this `source` that is no longer listed. The
+    /// document twin of ``sync(files:source:workspaceDir:)``, for content that
+    /// doesn't live in a file of its own — e.g. descriptions kept in metadata.
+    @discardableResult
+    public func sync(documents: [SyncDocument], source: String = "memory") async throws -> SyncSummary {
+        var summary = SyncSummary()
+        var seen = Set<String>()
+        for document in documents {
+            seen.insert(document.path)
+            switch try await indexDocument(document, source: source) {
+                case .indexed: summary.indexed += 1
+                case .unchanged: summary.unchanged += 1
+                case .missing: summary.missing += 1
             }
         }
         summary.removed = try prune(source: source, keep: seen)
