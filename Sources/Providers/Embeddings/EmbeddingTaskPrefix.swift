@@ -31,9 +31,12 @@ public struct EmbeddingTaskPrefix: Sendable, Equatable {
 
     /// `text` with the prefix for `role` prepended. Text that already starts
     /// with either prefix passes through unchanged, so callers migrating from
-    /// manual prefixing don't end up with a double prefix.
+    /// manual prefixing don't end up with a double prefix. Empty prefixes
+    /// (Qwen3 embeds documents raw) are skipped by that guard — every string
+    /// "starts with" the empty string.
     public func apply(to text: String, role: EmbeddingRole) -> String {
-        guard !text.hasPrefix(query), !text.hasPrefix(document) else { return text }
+        let markers = [query, document].filter { !$0.isEmpty }
+        guard !markers.contains(where: text.hasPrefix) else { return text }
         switch role {
             case .query: return query + text
             case .document: return document + text
@@ -53,6 +56,13 @@ public struct EmbeddingTaskPrefix: Sendable, Equatable {
         if id.contains("embeddinggemma") {
             // https://ai.google.dev/gemma/docs/embeddinggemma — retrieval prompts.
             return EmbeddingTaskPrefix(query: "task: search result | query: ", document: "title: none | text: ")
+        }
+        if id.contains("qwen3-embedding") {
+            // https://huggingface.co/Qwen/Qwen3-Embedding-0.6B — queries carry
+            // the model card's default retrieval instruction; documents are
+            // embedded raw, without any prefix.
+            let task = "Given a web search query, retrieve relevant passages that answer the query"
+            return EmbeddingTaskPrefix(query: "Instruct: \(task)\nQuery: ", document: "")
         }
         return nil
     }

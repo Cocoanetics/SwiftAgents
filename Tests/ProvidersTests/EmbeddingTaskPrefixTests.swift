@@ -44,6 +44,19 @@ struct EmbeddingTaskPrefixTests {
         #expect(EmbeddingTaskPrefix.forModel("embeddinggemma-300m") == gemma)
     }
 
+    @Test("qwen3-embedding instructs queries and embeds documents raw")
+    func qwen3AsymmetricPrefixes() throws {
+        let prefix = try #require(EmbeddingTaskPrefix.forModel("text-embedding-qwen3-embedding-0.6b"))
+        #expect(EmbeddingTaskPrefix.forModel("qwen3-embedding:4b") == prefix)
+
+        let query = prefix.apply(to: "hello", role: .query)
+        #expect(query.hasPrefix("Instruct: "))
+        #expect(query.hasSuffix("\nQuery: hello"))
+        // Documents carry no prefix — and the empty document marker must not
+        // disable query prefixing (every string "starts with" an empty prefix).
+        #expect(prefix.apply(to: "hello", role: .document) == "hello")
+    }
+
     @Test("symmetric models match no family")
     func symmetricModelsUnprefixed() {
         #expect(EmbeddingTaskPrefix.forModel("text-embedding-3-small") == nil)

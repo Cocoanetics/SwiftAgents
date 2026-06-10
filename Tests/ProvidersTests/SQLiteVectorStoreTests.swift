@@ -472,6 +472,71 @@ struct SQLiteVectorStoreTests {
         #expect(results.first?.path == "alpha.txt")
     }
 
+    // MARK: - Embedding fingerprint (offline)
+
+    @Test("reopening an indexed store with a different embedding model is rejected")
+    func reopenWithDifferentModelRejected() async throws {
+        let path = Self.tempPath("sqlite")
+        defer { try? FileManager.default.removeItem(atPath: path) }
+
+        do {
+            let store = try SQLiteVectorStore(
+                storage: .file(path),
+                embeddingProvider: StubEmbeddingProvider(fallback: [1, 0, 0, 0])
+            )
+            try await store.indexText("alpha content", path: "a.txt")
+        }
+
+        // Same dimensions, different model id — the dimension guard can't see
+        // this, the fingerprint can.
+        let renamed = StubEmbeddingProvider(fallback: [1, 0, 0, 0])
+        renamed.embeddingModelIdentifier = "a-different-model"
+        #expect(throws: SQLiteVectorStoreError.self) {
+            try SQLiteVectorStore(storage: .file(path), embeddingProvider: renamed)
+        }
+    }
+
+    @Test("an empty store adopts a new embedding configuration on reopen")
+    func emptyStoreAdoptsNewModel() throws {
+        let path = Self.tempPath("sqlite")
+        defer { try? FileManager.default.removeItem(atPath: path) }
+
+        _ = try SQLiteVectorStore(storage: .file(path), embeddingProvider: StubEmbeddingProvider())
+
+        // Nothing was indexed, so nothing can be stale — reopening with a
+        // different model just restamps the configuration.
+        let renamed = StubEmbeddingProvider()
+        renamed.embeddingModelIdentifier = "a-different-model"
+        _ = try SQLiteVectorStore(storage: .file(path), embeddingProvider: renamed)
+    }
+
+    @Test("fingerprint decisions: drift rebuilds, legacy symmetric data is adopted")
+    func fingerprintDecisions() {
+        let current = "fp-current"
+        // A matching record is accepted.
+        #expect(SQLiteVectorStore.fingerprintCheck(
+            stored: current, current: current, hasChunks: true, prefixed: true) == .accept)
+        // A recorded difference next to data forces a rebuild, prefixed or not.
+        #expect(SQLiteVectorStore.fingerprintCheck(
+            stored: "fp-old", current: current, hasChunks: true, prefixed: false) == .mismatch)
+        // Legacy store (no record): a prefix-family model was embedded bare → rebuild…
+        #expect(SQLiteVectorStore.fingerprintCheck(
+            stored: nil, current: current, hasChunks: true, prefixed: true) == .mismatch)
+        // …while a symmetric model embedded identically then and now → adopt.
+        #expect(SQLiteVectorStore.fingerprintCheck(
+            stored: nil, current: current, hasChunks: true, prefixed: false) == .stamp)
+        // An empty store always adopts the current configuration.
+        #expect(SQLiteVectorStore.fingerprintCheck(
+            stored: "fp-old", current: current, hasChunks: false, prefixed: true) == .stamp)
+    }
+
+    @Test("the fingerprint tracks model id and prompt format")
+    func fingerprintTracksModelAndPrompts() {
+        let symmetric = SQLiteVectorStore.embeddingFingerprint(model: "text-embedding-3-small")
+        #expect(symmetric == SQLiteVectorStore.embeddingFingerprint(model: "text-embedding-3-small"))
+        #expect(symmetric != SQLiteVectorStore.embeddingFingerprint(model: "nomic-embed-text"))
+    }
+
     // MARK: - Apple on-device embeddings (NLContextualEmbedding)
 
     // Apple-only (`#if canImport(NaturalLanguage)`), so it runs on the macOS CI
