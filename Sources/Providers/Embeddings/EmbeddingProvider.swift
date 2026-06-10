@@ -39,14 +39,19 @@ public protocol EmbeddingProvider: AnyObject {
     func embedding(for text: String) async throws -> Vector?
 
     /// A `Vector` embedding for a given text, in a known `role`. Has a default
-    /// that ignores `role` (symmetric embedding), so existing providers need not
-    /// implement it; an instruction-tuned provider overrides it to apply the
-    /// model's query vs. document prompt template.
+    /// that prepends the model's documented task-instruction prefix when
+    /// `embeddingModelIdentifier` names a known instruction-tuned family
+    /// (see ``EmbeddingTaskPrefix/forModel(_:)``) and embeds symmetrically
+    /// otherwise, so existing providers need not implement it; a provider can
+    /// override it to apply a custom query vs. document prompt template.
     func embedding(for text: String, role: EmbeddingRole) async throws -> Vector?
 }
 
 public extension EmbeddingProvider {
     func embedding(for text: String, role: EmbeddingRole) async throws -> Vector? {
-        try await embedding(for: text)
+        guard let prefix = EmbeddingTaskPrefix.forModel(embeddingModelIdentifier) else {
+            return try await embedding(for: text)
+        }
+        return try await embedding(for: prefix.apply(to: text, role: role))
     }
 }
