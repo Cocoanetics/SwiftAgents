@@ -408,36 +408,6 @@ struct SQLiteVectorStoreTests {
         #expect(provider.callCount > afterFirst)
     }
 
-    @Test("document sync skips unchanged texts and prunes delisted paths")
-    func documentSyncSkipsUnchangedAndPrunes() async throws {
-        let provider = StubEmbeddingProvider(fallback: [1, 0, 0, 0])
-        let store = try SQLiteVectorStore(embeddingProvider: provider)
-
-        let first = try await store.sync(documents: [
-            SyncDocument(path: "a.png", text: "alpha"),
-            SyncDocument(path: "b.png", text: "beta")
-        ], source: "media")
-        #expect(first.indexed == 2)
-        let afterFirst = provider.callCount
-
-        // Same texts again → nothing re-embeds.
-        let second = try await store.sync(documents: [
-            SyncDocument(path: "a.png", text: "alpha"),
-            SyncDocument(path: "b.png", text: "beta")
-        ], source: "media")
-        #expect(second.indexed == 0)
-        #expect(second.unchanged == 2)
-        #expect(provider.callCount == afterFirst)
-
-        // A changed text re-embeds; a delisted path is pruned.
-        let third = try await store.sync(documents: [
-            SyncDocument(path: "a.png", text: "alpha updated")
-        ], source: "media")
-        #expect(third.indexed == 1)
-        #expect(third.removed == 1)
-        #expect(try store.count() == 1)
-    }
-
     @Test("sync prunes chunks for files no longer present")
     func syncPrunesDeletedFiles() async throws {
         let store = try SQLiteVectorStore(embeddingProvider: StubEmbeddingProvider(fallback: [1, 0, 0, 0]))

@@ -58,17 +58,4 @@ public struct SyncSummary: Equatable {
     public var missing = 0
 }
 
-/// One in-memory document for ``SQLiteVectorStore/sync(documents:source:)`` —
-/// text that doesn't live in a file of its own (e.g. a description stored in
-/// metadata), indexed under the `path` it should be cited as.
-public struct SyncDocument: Equatable, Sendable {
-    public let path: String
-    public let text: String
-
-    public init(path: String, text: String) {
-        self.path = path
-        self.text = text
-    }
-}
-
 #endif

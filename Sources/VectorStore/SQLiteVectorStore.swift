@@ -149,36 +149,9 @@ public final class SQLiteVectorStore {
         return pending.count
     }
 
-    /// Indexes one document, skipping it when its text hash is unchanged since
-    /// the last index (the incremental fast path). The core primitive behind
-    /// both sync flavors — a file is just one way to obtain a document.
-    /// `mtime` is recorded in the `files` table the way qmd records a file's
-    /// modification date; documents without one default to the index time.
-    @discardableResult
-    public func indexDocument(
-        _ document: SyncDocument,
-        source: String = "memory",
-        mtime: Int? = nil
-    ) async throws -> IndexOutcome {
-        let hash = Self.contentHash(document.text)
-        if try fileHash(path: document.path, source: source) == hash {
-            return .unchanged
-        }
-        let chunkCount = try await indexText(document.text, path: document.path, source: source)
-        try upsertFile(
-            path: document.path,
-            source: source,
-            hash: hash,
-            mtime: mtime ?? Int(Date().timeIntervalSince1970),
-            size: document.text.utf8.count
-        )
-        return .indexed(chunks: chunkCount)
-    }
-
-    /// Indexes a file on disk — reads it and delegates to ``indexDocument(_:source:mtime:)``,
-    /// so the incremental hash-skip is shared. The file's modification date is
-    /// recorded (qmd's bookkeeping). `workspaceDir`, if given, is stripped from
-    /// the stored `path` so citations stay relative.
+    /// Indexes a file on disk, skipping it when its content hash is unchanged
+    /// since the last index (the incremental fast path). `workspaceDir`, if
+    /// given, is stripped from the stored `path` so citations stay relative.
     @discardableResult
     public func indexFile(
         at filePath: String,
@@ -191,13 +164,18 @@ public final class SQLiteVectorStore {
         } catch {
             return .missing
         }
+        let hash = Self.contentHash(content)
+        let storedPath = Self.relativePath(filePath, to: workspaceDir)
+
+        if try fileHash(path: storedPath, source: source) == hash {
+            return .unchanged
+        }
+
+        let chunkCount = try await indexText(content, path: storedPath, source: source)
         let attributes = try? FileManager.default.attributesOfItem(atPath: filePath)
         let mtime = Int((attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
-        return try await indexDocument(
-            SyncDocument(path: Self.relativePath(filePath, to: workspaceDir), text: content),
-            source: source,
-            mtime: mtime
-        )
+        try upsertFile(path: storedPath, source: source, hash: hash, mtime: mtime, size: content.utf8.count)
+        return .indexed(chunks: chunkCount)
     }
 
     /// Indexes every file in `files` (incrementally), then prunes chunks for
@@ -221,27 +199,6 @@ public final class SQLiteVectorStore {
                     seen.insert(Self.relativePath(file, to: workspaceDir))
                 case .missing:
                     summary.missing += 1
-            }
-        }
-        summary.removed = try prune(source: source, keep: seen)
-        return summary
-    }
-
-    /// Indexes every in-memory document (incrementally — a document whose text
-    /// hash is unchanged is not re-embedded), then prunes chunks for any
-    /// previously-indexed path of this `source` that is no longer listed. The
-    /// document twin of ``sync(files:source:workspaceDir:)``, for content that
-    /// doesn't live in a file of its own — e.g. descriptions kept in metadata.
-    @discardableResult
-    public func sync(documents: [SyncDocument], source: String = "memory") async throws -> SyncSummary {
-        var summary = SyncSummary()
-        var seen = Set<String>()
-        for document in documents {
-            seen.insert(document.path)
-            switch try await indexDocument(document, source: source) {
-                case .indexed: summary.indexed += 1
-                case .unchanged: summary.unchanged += 1
-                case .missing: summary.missing += 1
             }
         }
         summary.removed = try prune(source: source, keep: seen)
