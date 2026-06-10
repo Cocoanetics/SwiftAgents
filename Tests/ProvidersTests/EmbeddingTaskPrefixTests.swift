@@ -46,6 +46,11 @@ struct EmbeddingTaskPrefixTests {
         #expect(mxbai?.query == "Represent this sentence for searching relevant passages: ")
         #expect(mxbai?.document.isEmpty == true)
 
+        // intfloat/e5 — matched on "e5-" so version suffixes like "v1.5"
+        // can't trip it.
+        #expect(EmbeddingTaskPrefix.forModel("intfloat/e5-large-v2") == .e5)
+        #expect(EmbeddingTaskPrefix.forModel("multilingual-e5-large") == .e5)
+
         let gemma = EmbeddingTaskPrefix(query: "task: search result | query: ", document: "title: none | text: ")
         #expect(EmbeddingTaskPrefix.forModel("text-embedding-embeddinggemma-300m-qat") == gemma)
         #expect(EmbeddingTaskPrefix.forModel("embeddinggemma-300m") == gemma)
