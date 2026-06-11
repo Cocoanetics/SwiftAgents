@@ -10,7 +10,9 @@
 //  Identity and incrementality mirror the local store: every document
 //  carries `path` / `source` / content-`hash` attributes, so re-indexing
 //  skips unchanged content, re-uploads replace the prior document, and
-//  `sync` prunes documents whose file disappeared. Spans are 0/0 — the
+//  `sync` prunes documents whose file disappeared. A replacement uploads
+//  and fully processes the new document before the old one is removed, so
+//  a transient failure never loses the prior content. Spans are 0/0 — the
 //  service chunks server-side, so there is no line provenance — which
 //  `MemoryMatch.citation` renders as `source:path`.
 //
@@ -101,7 +103,7 @@ public final class OpenAIVectorStore {
     /// deleted too; pass `false` to keep them.
     public func delete(includingFiles: Bool = true) async throws {
         if includingFiles {
-            for document in try await inventory().values {
+            for document in try await inventory().values.joined() {
                 _ = try? await client.deleteFile(id: document.fileID)
             }
         }
@@ -116,8 +118,8 @@ public final class OpenAIVectorStore {
     @discardableResult
     public func indexText(_ text: String, path: String, source: String = "memory") async throws -> Int {
         let hash = fnv1aHash(text.utf8)
-        let existing = try await inventory()[Self.key(path: path, source: source)]
-        if existing?.hash == hash { return 1 }
+        let existing = try await inventory()[Self.key(path: path, source: source)] ?? []
+        if Self.isCurrent(existing, hash: hash) { return 1 }
         try await upsert(Data(text.utf8), path: path, source: source, hash: hash, replacing: existing)
         return 1
     }
@@ -162,7 +164,7 @@ public final class OpenAIVectorStore {
                     summary.missing += 1
             }
         }
-        for document in inventory.values where document.source == source && !seen.contains(document.path) {
+        for document in inventory.values.joined() where document.source == source && !seen.contains(document.path) {
             try await remove(document)
             summary.removed += 1
         }
@@ -221,27 +223,39 @@ public final class OpenAIVectorStore {
         let path: String
         let source: String
         let hash: String?
+        let status: FileStatus
+    }
+
+    /// Whether `documents` already hold `hash` as the live content of an
+    /// identity: exactly one remote document, fully processed, same hash.
+    /// Anything else re-indexes — a failed or in-flight upload must not
+    /// satisfy the fast path (it is not searchable), and stale duplicates
+    /// from an interrupted replacement get swept up by the next upsert.
+    static func isCurrent(_ documents: [RemoteDocument], hash: String) -> Bool {
+        documents.count == 1 && documents[0].status == .completed && documents[0].hash == hash
     }
 
     private static func key(path: String, source: String) -> String {
         source + "\u{0}" + path
     }
 
-    /// Every document in the store, keyed by (`path`, `source`). Files
-    /// attached outside this class carry no identity attributes and key by
-    /// their file id under the empty source.
-    private func inventory() async throws -> [String: RemoteDocument] {
-        var result: [String: RemoteDocument] = [:]
+    /// Every document in the store, keyed by (`path`, `source`) — normally
+    /// one per identity; an interrupted replacement can briefly leave two.
+    /// Files attached outside this class carry no identity attributes and
+    /// key by their file id under the empty source.
+    private func inventory() async throws -> [String: [RemoteDocument]] {
+        var result: [String: [RemoteDocument]] = [:]
         var after: String?
         repeat {
             let page = try await client.listVectorStoreFiles(vectorStoreId: id, limit: 100, after: after)
             for file in page.data {
                 let path = file.attributes?[AttributeKey.path]?.stringValue ?? file.id
                 let source = file.attributes?[AttributeKey.source]?.stringValue ?? ""
-                result[Self.key(path: path, source: source)] = RemoteDocument(
+                result[Self.key(path: path, source: source), default: []].append(RemoteDocument(
                     fileID: file.id, path: path, source: source,
-                    hash: file.attributes?[AttributeKey.hash]?.stringValue
-                )
+                    hash: file.attributes?[AttributeKey.hash]?.stringValue,
+                    status: file.status
+                ))
             }
             after = page.hasMore ? page.lastId : nil
         } while after != nil
@@ -252,50 +266,59 @@ public final class OpenAIVectorStore {
         at filePath: String,
         source: String,
         workspaceDir: String?,
-        inventory: [String: RemoteDocument]
+        inventory: [String: [RemoteDocument]]
     ) async throws -> IndexOutcome {
         guard let data = FileManager.default.contents(atPath: filePath) else { return .missing }
         let hash = fnv1aHash(data)
         let storedPath = relativePath(filePath, to: workspaceDir)
-        let existing = inventory[Self.key(path: storedPath, source: source)]
-        if existing?.hash == hash { return .unchanged }
+        let existing = inventory[Self.key(path: storedPath, source: source)] ?? []
+        if Self.isCurrent(existing, hash: hash) { return .unchanged }
         try await upsert(data, path: storedPath, source: source, hash: hash, replacing: existing)
         return .indexed(chunks: 1)
     }
 
     /// Uploads `data` as the document for (`path`, `source`) — stamped with
-    /// the identity attributes — replacing `existing`, and waits until the
-    /// service has finished processing it so a subsequent search sees it.
+    /// the identity attributes — and waits until the service has finished
+    /// processing it. Only then are the documents in `existing` removed, so
+    /// the prior content stays searchable when a replacement fails; a failed
+    /// or half-attached replacement is cleaned up before the error is thrown,
+    /// so it can never shadow the identity.
     private func upsert(
         _ data: Data,
         path: String,
         source: String,
         hash: String,
-        replacing existing: RemoteDocument?
+        replacing existing: [RemoteDocument]
     ) async throws {
-        if let existing {
-            try await remove(existing)
-        }
         let file = try await client.uploadFile(
             data: data,
             filename: Self.filename(for: path),
             mimeType: "application/octet-stream",
             purpose: .assistants
         )
-        _ = try await client.createVectorStoreFile(
-            vectorStoreId: id,
-            fileId: file.id,
-            attributes: [
-                AttributeKey.path: .string(path),
-                AttributeKey.source: .string(source),
-                AttributeKey.hash: .string(hash)
-            ]
-        )
-        let processed = try await client.waitUntilVectorStoreFileIsReady(
-            vectorStoreId: id, fileId: file.id, interval: pollInterval
-        )
-        guard processed.status == .completed else {
-            throw OpenAIVectorStoreError.processingFailed(path: path, message: processed.lastError?.message)
+        do {
+            _ = try await client.createVectorStoreFile(
+                vectorStoreId: id,
+                fileId: file.id,
+                attributes: [
+                    AttributeKey.path: .string(path),
+                    AttributeKey.source: .string(source),
+                    AttributeKey.hash: .string(hash)
+                ]
+            )
+            let processed = try await client.waitUntilVectorStoreFileIsReady(
+                vectorStoreId: id, fileId: file.id, interval: pollInterval
+            )
+            guard processed.status == .completed else {
+                throw OpenAIVectorStoreError.processingFailed(path: path, message: processed.lastError?.message)
+            }
+        } catch {
+            _ = try? await client.deleteVectorStoreFile(vectorStoreId: id, fileId: file.id)
+            _ = try? await client.deleteFile(id: file.id)
+            throw error
+        }
+        for document in existing {
+            try await remove(document)
         }
     }
 

@@ -142,6 +142,24 @@ struct OpenAIVectorStoreTests {
         #expect(OpenAIVectorStore.filename(for: "note") == "note.txt")
     }
 
+    @Test("the unchanged fast path needs a single, completed, hash-matching document")
+    func unchangedFastPath() {
+        func doc(_ hash: String, _ status: FileStatus) -> OpenAIVectorStore.RemoteDocument {
+            .init(fileID: "file-1", path: "a.md", source: "wiki", hash: hash, status: status)
+        }
+        #expect(OpenAIVectorStore.isCurrent([doc("abc", .completed)], hash: "abc"))
+        // A failed or in-flight upload is not searchable — it must re-index,
+        // not satisfy the skip (it would silently poison the identity).
+        #expect(!OpenAIVectorStore.isCurrent([doc("abc", .failed)], hash: "abc"))
+        #expect(!OpenAIVectorStore.isCurrent([doc("abc", .cancelled)], hash: "abc"))
+        #expect(!OpenAIVectorStore.isCurrent([doc("abc", .inProgress)], hash: "abc"))
+        // Changed content, nothing indexed yet, or stale duplicates from an
+        // interrupted replacement all re-index too.
+        #expect(!OpenAIVectorStore.isCurrent([doc("old", .completed)], hash: "abc"))
+        #expect(!OpenAIVectorStore.isCurrent([], hash: "abc"))
+        #expect(!OpenAIVectorStore.isCurrent([doc("abc", .completed), doc("abc", .failed)], hash: "abc"))
+    }
+
     @Test("the shared FNV-1a hash is stable and byte-based")
     func contentHashStability() {
         // Reference value for FNV-1a 64-bit of "hello" — the local and the
