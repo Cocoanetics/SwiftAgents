@@ -35,11 +35,18 @@ identifier_name:
   #   - `id`: standard short name for object identifiers.
   #   - `k`: the Reciprocal Rank Fusion rank constant (RankFusion.swift).
   #   - `e5`: the intfloat/e5 embedding model family (instruction-prefix template).
+  #   - `eq`/`ne`/`gt`/`lt`/`or`: OpenAI's vector store search filter operators
+  #     (`VectorStoreFilter` cases mirror the documented wire names).
   excluded:
     - id
     - n
     - k
     - e5
+    - eq
+    - ne
+    - gt
+    - lt
+    - or
 
 # Doc comments wrap differently from code and shouldn't count against the
 # 120-char code line limit. URLs in comments are common (e.g. links to the

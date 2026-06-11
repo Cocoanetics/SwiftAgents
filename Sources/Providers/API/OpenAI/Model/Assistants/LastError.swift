@@ -8,7 +8,7 @@
 import Foundation
 
 /// Last error details.
-public struct LastError: Codable {
+public struct LastError: Codable, Sendable {
     /// Error code, e.g., "server_error" or "rate_limit_exceeded".
     public let code: String
 

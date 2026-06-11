@@ -26,7 +26,7 @@ public class GoogleAPI: API, @unchecked Sendable {
     /// Default thinking configuration to apply to requests if none is provided.
     public var defaultThinkingConfig: GoogleThinkingConfig?
 
-    /// Model used by the `EmbeddingProvider` conformance (VectorStore target).
+    /// Model used by the `EmbeddingProvider` conformance (SemanticStore target).
     /// `gemini-embedding-2` carries its task as a prompt instruction; set
     /// `gemini-embedding-001` to use the `taskType` parameter instead.
     public var embeddingModelIdentifier: String = "gemini-embedding-2"

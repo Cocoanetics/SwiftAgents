@@ -22,6 +22,9 @@ extension OpenAI {
     ///                    must be a valid vector store ID already existing within OpenAI's system.
     ///   - fileId: The identifier of the file to attach to the vector store. This file ID should correspond
     ///             to a file that has been previously uploaded or managed within the OpenAI infrastructure.
+    ///   - attributes: Optional metadata (up to 16 keys) stored with the file and usable as search
+    ///                 filters — see ``VectorStoreFilter``. Keep keys plain lowercase (see
+    ///                 ``VectorStoreAttribute``).
     ///
     /// - Returns: A `VectorStoreFile` object representing the file after it has been attached to the vector store.
     ///
@@ -30,8 +33,12 @@ extension OpenAI {
     ///
     /// This method utilizes asynchronous network calls and requires proper error handling
     /// in the surrounding context where it is called.
-    public func createVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> VectorStoreFile {
-        let fileRequest = VectorStoreFileRequest(fileId: fileId)
+    public func createVectorStoreFile(
+        vectorStoreId: String,
+        fileId: String,
+        attributes: [String: VectorStoreAttribute]? = nil
+    ) async throws -> VectorStoreFile {
+        let fileRequest = VectorStoreFileRequest(fileId: fileId, attributes: attributes)
 
         let request = try createUrlRequest(
             httpMethod: "POST",
@@ -44,7 +51,7 @@ extension OpenAI {
         return try process(data: data, response: response)
     }
 
-    func listVectorStoreFiles(
+    public func listVectorStoreFiles(
         vectorStoreId: String,
         limit: Int = 20,
         order: SortOrder = .descending,
@@ -79,7 +86,7 @@ extension OpenAI {
         return try process(data: data, response: response)
     }
 
-    func retrieveVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> VectorStoreFile {
+    public func retrieveVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> VectorStoreFile {
         let request = try createUrlRequest(path: "/v1/vector_stores/" + vectorStoreId + "/files/" + fileId)
 
         let (data, response) = try await session.data(for: request)
@@ -106,7 +113,7 @@ extension OpenAI {
     /// - Throws: Throws an error if there is an API call failure during the status check. This could be due to network
     ///           issues, access permissions, or if the identifiers provided do not correspond to valid entities.
     ///
-    @discardableResult func waitUntilVectorStoreFileIsReady(
+    @discardableResult public func waitUntilVectorStoreFileIsReady(
         vectorStoreId: String,
         fileId: String,
         interval: TimeInterval = 5
@@ -124,7 +131,7 @@ extension OpenAI {
         }
     }
 
-    @discardableResult func deleteVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> Bool {
+    @discardableResult public func deleteVectorStoreFile(vectorStoreId: String, fileId: String) async throws -> Bool {
         let request = try createUrlRequest(
             httpMethod: "DELETE",
             path: "/v1/vector_stores/" + vectorStoreId + "/files/" + fileId
@@ -140,4 +147,5 @@ extension OpenAI {
 
 struct VectorStoreFileRequest: Codable {
     let fileId: String
+    var attributes: [String: VectorStoreAttribute]?
 }

@@ -19,4 +19,10 @@ public enum FileStatus: String, Codable, Sendable {
 
     /// Indicates that the file processing has been completed.
     case completed
+
+    /// Indicates that the file processing was cancelled.
+    case cancelled
+
+    /// Indicates that the file processing failed (see `lastError`).
+    case failed
 }

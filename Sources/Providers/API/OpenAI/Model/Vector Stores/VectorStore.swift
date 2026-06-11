@@ -89,8 +89,13 @@ struct VectorStoreOptionals: Codable {
  */
 public struct ExpirationPolicy: Codable, Sendable {
     /// The anchor point for calculating expiration, e.g., "last_active_at".
-    let anchor: String
+    public let anchor: String
 
     /// The number of days after which the vector store will expire.
-    let days: Int
+    public let days: Int
+
+    public init(anchor: String = "last_active_at", days: Int) {
+        self.anchor = anchor
+        self.days = days
+    }
 }
