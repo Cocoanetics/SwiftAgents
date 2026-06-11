@@ -12,7 +12,7 @@ import Foundation
 
  - SeeAlso: For more information, see [Vector Store Files API Documentation](https://platform.openai.com/docs/api-reference/vector-stores-files).
  */
-public struct VectorStoreFile: Codable {
+public struct VectorStoreFile: Codable, Sendable {
     /// The identifier, which can be referenced in API endpoints.
     public let id: String
 
@@ -33,4 +33,8 @@ public struct VectorStoreFile: Codable {
 
     /// The last error associated with this vector store file, if any.
     public let lastError: LastError?
+
+    /// The attributes attached when the file was added to the store, usable
+    /// as search filters — see ``VectorStoreFilter``.
+    public var attributes: [String: VectorStoreAttribute]?
 }

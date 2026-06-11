@@ -1,5 +1,5 @@
 //
-//  OpenAI+VectoreStoreFilesBatch.swift
+//  OpenAI+VectorStoreFilesBatch.swift
 //
 //
 //  Created by Oliver Drobnik on 02.05.24.
@@ -19,7 +19,10 @@ extension OpenAI {
     /// - Returns: A `VectorStoreFilesBatch` representing the newly created file batch.
     /// - Throws: An error if the API call fails.
     ///
-    func createVectorStoreFilesBatch(vectorStoreId: String, fileIds: [String]) async throws -> VectorStoreFilesBatch {
+    public func createVectorStoreFilesBatch(
+        vectorStoreId: String,
+        fileIds: [String]
+    ) async throws -> VectorStoreFilesBatch {
         let endpoint = "/v1/vector_stores/\(vectorStoreId)/file_batches"
         let requestBody = ["file_ids": fileIds]
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: requestBody)
@@ -35,7 +38,10 @@ extension OpenAI {
     /// - Returns: A `VectorStoreFilesBatch` object representing the file batch.
     /// - Throws: An error if the API call fails.
     ///
-    func retrieveVectorStoreFilesBatch(vectorStoreId: String, batchId: String) async throws -> VectorStoreFilesBatch {
+    public func retrieveVectorStoreFilesBatch(
+        vectorStoreId: String,
+        batchId: String
+    ) async throws -> VectorStoreFilesBatch {
         let endpoint = "/v1/vector_stores/\(vectorStoreId)/file_batches/\(batchId)"
         let request = try createUrlRequest(path: endpoint)
         let (data, response) = try await session.data(for: request)
@@ -53,7 +59,7 @@ extension OpenAI {
     ///   - filter: Optional filter for batch status.
     /// - Returns: A `ListPagedResponse<VectorStoreFilesBatch>` containing the list of batches.
     /// - Throws: An error if the API call fails.
-    func listVectorStoreFilesBatches(
+    public func listVectorStoreFilesBatches(
         vectorStoreId: String,
         limit: Int = 20,
         order: SortOrder = .descending,
@@ -96,7 +102,10 @@ extension OpenAI {
     /// - Returns: A `VectorStoreFilesBatch` object representing the batch after the cancellation attempt.
     /// - Throws: An error if the API call fails, such as network errors, invalid parameters, or server issues.
     ///
-    func cancelVectorStoreFilesBatch(vectorStoreId: String, batchId: String) async throws -> VectorStoreFilesBatch {
+    public func cancelVectorStoreFilesBatch(
+        vectorStoreId: String,
+        batchId: String
+    ) async throws -> VectorStoreFilesBatch {
         let endpoint = "/v1/vector_stores/\(vectorStoreId)/file_batches/\(batchId)/cancel"
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint)
         let (data, response) = try await session.data(for: request)
@@ -112,7 +121,7 @@ extension OpenAI {
     /// - Returns: The batch object once it's not in progress.
     ///
     @discardableResult
-    func waitUntilVectorStoreBatchIsReady(
+    public func waitUntilVectorStoreBatchIsReady(
         vectorStoreId: String,
         batchId: String,
         interval: TimeInterval = 5

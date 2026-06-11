@@ -12,22 +12,22 @@ import Foundation
 
  - SeeAlso: For more information, see [Vector Store Files Batch API Documentation](https://platform.openai.com/docs/api-reference/vector-stores-file-batches).
  */
-struct VectorStoreFilesBatch: Codable {
+public struct VectorStoreFilesBatch: Codable, Sendable {
     /// The unique identifier for the batch.
-    let id: String
+    public let id: String
 
     /// The type of the object, always set to "vector_store.file_batch".
-    let object: String
+    public let object: String
 
     /// The timestamp when the file batch was created.
-    let createdAt: Date
+    public let createdAt: Date
 
     /// The identifier of the vector store to which the files are attached.
-    let vectorStoreId: String
+    public let vectorStoreId: String
 
     /// The current status of the file batch.
-    let status: FileStatus
+    public let status: FileStatus
 
     /// An object containing counts of files in different processing states.
-    let fileCounts: FileCounts
+    public let fileCounts: FileCounts
 }

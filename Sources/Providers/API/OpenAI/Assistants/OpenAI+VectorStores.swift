@@ -26,7 +26,7 @@ extension OpenAI {
 
      - SeeAlso: [Create Vector Store](https://platform.openai.com/docs/api-reference/vector-stores/create)
      */
-    func createVectorStore(
+    public func createVectorStore(
         name: String? = nil,
         expiresAfter policy: ExpirationPolicy? = nil,
         metadata: [String: String] = [:],
@@ -52,7 +52,7 @@ extension OpenAI {
      - Returns: The modified vector store object.
      - Throws: An error if the API call fails.
      */
-    func modifyVectorStore(
+    public func modifyVectorStore(
         id: String,
         name: String? = nil,
         expiresAfter: ExpirationPolicy? = nil,
@@ -89,7 +89,7 @@ extension OpenAI {
 
      - SeeAlso: [OpenAI Platform API Documentation - List Vector Stores](https://platform.openai.com/docs/api-reference/vector-stores/list)
      */
-    func listVectorStores(
+    public func listVectorStores(
         limit: Int = 20,
         order: SortOrder = .descending,
         after: String? = nil,
@@ -128,7 +128,7 @@ extension OpenAI {
 
      - Throws: An error if the request fails or if the response cannot be processed.
      */
-    func listVectorStoresStream(
+    public func listVectorStoresStream(
         limit: Int? = nil,
         order: SortOrder = .descending
     ) -> AsyncThrowingStream<VectorStore, Error> {
@@ -178,7 +178,7 @@ extension OpenAI {
 
      - SeeAlso: [Retrieve Vector Store](https://platform.openai.com/docs/api-reference/vector-stores/retrieve)
      */
-    func retrieveVectorStore(id: String) async throws -> VectorStore {
+    public func retrieveVectorStore(id: String) async throws -> VectorStore {
         let request = try createUrlRequest(path: "/v1/vector_stores/" + id)
 
         let (data, response) = try await session.data(for: request)
@@ -209,15 +209,13 @@ extension OpenAI {
 
      - SeeAlso: [Retrieve Vector Store](https://platform.openai.com/docs/api-reference/vector-stores/retrieve)
      */
-    @discardableResult func waitUntilVectorStoreIsReady(
+    @discardableResult public func waitUntilVectorStoreIsReady(
         id: String,
         interval: TimeInterval = 5
     ) async throws -> VectorStore {
         while true {
             // Retrieve the current status of the VectorStore
             let polledStore = try await retrieveVectorStore(id: id)
-
-            print("Current file count in progress: \(polledStore.fileCounts.inProgress)")
 
             if polledStore.fileCounts.inProgress == 0 {
                 return polledStore
@@ -240,7 +238,7 @@ extension OpenAI {
 
      - SeeAlso: [OpenAI Platform API Documentation - Delete Vector Store](https://platform.openai.com/docs/api-reference/vector-stores/delete)
      */
-    @discardableResult func deleteVectorStore(id: String) async throws -> Bool {
+    @discardableResult public func deleteVectorStore(id: String) async throws -> Bool {
         let request = try createUrlRequest(httpMethod: "DELETE", path: "/v1/vector_stores/" + id)
 
         let (data, response) = try await session.data(for: request)
@@ -249,4 +247,53 @@ extension OpenAI {
 
         return deletionStatus.deleted
     }
+
+    /**
+     Searches a vector store for chunks relevant to a natural-language query.
+
+     - Parameters:
+       - id: The identifier of the vector store to search.
+       - query: The natural-language query.
+       - maxNumResults: Maximum number of chunks to return (1...50). Default is 10.
+       - filters: Optional attribute filter — see ``VectorStoreFilter``.
+       - rewriteQuery: Optional. When true, the service rewrites the query for better retrieval.
+
+     - Returns: A page of scored ``VectorStoreSearchResult`` chunks, best first.
+
+     - Throws: An error if the request fails or if the response cannot be processed.
+
+     - SeeAlso: [Search Vector Store](https://platform.openai.com/docs/api-reference/vector-stores/search)
+     */
+    public func searchVectorStore(
+        id: String,
+        query: String,
+        maxNumResults: Int = 10,
+        filters: VectorStoreFilter? = nil,
+        rewriteQuery: Bool? = nil
+    ) async throws -> VectorStoreSearchResultsPage {
+        let body = VectorStoreSearchRequest(
+            query: query,
+            maxNumResults: maxNumResults,
+            filters: filters,
+            rewriteQuery: rewriteQuery
+        )
+
+        let request = try createUrlRequest(
+            httpMethod: "POST",
+            path: "/v1/vector_stores/\(id)/search",
+            body: body
+        )
+
+        let (data, response) = try await session.data(for: request)
+
+        return try process(data: data, response: response)
+    }
+}
+
+/// Request body for `searchVectorStore(id:query:maxNumResults:filters:rewriteQuery:)`.
+struct VectorStoreSearchRequest: Codable {
+    let query: String
+    let maxNumResults: Int
+    let filters: VectorStoreFilter?
+    let rewriteQuery: Bool?
 }
