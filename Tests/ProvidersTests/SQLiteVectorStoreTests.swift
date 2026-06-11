@@ -16,7 +16,7 @@
 import Foundation
 @testable import Providers
 import Testing
-@testable import VectorStore
+@testable import SemanticStore
 
 struct SQLiteVectorStoreTests {
     /// Deterministic embedder: a fixed unit vector per known phrase (or a

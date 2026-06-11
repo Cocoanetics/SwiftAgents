@@ -12,9 +12,9 @@ import Foundation
 ///
 /// Defined in `Providers` so the protocol and the wire types
 /// (`OllamaEmbeddingResponse.embedding`, `EmbeddingVector.embedding`)
-/// both reference it without pulling the Apple-only `VectorStore`
+/// both reference it without pulling the `SemanticStore`
 /// target. The vector-math extensions (cosine similarity, magnitude,
-/// average, etc.) live in `VectorStore/Array+Vector.swift` and use
+/// average, etc.) live in `SemanticStore/Array+Vector.swift` and use
 /// `Accelerate` — Apple-only.
 public typealias Vector = [Double]
 
@@ -28,7 +28,7 @@ public enum EmbeddingRole: Sendable {
     case document
 }
 
-/// Protocol for providing embeddings. Gives a `modelIdentifier` for `VectorStore` to identify with which provider
+/// Protocol for providing embeddings. Gives a `modelIdentifier` for the semantic stores to identify with which provider
 /// embeddings were created.
 ///  - note: It's based on `AnyObject` so that we can set the `embeddingModelIdentifier`
 public protocol EmbeddingProvider: AnyObject {

@@ -55,7 +55,7 @@ jobs:
   build-ios:
     # Compile-only check on `generic/platform=iOS`. The `Coder` executable
     # and `TerminalUI` use `Process()` which isn't available on iOS, so
-    # only the `Providers` and `VectorStore` libraries are built — those
+    # only the `Providers` and `SemanticStore` libraries are built — those
     # are the surfaces iBash consumes.
     runs-on: macos-26
     timeout-minutes: 15
@@ -77,9 +77,9 @@ jobs:
             -destination 'generic/platform=iOS' \
             -skipMacroValidation \
             build
-      - name: Build VectorStore (iOS)
+      - name: Build SemanticStore (iOS)
         run: |
-          xcodebuild -scheme VectorStore \
+          xcodebuild -scheme SemanticStore \
             -destination 'generic/platform=iOS' \
             -skipMacroValidation \
             build
@@ -104,7 +104,7 @@ jobs:
       - name: Build (Linux)
         run: |
           swift build -v --product Providers
-          swift build -v --product VectorStore
+          swift build -v --product SemanticStore
           swift build -v --product TerminalUI
           swift build -v --product Coder
       # MIME tests previously failed on Linux because `URL.mimeType()`

@@ -23,7 +23,7 @@
 import Foundation
 @testable import Providers
 import Testing
-@testable import VectorStore
+@testable import SemanticStore
 
 struct HybridSearchLiveTests {
     /// A miniature Canon wiki: four markdown pages with clearly separated

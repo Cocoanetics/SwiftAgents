@@ -126,7 +126,7 @@ public final class SQLiteVectorStore {
                 try insertChunk.bind([
                     .text(path), .text(source),
                     .integer(Int64(entry.chunk.startLine)), .integer(Int64(entry.chunk.endLine)),
-                    .text(Self.contentHash(entry.chunk.text)), .text(model),
+                    .text(fnv1aHash(entry.chunk.text.utf8)), .text(model),
                     .text(entry.chunk.text), .integer(Int64(now))
                 ])
                 _ = try insertChunk.step()
@@ -164,8 +164,8 @@ public final class SQLiteVectorStore {
         } catch {
             return .missing
         }
-        let hash = Self.contentHash(content)
-        let storedPath = Self.relativePath(filePath, to: workspaceDir)
+        let hash = fnv1aHash(content.utf8)
+        let storedPath = relativePath(filePath, to: workspaceDir)
 
         if try fileHash(path: storedPath, source: source) == hash {
             return .unchanged
@@ -193,10 +193,10 @@ public final class SQLiteVectorStore {
             switch try await indexFile(at: file, source: source, workspaceDir: workspaceDir) {
                 case .indexed:
                     summary.indexed += 1
-                    seen.insert(Self.relativePath(file, to: workspaceDir))
+                    seen.insert(relativePath(file, to: workspaceDir))
                 case .unchanged:
                     summary.unchanged += 1
-                    seen.insert(Self.relativePath(file, to: workspaceDir))
+                    seen.insert(relativePath(file, to: workspaceDir))
                 case .missing:
                     summary.missing += 1
             }
@@ -588,11 +588,11 @@ public final class SQLiteVectorStore {
     static func embeddingFingerprint(model: String) -> String {
         let probe = "__svs_fingerprint_probe__"
         let prefix = EmbeddingTaskPrefix.forModel(model)
-        return contentHash([
+        return fnv1aHash([
             "model:\(model)",
             "query:\(prefix?.apply(to: probe, role: .query) ?? probe)",
             "document:\(prefix?.apply(to: probe, role: .document) ?? probe)"
-        ].joined(separator: "\n"))
+        ].joined(separator: "\n").utf8)
     }
 
     /// Pure decision for ``checkEmbeddingFingerprint()``. A recorded mismatch
@@ -676,23 +676,6 @@ public final class SQLiteVectorStore {
         return tokens.map { "\"\($0)\"" }.joined(separator: " OR ")
     }
 
-    /// Stable, non-cryptographic content hash (FNV-1a 64-bit) for change
-    /// detection — deterministic across processes, unlike Swift's `Hasher`.
-    private static func contentHash(_ text: String) -> String {
-        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
-        for byte in text.utf8 {
-            hash ^= UInt64(byte)
-            hash = hash &* 0x0000_0100_0000_01b3
-        }
-        return String(hash, radix: 16)
-    }
-
-    private static func relativePath(_ filePath: String, to workspaceDir: String?) -> String {
-        guard var base = workspaceDir else { return filePath }
-        if !base.hasSuffix("/") { base += "/" }
-        return filePath.hasPrefix(base) ? String(filePath.dropFirst(base.count)) : filePath
-    }
-
     private static func double(_ value: SQLiteValue) -> Double {
         switch value {
             case let .real(number): return number
@@ -711,5 +694,10 @@ public final class SQLiteVectorStore {
         return ""
     }
 }
+
+/// The store-agnostic core — `indexText` / `indexFile` / `sync` / `search` /
+/// `count` already match the protocol; keyword, hybrid, fused, and expanded
+/// search remain SQLite-store extras.
+extension SQLiteVectorStore: SemanticStore {}
 
 #endif

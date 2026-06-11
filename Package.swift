@@ -40,14 +40,15 @@ let package = Package(
 			name: "SwiftAgents",
 			targets: ["SwiftAgents"]
 		),
-		// In-memory vector store, Accelerate-backed vector math, and
-		// the `NLContextualEmbedding`-based local embedding provider.
-		// Apple-only — each file is wrapped in `#if canImport(NaturalLanguage)`,
-		// so the target compiles to nothing on Linux. Opt-in: consumers
-		// that don't need local embedding can ignore this product.
+		// Semantic search stores unified behind the `SemanticStore` protocol:
+		// the in-memory `LocalVectorStore`, the trait-gated persistent
+		// `SQLiteVectorStore` (vec0 + FTS5 hybrid), and the hosted
+		// `OpenAIVectorStore` — plus chunkers, query expansion, RRF, and
+		// reranking. Cross-platform; the on-device `NLContextualEmbedding`
+		// default embedder is Apple-only (other platforms supply a provider).
 		.library(
-			name: "VectorStore",
-			targets: ["VectorStore"]
+			name: "SemanticStore",
+			targets: ["SemanticStore"]
 		),
 		// Reusable ANSI / slash-command helpers. Used by the Coder CLI
 		// and exposed so other CLIs in the ecosystem can pick them up.
@@ -87,7 +88,7 @@ let package = Package(
 		// `SQLiteVectorStore`. Standalone package (extracted from SwiftPorts);
 		// its only closure is the vendored CSQLite amalgamation. Pinned to
 		// `main` until it tags a release. Resolved always, but only compiled
-		// when the `SQLiteVectorStore` trait is on (see VectorStore).
+		// when the `SQLiteVectorStore` trait is on (see SemanticStore).
 		.package(
 			url: "https://github.com/Cocoanetics/SQLiteKit",
 			branch: "main",
@@ -135,19 +136,19 @@ let package = Package(
 			path: "Sources/SwiftAgents"
 		),
 		.target(
-			name: "VectorStore",
+			name: "SemanticStore",
 			dependencies: [
 				"Providers",
 				// Linked only when the `SQLiteVectorStore` trait is enabled,
-				// so the default VectorStore build (the NaturalLanguage local
-				// store) stays free of the SQLiteKit dependency.
+				// so the default SemanticStore build (the local + hosted
+				// stores) stays free of the SQLiteKit dependency.
 				.product(
 					name: "SQLiteKit",
 					package: "SQLiteKit",
 					condition: .when(traits: ["SQLiteVectorStore"])
 				)
 			],
-			path: "Sources/VectorStore"
+			path: "Sources/SemanticStore"
 		),
 		.target(
 			name: "TerminalUI",
@@ -180,7 +181,7 @@ let package = Package(
 				"Providers",
 				"Agents",
 				"Tracing",
-				"VectorStore",
+				"SemanticStore",
 				"SwiftMCP",
 				"SwiftCross"
 			],
