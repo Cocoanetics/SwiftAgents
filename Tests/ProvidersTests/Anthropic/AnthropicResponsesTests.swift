@@ -163,7 +163,7 @@ struct AnthropicResponsesTests {
         // Round-trip the captured spans through OpenAI's trace ingestion
         // endpoint — this is the same call OpenAITraceExporter makes.
         let openAIKey = try #require(APIKey.openAI as String?)
-        let openAI = OpenAI(apiKey: openAIKey)
+        let openAI = OpenAI(credential: Credential.bearer(openAIKey))
         try await openAI.ingestTraces(captured)
     }
 

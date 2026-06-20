@@ -344,7 +344,7 @@ struct GeminiRunnerTests {
         // OpenAITraceExporter does this on every flush. A 4xx here is
         // exactly why a run would fail to show up on platform.openai.com.
         let openAIKey = try #require(APIKey.openAI as String?)
-        let openAI = OpenAI(apiKey: openAIKey)
+        let openAI = OpenAI(credential: Credential.bearer(openAIKey))
         try await openAI.ingestTraces(mine)
     }
 

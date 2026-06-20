@@ -13,7 +13,7 @@ import Foundation
 import Testing
 
 struct ResponsesStreamEventDecodingTests {
-    private let decoder = OpenAI(apiKey: "test").decoder
+    private let decoder = OpenAI(credential: Credential.bearer("test")).decoder
 
     /// A minimal but decode-valid `response.<terminal>` frame for the given id.
     private func responseFrame(type: String, id: String) -> Data {

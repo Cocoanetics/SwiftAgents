@@ -131,7 +131,7 @@ struct RequestedMediaTests {
 
     @Test("Runner realizes an image intent as the OpenAI image_generation tool")
     func realizesImageToolForOpenAI() {
-        let api = OpenAI(apiKey: "test")
+        let api = OpenAI(credential: Credential.bearer("test"))
         let media: [RequestedMedia] = [.image(ImageOptions(size: "1024x1024", quality: "low", outputFormat: "png"))]
 
         let tools = Runner.realizingImageTool([], for: media, api: api)
@@ -148,7 +148,7 @@ struct RequestedMediaTests {
 
     @Test("Runner does not inject the OpenAI tool for non-OpenAI providers")
     func realizesNoToolForGemini() {
-        let api = GoogleAPI(apiKey: "test")
+        let api = GoogleAPI(credential: Credential.googleAPIKey("test"))
         let media: [RequestedMedia] = [.image(ImageOptions(size: "2K"))]
         // Gemini shapes image output through the request, not a tool.
         #expect(Runner.realizingImageTool([], for: media, api: api).isEmpty)
@@ -156,7 +156,7 @@ struct RequestedMediaTests {
 
     @Test("Runner respects an explicit image_generation tool (no duplicate)")
     func realizationRespectsExplicitTool() {
-        let api = OpenAI(apiKey: "test")
+        let api = OpenAI(credential: Credential.bearer("test"))
         let explicit = Tool.imageGeneration(ImageGenerationTool(quality: "high"))
         let media: [RequestedMedia] = [.image(ImageOptions(quality: "low"))]
 
@@ -187,7 +187,7 @@ struct RequestedMediaTests {
     func streamingImageOnChatProviderThrows() async {
         // GoogleAPI streams only the chat-completion shape; image output can't
         // ride that path, so the run should throw rather than loop to maxTurns.
-        let api = GoogleAPI(apiKey: "test")
+        let api = GoogleAPI(credential: Credential.googleAPIKey("test"))
         let agent = ImageAgent(name: "ImageGen", model: "gemini-3-pro-image-preview")
         let stream = Runner.runStreamed(agent: agent, input: "a cat", config: RunConfig(api: api))
 

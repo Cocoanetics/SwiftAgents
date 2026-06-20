@@ -11,13 +11,13 @@ public extension GoogleAPI {
     }
 
     func uploadFile(data: Data, filename: String, mimeType: String) async throws -> GoogleFile {
-        guard let apiKey else {
+        guard let credential else {
             throw APIError.authenticationError("Missing GEMINI_API_KEY")
         }
         let startURL = endpointURL.appendingPathComponent("upload/\(versionPath)/files")
         var startRequest = URLRequest(url: startURL)
         startRequest.httpMethod = "POST"
-        startRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        credential.authorize(&startRequest)
         startRequest.setValue("resumable", forHTTPHeaderField: "X-Goog-Upload-Protocol")
         startRequest.setValue("start", forHTTPHeaderField: "X-Goog-Upload-Command")
         startRequest.setValue("\(data.count)", forHTTPHeaderField: "X-Goog-Upload-Header-Content-Length")
@@ -37,7 +37,7 @@ public extension GoogleAPI {
         }
         var uploadRequest = URLRequest(url: uploadURL)
         uploadRequest.httpMethod = "POST"
-        uploadRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        credential.authorize(&uploadRequest)
         uploadRequest.setValue("\(data.count)", forHTTPHeaderField: "Content-Length")
         uploadRequest.setValue("0", forHTTPHeaderField: "X-Goog-Upload-Offset")
         uploadRequest.setValue("upload, finalize", forHTTPHeaderField: "X-Goog-Upload-Command")
@@ -113,7 +113,7 @@ public extension GoogleAPI {
     }
 
     private func makeFilesRequest(path: String, queryItems: [URLQueryItem] = []) throws -> URLRequest {
-        guard let apiKey else {
+        guard let credential else {
             throw APIError.authenticationError("Missing GEMINI_API_KEY")
         }
         let baseURL = endpointURL.appendingPathComponent(path)
@@ -132,7 +132,7 @@ public extension GoogleAPI {
         }
         var request = URLRequest(url: finalURL)
         request.httpMethod = "GET"
-        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        credential.authorize(&request)
         return request
     }
 

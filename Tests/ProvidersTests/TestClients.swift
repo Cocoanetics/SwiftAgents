@@ -41,17 +41,17 @@ enum TestClients {
 
     static func openAI() throws -> OpenAI {
         let key = try #require(APIKey.openAI, "OPENAI_API_KEY is required for this test")
-        return OpenAI(apiKey: key)
+        return OpenAI(credential: Credential.bearer(key))
     }
 
     static func google() throws -> GoogleAPI {
         let key = try #require(APIKey.gemini, "GEMINI_API_KEY is required for this test")
-        return GoogleAPI(apiKey: key)
+        return GoogleAPI(credential: Credential.googleAPIKey(key))
     }
 
     static func anthropic() throws -> Anthropic {
         let key = try #require(APIKey.anthropic, "ANTHROPIC_API_KEY is required for this test")
-        return Anthropic(apiKey: key)
+        return Anthropic(credential: Credential.apiKey(key))
     }
 
     static func ollama() throws -> OllamaAPI {

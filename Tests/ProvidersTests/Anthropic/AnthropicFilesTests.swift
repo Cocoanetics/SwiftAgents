@@ -110,7 +110,7 @@ struct AnthropicFilesTests {
         .enabled(if: APIKey.hasAnthropic, "Requires ANTHROPIC_API_KEY")
     )
     func uploadReferenceAndDelete() async throws {
-        let client = try Anthropic(apiKey: #require(APIKey.anthropic as String?))
+        let client = try Anthropic(credential: Credential.apiKey(#require(APIKey.anthropic as String?)))
         let bundleURL = try #require(
             Bundle.module.url(forResource: "vision-test", withExtension: "png"),
             "vision-test fixture is required"

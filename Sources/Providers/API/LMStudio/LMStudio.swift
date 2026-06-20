@@ -39,12 +39,19 @@ public class LMStudio: OpenAI, @unchecked Sendable {
     /// output, tool calls, image input) matches OpenAI exactly.
     override open var statePolicy: ConversationStatePolicy { .lmStudioOpenAICompat }
 
+    /// LM Studio's `/v1/responses` supports SSE streaming, so opt into the
+    /// Responses streaming path (the inherited default only matches first-party
+    /// `api.openai.com`). Structured-output turns still fall back to
+    /// chat-completion streaming via the Runner, because LM Studio's Responses
+    /// endpoint ignores `text.format.json_schema` (see `.lmStudioOpenAICompat`).
+    override open var prefersResponsesStreaming: Bool { true }
+
     public init(
-        apiKey: String? = nil,
+        credential: (any RequestAuthorizing)? = nil,
         endpointURL: URL = .lmStudio
     ) {
         super.init(
-            apiKey: apiKey ?? ProcessInfo.processInfo.environment["LM_API_TOKEN"],
+            credential: credential ?? ProcessInfo.processInfo.environment["LM_API_TOKEN"].map(Credential.bearer),
             endpointURL: endpointURL,
             versionPath: "v1"
         )

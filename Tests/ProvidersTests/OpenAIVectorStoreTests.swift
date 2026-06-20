@@ -20,7 +20,7 @@ struct OpenAIVectorStoreTests {
 
     @Test("attribute filters round-trip through the OpenAI coder")
     func filterRoundTrip() throws {
-        let client = OpenAI(apiKey: "test")
+        let client = OpenAI(credential: Credential.bearer("test"))
         let filter = VectorStoreFilter.or([
             .eq("source", "wiki"),
             .and([.ne("source", "memory"), .comparison(key: "rank", operation: .gte, value: 3)])
@@ -67,7 +67,7 @@ struct OpenAIVectorStoreTests {
           "next_page": null
         }
         """
-        let page = try OpenAI(apiKey: "test").decoder
+        let page = try OpenAI(credential: Credential.bearer("test")).decoder
             .decode(VectorStoreSearchResultsPage.self, from: Data(json.utf8))
 
         #expect(page.hasMore == false)
@@ -82,7 +82,7 @@ struct OpenAIVectorStoreTests {
 
     @Test("search_query decodes from both wire forms, and absence")
     func searchQueryWireForms() throws {
-        let decoder = OpenAI(apiKey: "test").decoder
+        let decoder = OpenAI(credential: Credential.bearer("test")).decoder
         func page(_ fragment: String) throws -> VectorStoreSearchResultsPage {
             try decoder.decode(VectorStoreSearchResultsPage.self, from: Data("""
             {"object": "vector_store.search_results.page", \(fragment) "data": [], "has_more": false, "next_page": null}

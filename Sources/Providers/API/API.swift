@@ -18,7 +18,6 @@ public extension URL {
 }
 
 open class API: @unchecked Sendable {
-    package let apiKey: String?
     package let endpointURL: URL
     let session: URLSession
 
@@ -99,10 +98,15 @@ open class API: @unchecked Sendable {
     public var streamingChunkHandler: (Chunk) -> Void = { _ in
     }
 
+    /// Authorizes outgoing requests. Providers set this from their initializer
+    /// (an API key becomes the matching ``Credential``); it stays settable so a
+    /// caller can swap in OAuth or other credentials afterward.
+    public var credential: (any RequestAuthorizing)?
+
     // MARK: - Initialization
 
-    public init(apiKey: String? = nil, endpointURL: URL = .openAI, versionPath: String = "v1") {
-        self.apiKey = apiKey
+    public init(credential: (any RequestAuthorizing)? = nil, endpointURL: URL = .openAI, versionPath: String = "v1") {
+        self.credential = credential
         self.endpointURL = endpointURL
         self.versionPath = versionPath
 
@@ -347,9 +351,10 @@ open class API: @unchecked Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = httpMethod
 
-        if let apiKey {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
+        // All auth flows through the credential. Providers that build requests
+        // without the base builder (Anthropic, the OAuth subclasses) apply it in
+        // their own `createUrlRequest`.
+        credential?.authorize(&request)
 
         // If there is a body to encode and the HTTP method supports a body, encode it as JSON.
         if let body, ["POST", "PUT", "PATCH"].contains(httpMethod) {

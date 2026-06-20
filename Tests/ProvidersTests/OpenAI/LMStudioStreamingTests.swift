@@ -5,10 +5,10 @@
 //  Smoke tests for the Agents SDK streaming runner against an
 //  OpenAI-compatible local server (LM Studio). Verifies that:
 //
-//  1. The dispatcher now routes LM Studio (an `OpenAI` instance with a
-//     non-`api.openai.com` endpoint) through the chat-completion streaming
-//     path, not the Responses path which LM Studio doesn't implement.
-//  2. The runner sees multiple text deltas instead of one synthetic event.
+//  1. A text turn streams through LM Studio's `/v1/responses` — LM Studio opts
+//     into Responses streaming via `prefersResponsesStreaming` (routing is
+//     pinned precisely in `LMStudioResponsesRoutingLiveTests`).
+//  2. The runner sees multiple real text deltas, not one synthetic event.
 //
 //  Gated on `LMSTUDIO_URL` being set so CI without a local server skips.
 //
@@ -65,9 +65,8 @@ struct LMStudioStreamingTests {
             }
         }
 
-        // The whole point of routing LM Studio through the chat-completion
-        // streaming path is that the consumer sees real per-token deltas
-        // instead of one synthetic event at the end.
+        // The consumer should see real per-token deltas (LM Studio streams them
+        // over `/v1/responses`) instead of one synthetic event at the end.
         #expect(deltaCount > 1, "Expected multiple text deltas, got \(deltaCount)")
         #expect(!accumulated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         #expect(sawMessage)

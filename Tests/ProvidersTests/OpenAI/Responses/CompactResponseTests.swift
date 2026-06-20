@@ -14,7 +14,7 @@ import SwiftMCP
 import Testing
 
 struct CompactResponseTests {
-    private let openAI = OpenAI(apiKey: "test")
+    private let openAI = OpenAI(credential: Credential.bearer("test"))
 
     // The realistic example from the docs: a user message kept verbatim plus a
     // `compaction` summary item carrying the encrypted window.

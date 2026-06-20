@@ -200,7 +200,7 @@ private func makeTransport(
     maxConnectionAge: TimeInterval = 55 * 60
 ) -> OpenAIResponsesWebSocketModel {
     OpenAIResponsesWebSocketModel(
-        openAI: OpenAI(apiKey: "test"),
+        openAI: OpenAI(credential: Credential.bearer("test")),
         maxConnectionAge: maxConnectionAge,
         session: nil,
         connectionFactory: sockets.factory()
