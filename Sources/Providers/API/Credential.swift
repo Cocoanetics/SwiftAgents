@@ -1,4 +1,5 @@
 import Foundation
+import SwiftCross
 
 /// Applies authentication to an outgoing `URLRequest`.
 ///
