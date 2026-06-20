@@ -14,6 +14,7 @@
 //
 
 import Foundation
+import SwiftCross
 @testable import Agents
 @testable import Providers
 import SwiftMCP
