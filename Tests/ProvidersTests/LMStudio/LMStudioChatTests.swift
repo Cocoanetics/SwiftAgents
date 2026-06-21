@@ -38,14 +38,14 @@ struct LMStudioChatTests {
 
     @Test("OpenAI declares openAIResponses state policy")
     func policyIsOpenAIResponses() {
-        let openAI = OpenAI(apiKey: "test")
+        let openAI = OpenAI(credential: Credential.bearer("test"))
         #expect(openAI.statePolicy.supportsServerSideHistory == true)
         #expect(openAI.statePolicy.responseIdsAreOpenAIRoutable == true)
     }
 
     @Test("Other providers default to stateless policy")
     func defaultPolicyIsStateless() {
-        let anthropic = Anthropic(apiKey: "test")
+        let anthropic = Anthropic(credential: Credential.apiKey("test"))
         #expect(anthropic.statePolicy.supportsServerSideHistory == false)
         #expect(anthropic.statePolicy.responseIdsAreOpenAIRoutable == false)
     }

@@ -33,9 +33,14 @@ public class GoogleAPI: API, @unchecked Sendable {
 
     // MARK: - Initialization
 
-    override public init(apiKey: String? = nil, endpointURL: URL = .googleAI, versionPath: String = "v1beta") {
+    override public init(
+        credential: (any RequestAuthorizing)? = nil,
+        endpointURL: URL = .googleAI,
+        versionPath: String = "v1beta"
+    ) {
         super.init(
-            apiKey: apiKey ?? ProcessInfo.processInfo.environment["GEMINI_API_KEY"],
+            credential: credential
+                ?? ProcessInfo.processInfo.environment["GEMINI_API_KEY"].map(Credential.googleAPIKey),
             endpointURL: endpointURL,
             versionPath: versionPath
         )
@@ -43,15 +48,13 @@ public class GoogleAPI: API, @unchecked Sendable {
     }
 
     override public func models() async throws -> [Model] {
-        var components = URLComponents(
+        let components = URLComponents(
             url: endpointURL.appendingPathComponent("v1beta/models"),
             resolvingAgainstBaseURL: false
         )!
-        components.queryItems = [
-            URLQueryItem(name: "key", value: apiKey)
-        ]
 
-        let request = URLRequest(url: components.url!)
+        var request = URLRequest(url: components.url!)
+        credential?.authorize(&request)
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -250,50 +253,6 @@ public class GoogleAPI: API, @unchecked Sendable {
         user _: String? = nil
     ) async throws -> AsyncThrowingStream<Chunk, Error> {
         throw APIError.otherError("unsupported", "Streaming is not supported for Google models yet")
-    }
-
-    // MARK: - Helpers
-
-    override open func createUrlRequest(
-        httpMethod: String = "GET",
-        path: String,
-        body: Codable? = nil,
-        queryItems: [URLQueryItem]? = nil
-    ) throws -> URLRequest {
-        // Create the URL from the base endpoint and the specific path.
-        guard var urlComponents = URLComponents(url: endpointURL.appending(path: path), resolvingAgainstBaseURL: true)
-        else {
-            throw URLError(.badURL)
-        }
-
-        var myQueryItems: [URLQueryItem] = []
-        myQueryItems.append(URLQueryItem(name: "key", value: apiKey))
-
-        // If there are query items, add them to the URL.
-        if let queryItems, !queryItems.isEmpty {
-            myQueryItems.append(contentsOf: queryItems)
-        }
-
-        urlComponents.queryItems = myQueryItems
-
-        guard let url = urlComponents.url else {
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = httpMethod
-
-        if let apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
-        }
-
-        // If there is a body to encode and the HTTP method supports a body, encode it as JSON.
-        if let body, ["POST", "PUT", "PATCH"].contains(httpMethod) {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try encoder.encode(body)
-        }
-
-        return request
     }
 
     // MARK: - Private Helpers

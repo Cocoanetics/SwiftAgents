@@ -218,11 +218,11 @@ public actor OpenAIResponsesWebSocketModel {
             return
         }
 
-        guard let apiKey = openAI.apiKey, !apiKey.isEmpty else {
+        guard let credential = openAI.credential else {
             throw ResponsesWebSocketError.missingAPIKey
         }
 
-        let request = try websocketRequest(apiKey: apiKey)
+        let request = try websocketRequest(credential: credential)
         let connection = makeConnection(request)
         self.connection = connection
         connectedAt = Date()
@@ -507,7 +507,7 @@ public actor OpenAIResponsesWebSocketModel {
         return false
     }
 
-    private func websocketRequest(apiKey: String) throws -> URLRequest {
+    private func websocketRequest(credential: any RequestAuthorizing) throws -> URLRequest {
         guard var components = URLComponents(url: openAI.endpointURL, resolvingAgainstBaseURL: true) else {
             throw URLError(.badURL)
         }
@@ -526,7 +526,7 @@ public actor OpenAIResponsesWebSocketModel {
         // rejects an `OpenAI-Beta` header, so this deliberately bypasses
         // `OpenAI.createUrlRequest` (which would add `assistants=v2`).
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        credential.authorize(&request)
         return request
     }
 }

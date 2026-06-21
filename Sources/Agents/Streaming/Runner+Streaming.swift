@@ -109,13 +109,17 @@ extension Runner {
             }
             let model = modelSpec.modelNameWithoutProviderPrefix
 
-            // Only api.openai.com speaks the Responses streaming API the
-            // Agents SDK consumes natively. OpenAI-compatible endpoints
-            // (LM Studio, llama.cpp's openai server, etc.) get the
-            // `OpenAI` class for convenience but only implement
-            // `/v1/chat/completions` — route them through the
-            // chat-completion streaming surface instead.
-            guard let openAI = api as? OpenAI, openAI.endpointURL == URL.openAI else {
+            // Use the Responses streaming API only when the provider opts in via
+            // `prefersResponsesStreaming` (first-party OpenAI, LM Studio, and the
+            // ChatGPT backend) AND this turn can run statefully. Structured-output
+            // turns fall back to chat-completion streaming on providers whose
+            // Responses endpoint ignores the schema (LM Studio), so `response_format`
+            // still constrains the model — mirroring the non-streaming gate. Chat-only
+            // OpenAI-compat servers (e.g. llama.cpp) stream via `/v1/chat/completions`.
+            guard let openAI = api as? OpenAI,
+                  openAI.prefersResponsesStreaming,
+                  Self.shouldUseStatefulPath(policy: api.statePolicy, outputType: currentAgent.outputType)
+            else {
                 // Media output (image/audio) can't be streamed token-wise on the
                 // chat-completion path, and there's no stream event to carry the
                 // bytes — fail fast with guidance instead of looping to maxTurns.
@@ -266,6 +270,32 @@ extension Runner {
 
     // MARK: - Streamed Turn Execution
 
+    /// Span data for a streamed stateful turn: a `ResponseSpanData` when the
+    /// provider's response id is OpenAI-routable, otherwise a `GenerationSpanData`
+    /// carrying the full input/output (so non-routable providers like LM Studio
+    /// render in tracing without an OpenAI lookup) — mirroring the non-streaming
+    /// Runner and the chat-completions path.
+    private static func streamedResponseSpanData(
+        openAI: OpenAI,
+        response: Response,
+        input: Response.Input,
+        instructions: String?,
+        model: String,
+        modelSettings: ModelSettings
+    ) -> SpanData {
+        if openAI.statePolicy.responseIdsAreOpenAIRoutable {
+            return ResponseSpanData(response: response, input: input)
+        }
+        return makeGenerationSpanForResponse(
+            input: input,
+            instructions: instructions,
+            response: response,
+            model: model,
+            modelSettings: modelSettings,
+            baseURL: openAI.endpointURL.absoluteString
+        )
+    }
+
     private static func _executeStreamedTurns<A: Agent>(
         agent: A,
         agentSpan _: TraceSpan,
@@ -296,7 +326,13 @@ extension Runner {
             var roundFile: GeneratedFile?
 
             try await withSpan { responseSpan in
-                responseSpan.spanData = ResponseSpanData(input: currentInput)
+                // Placeholder span before the call. Only OpenAI-routable providers
+                // get a ResponseSpanData (its id resolves in OpenAI tracing); for
+                // others (e.g. LM Studio) a GenerationSpanData carrying the full
+                // payload is filled in once the response completes, below.
+                if openAI.statePolicy.responseIdsAreOpenAIRoutable {
+                    responseSpan.spanData = ResponseSpanData(input: currentInput)
+                }
 
                 // When continuing a conversation, skip instructions — the API has them via previousResponseId
                 let instructions = previousResponseId == nil ? agent.instructions : nil
@@ -399,10 +435,18 @@ extension Runner {
 
                         case let .responseCompleted(response):
                             completedResponse = response
-                            responseSpan.spanData = ResponseSpanData(response: response, input: currentInput)
+                            responseSpan.spanData = Self.streamedResponseSpanData(
+                                openAI: openAI, response: response, input: currentInput,
+                                instructions: instructions, model: model,
+                                modelSettings: agent.modelSettings
+                            )
 
                         case let .responseFailed(response):
-                            responseSpan.spanData = ResponseSpanData(response: response, input: currentInput)
+                            responseSpan.spanData = Self.streamedResponseSpanData(
+                                openAI: openAI, response: response, input: currentInput,
+                                instructions: instructions, model: model,
+                                modelSettings: agent.modelSettings
+                            )
                             if let error = response.error {
                                 throw APIError.apiError(error.message)
                             }

@@ -15,7 +15,7 @@ import Testing
 
 @Suite
 struct ImageGenerationWireFormatTests {
-    private let openAI = OpenAI(apiKey: "test-key")
+    private let openAI = OpenAI(credential: Credential.bearer("test-key"))
 
     private func encodeToObject(_ value: some Encodable) throws -> [String: Any] {
         let data = try openAI.encoder.encode(value)

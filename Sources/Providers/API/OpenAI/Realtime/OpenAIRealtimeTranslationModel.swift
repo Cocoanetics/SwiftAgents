@@ -17,7 +17,7 @@ import SwiftMCP
 ///
 /// Usage:
 /// ```swift
-/// let model = OpenAIRealtimeTranslationModel(openAI: OpenAI(apiKey: key))
+/// let model = OpenAIRealtimeTranslationModel(openAI: OpenAI(credential: Credential.bearer(key)))
 /// let events = try await model.connect(
 ///     configuration: .init(targetLanguage: "en", transcriptionModel: "gpt-realtime-whisper")
 /// )
@@ -61,11 +61,11 @@ public actor OpenAIRealtimeTranslationModel {
     public func connect(
         configuration: RealtimeTranslationConfiguration
     ) async throws -> AsyncThrowingStream<RealtimeTranslationEvent, Error> {
-        guard let apiKey = openAI.apiKey, !apiKey.isEmpty else {
+        guard let credential = openAI.credential else {
             throw APIError.authenticationError("OPENAI_API_KEY is required for realtime translation sessions")
         }
 
-        let request = try websocketRequest(apiKey: apiKey)
+        let request = try websocketRequest(credential: credential)
         let socketTask = session.webSocketTask(with: request)
         let (stream, continuation) = AsyncThrowingStream<RealtimeTranslationEvent, Error>.makeStream()
 
@@ -183,7 +183,7 @@ public actor OpenAIRealtimeTranslationModel {
         }
     }
 
-    private func websocketRequest(apiKey: String) throws -> URLRequest {
+    private func websocketRequest(credential: any RequestAuthorizing) throws -> URLRequest {
         guard var components = URLComponents(url: openAI.endpointURL, resolvingAgainstBaseURL: true) else {
             throw URLError(.badURL)
         }
@@ -200,7 +200,7 @@ public actor OpenAIRealtimeTranslationModel {
         }
 
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        credential.authorize(&request)
         return request
     }
 }

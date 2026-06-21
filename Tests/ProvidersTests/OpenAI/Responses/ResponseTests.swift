@@ -15,7 +15,7 @@ final class Calculator {
 struct ResponseTests {
     @Test("Response request encodes phase and prompt-cache fields")
     func responseRequestEncoding() throws {
-        let openAI = OpenAI(apiKey: "test")
+        let openAI = OpenAI(credential: Credential.bearer("test"))
         let requestBody = ResponseOptionals(
             input: .array([
                 .message(.init(role: .assistant, text: "Working", phase: .commentary))
@@ -149,7 +149,8 @@ struct ResponseTests {
         }
         """
 
-        let response = try OpenAI(apiKey: "test").decoder.decode(Response.self, from: Data(json.utf8))
+        let response = try OpenAI(credential: Credential.bearer("test"))
+            .decoder.decode(Response.self, from: Data(json.utf8))
         let message = try #require(response.output.first)
 
         #expect(response.completedAt != nil)
@@ -190,7 +191,7 @@ struct ResponseTests {
           ]
         }
         """
-        let output = try OpenAI(apiKey: "test").decoder.decode(
+        let output = try OpenAI(credential: Credential.bearer("test")).decoder.decode(
             OutputItem.ReasoningOutput.self, from: Data(json.utf8)
         )
         #expect(output.summary.count == 1)
@@ -207,7 +208,8 @@ struct ResponseTests {
         }
         """
 
-        let item = try OpenAI(apiKey: "test").decoder.decode(ContentItem.self, from: Data(json.utf8))
+        let item = try OpenAI(credential: Credential.bearer("test"))
+            .decoder.decode(ContentItem.self, from: Data(json.utf8))
 
         guard case let .reasoningText(reasoning) = item else {
             Issue.record("Expected reasoning text content")
@@ -345,7 +347,8 @@ struct ResponseTests {
         }
         """
 
-        let response = try OpenAI(apiKey: "test").decoder.decode(Response.self, from: Data(json.utf8))
+        let response = try OpenAI(credential: Credential.bearer("test"))
+            .decoder.decode(Response.self, from: Data(json.utf8))
         #expect(response.output.count == 3)
 
         guard case let .fileSearch(fileSearch) = response.output[0] else {

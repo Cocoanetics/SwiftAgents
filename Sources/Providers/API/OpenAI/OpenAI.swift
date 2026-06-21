@@ -13,10 +13,21 @@ open class OpenAI: API, @unchecked Sendable {
     /// OpenAI Responses API: stateful, ids routable to OpenAI tracing.
     override open var statePolicy: ConversationStatePolicy { .openAIResponses }
 
+    /// Whether the streamed `Runner` loop should use the Responses streaming API
+    /// (`/v1/responses`) for this client. Defaults to the first-party endpoint;
+    /// custom Responses backends (e.g. the ChatGPT/Codex backend) override this
+    /// to `true`. OpenAI-compatible chat-only endpoints leave it `false` so they
+    /// keep streaming via `/v1/chat/completions`.
+    open var prefersResponsesStreaming: Bool { endpointURL == .openAI }
+
     /// Initializes OpenAI API. If now API key is provided, then we're looking for OPENAI_API_KEY in the environment
-    override public init(apiKey: String? = nil, endpointURL: URL = .openAI, versionPath: String = "v1") {
+    override public init(
+        credential: (any RequestAuthorizing)? = nil,
+        endpointURL: URL = .openAI,
+        versionPath: String = "v1"
+    ) {
         super.init(
-            apiKey: apiKey ?? ProcessInfo.processInfo.environment["OPENAI_API_KEY"],
+            credential: credential ?? ProcessInfo.processInfo.environment["OPENAI_API_KEY"].map(Credential.bearer),
             endpointURL: endpointURL,
             versionPath: versionPath
         )

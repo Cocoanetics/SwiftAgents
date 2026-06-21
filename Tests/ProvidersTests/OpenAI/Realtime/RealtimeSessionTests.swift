@@ -43,7 +43,7 @@ private final class TestAdderToolProvider: MCPToolProviding, @unchecked Sendable
 }
 
 private actor MockRealtimeModel: RealtimeModel {
-    private let encoder = OpenAI(apiKey: "test").encoder
+    private let encoder = OpenAI(credential: Credential.bearer("test")).encoder
     private let streamPair = AsyncThrowingStream<RealtimeServerEvent, Error>.makeStream()
     private var sentEvents = [Data]()
 

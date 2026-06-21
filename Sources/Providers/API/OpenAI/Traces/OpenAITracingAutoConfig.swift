@@ -26,7 +26,7 @@ public enum OpenAITracingAutoConfig {
     /// Subsequent calls are a cheap lock + flag check.
     ///
     /// The `hasConfigured` flag is flipped *under the lock* and the lock is
-    /// released *before* the inner `OpenAI(apiKey:)` is constructed. That
+    /// released *before* the inner `OpenAI(credential:)` is constructed. That
     /// ordering matters: `OpenAI.init` re-enters `configureIfNeeded`, and
     /// `NSLock` is non-recursive — holding the lock across that construction
     /// would deadlock on first use. The recursive call sees
@@ -43,7 +43,7 @@ public enum OpenAITracingAutoConfig {
         guard let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] else {
             return
         }
-        let openAI = OpenAI(apiKey: apiKey)
+        let openAI = OpenAI(credential: Credential.bearer(apiKey))
         Task.detached {
             await TraceProvider.shared.addProcessor(
                 BatchTraceProcessor(exporter: OpenAITraceExporter(openAI: openAI))

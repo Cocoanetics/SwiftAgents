@@ -57,13 +57,13 @@ public class Anthropic: API, @unchecked Sendable {
     public let conversationCache = AnthropicConversationCache()
 
     public init(
-        apiKey: String? = nil,
+        credential: (any RequestAuthorizing)? = nil,
         endpointURL: URL = .anthropic,
         anthropicVersion: String = Anthropic.defaultAnthropicVersion
     ) {
         self.anthropicVersion = anthropicVersion
         super.init(
-            apiKey: apiKey ?? ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"],
+            credential: credential ?? ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"].map(Credential.apiKey),
             endpointURL: endpointURL,
             versionPath: "v1"
         )
@@ -72,7 +72,7 @@ public class Anthropic: API, @unchecked Sendable {
     /// Anthropic doesn't use the OpenAI `Authorization: Bearer` header — it
     /// uses `x-api-key` plus an `anthropic-version` header that pins the
     /// wire-protocol revision.
-    override open func createUrlRequest(
+    override public func createUrlRequest(
         httpMethod: String = "GET",
         path: String,
         body: Codable? = nil,
@@ -96,9 +96,7 @@ public class Anthropic: API, @unchecked Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = httpMethod
 
-        if let apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        }
+        credential?.authorize(&request)
         request.setValue(anthropicVersion, forHTTPHeaderField: "anthropic-version")
 
         if let body, ["POST", "PUT", "PATCH"].contains(httpMethod) {

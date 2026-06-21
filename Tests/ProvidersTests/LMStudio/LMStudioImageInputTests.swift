@@ -311,7 +311,7 @@ struct LMStudioImageInputTests {
         // every time the default-registered processor flushes. If it
         // throws, that's why traces don't appear on platform.openai.com.
         let openAIKey = try #require(APIKey.openAI as String?)
-        let openAI = OpenAI(apiKey: openAIKey)
+        let openAI = OpenAI(credential: Credential.bearer(openAIKey))
         try await openAI.ingestTraces(mine)
     }
 
@@ -445,7 +445,7 @@ struct LMStudioImageInputTests {
         // here is exactly why traces fail to appear on
         // platform.openai.com.
         let openAIKey = try #require(APIKey.openAI as String?)
-        let openAI = OpenAI(apiKey: openAIKey)
+        let openAI = OpenAI(credential: Credential.bearer(openAIKey))
         try await openAI.ingestTraces(mine)
     }
 

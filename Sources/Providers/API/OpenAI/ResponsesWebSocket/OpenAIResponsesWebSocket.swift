@@ -30,7 +30,7 @@ public final class OpenAIResponsesWebSocket: OpenAI, @unchecked Sendable {
     private let transport: OpenAIResponsesWebSocketModel
 
     /// - Parameters:
-    ///   - apiKey: OpenAI key. Falls back to `OPENAI_API_KEY` when nil.
+    ///   - credential: OpenAI credential. Falls back to `OPENAI_API_KEY` when nil.
     ///   - endpointURL: API base. The handshake rewrites `https`→`wss` and
     ///     targets `/<versionPath>/responses`.
     ///   - maxConnectionAge: reconnect proactively once a connection reaches
@@ -39,7 +39,7 @@ public final class OpenAIResponsesWebSocket: OpenAI, @unchecked Sendable {
     ///   - connectionFactory: optional socket factory — tests inject a mock to
     ///     run the whole transport offline.
     public init(
-        apiKey: String? = nil,
+        credential: (any RequestAuthorizing)? = nil,
         endpointURL: URL = .openAI,
         versionPath: String = "v1",
         maxConnectionAge: TimeInterval = 55 * 60,
@@ -49,14 +49,14 @@ public final class OpenAIResponsesWebSocket: OpenAI, @unchecked Sendable {
         // A dedicated backing `OpenAI` gives the transport its encoder/decoder
         // and endpoint without retaining `self` (which would cycle through the
         // actor). It resolves the same key/endpoint, so the wire bytes match.
-        let backing = OpenAI(apiKey: apiKey, endpointURL: endpointURL, versionPath: versionPath)
+        let backing = OpenAI(credential: credential, endpointURL: endpointURL, versionPath: versionPath)
         transport = OpenAIResponsesWebSocketModel(
             openAI: backing,
             maxConnectionAge: maxConnectionAge,
             session: session,
             connectionFactory: connectionFactory
         )
-        super.init(apiKey: apiKey, endpointURL: endpointURL, versionPath: versionPath)
+        super.init(credential: credential, endpointURL: endpointURL, versionPath: versionPath)
     }
 
     // MARK: - Lifecycle

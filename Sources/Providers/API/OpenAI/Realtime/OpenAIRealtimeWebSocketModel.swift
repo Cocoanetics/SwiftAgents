@@ -37,11 +37,11 @@ public actor OpenAIRealtimeWebSocketModel: RealtimeModel {
             return stream
         }
 
-        guard let apiKey = openAI.apiKey, !apiKey.isEmpty else {
+        guard let credential = openAI.credential else {
             throw APIError.authenticationError("OPENAI_API_KEY is required for realtime sessions")
         }
 
-        let request = try websocketRequest(apiKey: apiKey)
+        let request = try websocketRequest(credential: credential)
         let socketTask = session.webSocketTask(with: request)
         let (stream, continuation) = AsyncThrowingStream<RealtimeServerEvent, Error>.makeStream()
 
@@ -139,7 +139,7 @@ public actor OpenAIRealtimeWebSocketModel: RealtimeModel {
         }
     }
 
-    private func websocketRequest(apiKey: String) throws -> URLRequest {
+    private func websocketRequest(credential: any RequestAuthorizing) throws -> URLRequest {
         guard var components = URLComponents(url: openAI.endpointURL, resolvingAgainstBaseURL: true) else {
             throw URLError(.badURL)
         }
@@ -156,7 +156,7 @@ public actor OpenAIRealtimeWebSocketModel: RealtimeModel {
         }
 
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        credential.authorize(&request)
         return request
     }
 }

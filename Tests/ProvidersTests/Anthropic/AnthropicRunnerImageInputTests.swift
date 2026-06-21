@@ -274,7 +274,7 @@ struct AnthropicRunnerImageInputTests {
         // Same ingest call OpenAITraceExporter makes — proves the
         // payload won't be rejected when it lands on platform.openai.com.
         let openAIKey = try #require(APIKey.openAI as String?)
-        let openAI = OpenAI(apiKey: openAIKey)
+        let openAI = OpenAI(credential: Credential.bearer(openAIKey))
         try await openAI.ingestTraces(mine)
     }
 

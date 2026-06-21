@@ -43,7 +43,7 @@ public actor ProviderRegistry {
         if normalizedProvider.lowercased() == "openai" {
             let openAI = OpenAI()
 
-            guard openAI.apiKey != nil else {
+            guard openAI.credential != nil else {
                 throw ProviderError.missingAPIKey("OpenAI")
             }
 
@@ -63,7 +63,7 @@ public actor ProviderRegistry {
                 return api
             }
             let webSocket = OpenAIResponsesWebSocket()
-            guard webSocket.apiKey != nil else {
+            guard webSocket.credential != nil else {
                 throw ProviderError.missingAPIKey("OpenAI")
             }
             apis[normalizedProvider.lowercased()] = webSocket
@@ -72,7 +72,7 @@ public actor ProviderRegistry {
         // Create Google if requested
         if normalizedProvider.lowercased() == "google" {
             let google = GoogleAPI()
-            guard google.apiKey != nil else {
+            guard google.credential != nil else {
                 throw ProviderError.missingAPIKey("Google")
             }
             apis["google"] = google
@@ -81,7 +81,7 @@ public actor ProviderRegistry {
         // Create Anthropic if requested
         if normalizedProvider.lowercased() == "anthropic" {
             let anthropic = Anthropic()
-            guard anthropic.apiKey != nil else {
+            guard anthropic.credential != nil else {
                 throw ProviderError.missingAPIKey("Anthropic")
             }
             apis["anthropic"] = anthropic

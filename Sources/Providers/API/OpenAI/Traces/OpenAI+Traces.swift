@@ -15,7 +15,6 @@ extension OpenAI {
     /// Sends trace data to the OpenAI traces API
     /// - Parameters:
     ///   - traceData: Array of trace data to send
-    ///   - apiKey: Optional API key to use (defaults to the one configured in the client)
     /// - Returns: Empty response if successful
     /// - Throws: Error if the request fails
     public func ingestTraces(_ traceData: [[String: JSONValue]]) async throws {
@@ -78,10 +77,8 @@ extension OpenAI {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
 
-        // Set the authorization header with the API key
-        if let apiKey {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
+        // Authorize with the client's credential.
+        credential?.authorize(&request)
 
         // Set the HTTP body directly from the provided encoded data
         request.httpBody = body
