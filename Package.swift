@@ -78,7 +78,10 @@ let package = Package(
 		// Link only SwiftMCP's NIO-free core + the `Client` trait (the MCP
 		// client we use) — NOT the `Server` HTTP transport — so swift-nio stays
 		// out of SwiftAgents' graph and we build on Windows.
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.5.0", traits: ["Client"]),
+		// Local sibling sources for development (SwiftMCP + SwiftACP); swap to the
+		// published URLs at release time. Client trait keeps swift-nio out.
+		.package(path: "../SwiftMCP", traits: ["Client"]),
+		.package(path: "../SwiftACP"),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
 		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
@@ -161,6 +164,8 @@ let package = Package(
 				"SwiftAgents",
 				"TerminalUI",
 				"SwiftMCP",
+				.product(name: "ACP", package: "SwiftACP"),
+				.product(name: "ACPServer", package: "SwiftACP"),
 				.product(name: "ArgumentParser", package: "swift-argument-parser"),
 				// swift-dotenv 2.1.0 supports Apple platforms (via Darwin)
 				// and Linux (via Glibc), but not Windows or Android. The

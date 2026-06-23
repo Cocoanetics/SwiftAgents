@@ -1,3 +1,4 @@
+import ACPServer
 import ArgumentParser
 import Foundation
 import SwiftAgents
@@ -7,7 +8,7 @@ import TerminalUI
 // Windows or Android. On platforms where it's not linked the CLI
 // reads vars from `ProcessInfo.processInfo.environment` directly.
 #if canImport(SwiftDotenv)
-import SwiftDotenv
+    import SwiftDotenv
 #endif
 
 /// Reference box holding the rolling response id across REPL turns.
@@ -185,15 +186,30 @@ struct Coder: AsyncParsableCommand {
     @Option(name: [.short, .long], help: "Model to use (default: gpt-5.4)")
     var model: String = "gpt-5.4"
 
+    @Flag(name: .long, help: "Serve over the Agent Client Protocol on stdio instead of the REPL.")
+    var acp = false
+
     func run() async throws {
         let workDir = directory ?? FileManager.default.currentDirectoryPath
 
         // Load .env file if present (sets missing env vars). Apple-only
         // — see the conditional `import SwiftDotenv` at the top of file.
         #if canImport(SwiftDotenv)
-        let envPath = (workDir as NSString).appendingPathComponent(".env")
-        try? Dotenv.configure(atPath: envPath)
+            let envPath = (workDir as NSString).appendingPathComponent(".env")
+            try? Dotenv.configure(atPath: envPath)
         #endif
+
+        // ACP mode: speak the Agent Client Protocol over stdio and return.
+        // Placed before the API-key guard so the handshake (initialize /
+        // session.new) succeeds without a key — a missing key then surfaces as a
+        // normal turn error to the client. No REPL/terminal output runs here:
+        // stdout must carry JSON-RPC only (diagnostics already go to stderr).
+        if acp {
+            try await ACPAgentServer.serveStdio(
+                handler: CoderACPHandler(workingDirectory: workDir, model: model)
+            )
+            return
+        }
 
         // Fail fast when no OpenAI key is available — otherwise the
         // REPL prints its banner, accepts a prompt, then dies on the
@@ -203,11 +219,11 @@ struct Coder: AsyncParsableCommand {
         let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
         guard !apiKey.isEmpty else {
             FileHandle.standardError.write(Data("""
-                error: OPENAI_API_KEY is not set.
-                  • Export it in your shell:  export OPENAI_API_KEY=sk-...
-                  • Or drop it into a `.env` file in the working directory.
+            error: OPENAI_API_KEY is not set.
+              • Export it in your shell:  export OPENAI_API_KEY=sk-...
+              • Or drop it into a `.env` file in the working directory.
 
-                """.utf8))
+            """.utf8))
             throw ExitCode(1)
         }
 
