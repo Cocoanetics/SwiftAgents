@@ -41,8 +41,23 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
         return NewSessionResponse(sessionId: id)
     }
 
+    /// Slash commands the client should offer (published on session start).
+    func availableCommands(for _: SessionId) async -> [AvailableCommand] {
+        [AvailableCommand(name: "new", description: "Start a fresh conversation (clear the context).")]
+    }
+
     func prompt(_ request: PromptRequest, session: ACPServerSession) async throws -> PromptResponse {
         let text = request.prompt.compactMap(\.text).joined()
+
+        // Intercept known slash commands before the model. `/new` clears the
+        // rolling lastResponseId so the next turn starts a fresh conversation.
+        // Anything else (incl. unknown "/foo") flows to the model as plain text.
+        if let command = Self.parseSlashCommand(request.prompt), command.name == "new" {
+            lock.withLock { lastResponseIdBySession[session.id] = nil }
+            await session.sendText("Started a new conversation — earlier context cleared.")
+            return PromptResponse(stopReason: .endTurn)
+        }
+
         let (workingDirectory, previousResponseId) = lock.withLock {
             (workingDirectoryBySession[session.id] ?? defaultWorkingDirectory, lastResponseIdBySession[session.id])
         }
@@ -104,6 +119,18 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
     }
 
     // MARK: - Mapping helpers
+
+    /// Parse a leading `/command [args]` out of the prompt's first text block,
+    /// mirroring how ACP clients send slash commands (as ordinary prompt text).
+    private static func parseSlashCommand(_ prompt: [ContentBlock]) -> (name: String, rest: String)? {
+        guard let first = prompt.first, let text = first.text else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("/") else { return nil }
+        let body = trimmed.dropFirst().trimmingCharacters(in: .whitespaces)
+        guard !body.isEmpty else { return nil }
+        let parts = body.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+        return (String(parts[0]), parts.count > 1 ? String(parts[1]) : "")
+    }
 
     /// Map the OpenAI Responses usage onto ACP's token breakdown.
     private static func mapUsage(_ usage: ResponsesUsage) -> PromptUsage {
