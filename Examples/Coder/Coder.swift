@@ -174,10 +174,13 @@ private func makeSessionFileURL() -> URL {
         .appendingPathComponent("session-\(timestamp)-\(uuid).jsonl")
 }
 
-@main
-struct Coder: AsyncParsableCommand {
+/// `coder acp` — serve over the Agent Client Protocol on stdio, for ACP clients
+/// (Zed, acpx, …). The handshake succeeds without a key; a missing
+/// `OPENAI_API_KEY` then surfaces as a normal turn error to the client.
+struct Acp: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "A bare-bones coding agent."
+        commandName: "acp",
+        abstract: "Serve over the Agent Client Protocol on stdio."
     )
 
     @Option(name: [.short, .long], help: "Working directory (default: current directory)")
@@ -186,8 +189,34 @@ struct Coder: AsyncParsableCommand {
     @Option(name: [.short, .long], help: "Model to use (default: gpt-5.4)")
     var model: String = "gpt-5.4"
 
-    @Flag(name: .long, help: "Serve over the Agent Client Protocol on stdio instead of the REPL.")
-    var acp = false
+    func run() async throws {
+        let workDir = directory ?? FileManager.default.currentDirectoryPath
+
+        // Load .env so the key is available for prompts; no fail-fast guard here —
+        // the ACP handshake must succeed without a key. stdout carries JSON-RPC
+        // only (Coder's diagnostics already go to stderr).
+        #if canImport(SwiftDotenv)
+            try? Dotenv.configure(atPath: (workDir as NSString).appendingPathComponent(".env"))
+        #endif
+
+        try await ACPAgentServer.serveStdio(
+            handler: CoderACPHandler(workingDirectory: workDir, model: model)
+        )
+    }
+}
+
+@main
+struct Coder: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "A bare-bones coding agent.",
+        subcommands: [Acp.self]
+    )
+
+    @Option(name: [.short, .long], help: "Working directory (default: current directory)")
+    var directory: String?
+
+    @Option(name: [.short, .long], help: "Model to use (default: gpt-5.4)")
+    var model: String = "gpt-5.4"
 
     func run() async throws {
         let workDir = directory ?? FileManager.default.currentDirectoryPath
@@ -198,18 +227,6 @@ struct Coder: AsyncParsableCommand {
             let envPath = (workDir as NSString).appendingPathComponent(".env")
             try? Dotenv.configure(atPath: envPath)
         #endif
-
-        // ACP mode: speak the Agent Client Protocol over stdio and return.
-        // Placed before the API-key guard so the handshake (initialize /
-        // session.new) succeeds without a key — a missing key then surfaces as a
-        // normal turn error to the client. No REPL/terminal output runs here:
-        // stdout must carry JSON-RPC only (diagnostics already go to stderr).
-        if acp {
-            try await ACPAgentServer.serveStdio(
-                handler: CoderACPHandler(workingDirectory: workDir, model: model)
-            )
-            return
-        }
 
         // Fail fast when no OpenAI key is available — otherwise the
         // REPL prints its banner, accepts a prompt, then dies on the
