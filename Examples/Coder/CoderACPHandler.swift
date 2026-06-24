@@ -17,6 +17,7 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
     private let lock = NSLock()
     private var workingDirectoryBySession: [SessionId: String] = [:]
     private var lastResponseIdBySession: [SessionId: String] = [:]
+    private var modelBySession: [SessionId: String] = [:]
 
     init(workingDirectory: String, model: String) {
         defaultWorkingDirectory = workingDirectory
@@ -43,30 +44,47 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
 
     /// Slash commands the client should offer (published on session start).
     func availableCommands(for _: SessionId) async -> [AvailableCommand] {
-        [AvailableCommand(name: "new", description: "Start a fresh conversation (clear the context).")]
+        [
+            AvailableCommand(name: "new", description: "Start a fresh conversation (clear the context)."),
+            AvailableCommand(
+                name: "model",
+                description: "Show the current model, or switch with /model <id> (e.g. claude-sonnet-4-5).",
+                input: .object(["hint": .string("model id")])
+            )
+        ]
     }
 
     func prompt(_ request: PromptRequest, session: ACPServerSession) async throws -> PromptResponse {
         let text = request.prompt.compactMap(\.text).joined()
 
-        // Intercept known slash commands before the model. `/new` clears the
-        // rolling lastResponseId so the next turn starts a fresh conversation.
-        // Anything else (incl. unknown "/foo") flows to the model as plain text.
-        if let command = Self.parseSlashCommand(request.prompt), command.name == "new" {
-            lock.withLock { lastResponseIdBySession[session.id] = nil }
-            await session.sendText("Started a new conversation — earlier context cleared.")
-            return PromptResponse(stopReason: .endTurn)
+        // Intercept known slash commands before the model. Anything else (incl.
+        // unknown "/foo") flows to the model as plain text.
+        if let command = Self.parseSlashCommand(request.prompt) {
+            switch command.name {
+                case "new":
+                    lock.withLock { lastResponseIdBySession[session.id] = nil }
+                    await session.sendText("Started a new conversation — earlier context cleared.")
+                    return PromptResponse(stopReason: .endTurn)
+                case "model":
+                    return await handleModelCommand(command.rest, session: session)
+                default:
+                    break
+            }
         }
 
-        let (workingDirectory, previousResponseId) = lock.withLock {
-            (workingDirectoryBySession[session.id] ?? defaultWorkingDirectory, lastResponseIdBySession[session.id])
+        let (workingDirectory, previousResponseId, currentModel) = lock.withLock {
+            (
+                workingDirectoryBySession[session.id] ?? defaultWorkingDirectory,
+                lastResponseIdBySession[session.id],
+                modelBySession[session.id] ?? model
+            )
         }
 
-        let agent = CodingAgent(workingDirectory: workingDirectory, config: RunConfig(model: model))
+        let agent = CodingAgent(workingDirectory: workingDirectory, config: RunConfig(model: currentModel))
         let result = Runner.runStreamed(
             agent: agent, input: text, maxTurns: 50,
             previousResponseId: previousResponseId,
-            config: RunConfig(model: model, workFlowName: "ACP Turn")
+            config: RunConfig(model: currentModel, workFlowName: "ACP Turn")
         )
 
         var usage: PromptUsage?
@@ -130,6 +148,47 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
         guard !body.isEmpty else { return nil }
         let parts = body.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
         return (String(parts[0]), parts.count > 1 ? String(parts[1]) : "")
+    }
+
+    /// `/model [id]`: with no id, report the current model + which provider keys
+    /// are present; with an id, validate it against the provider registry (the
+    /// model's provider must be known *and* its key present in the environment)
+    /// and switch — also clearing the rolling response id, since the
+    /// provider-stateful continuity won't carry across a switch.
+    private func handleModelCommand(_ rest: String, session: ACPServerSession) async -> PromptResponse {
+        let target = rest.trimmingCharacters(in: .whitespacesAndNewlines)
+        if target.isEmpty {
+            let current = lock.withLock { modelBySession[session.id] ?? model }
+            await session.sendText("Model: \(current)\n\(Self.availableProvidersSummary())")
+            return PromptResponse(stopReason: .endTurn)
+        }
+        do {
+            _ = try await ProviderRegistry.shared.api(for: target)
+        } catch {
+            await session.sendText("Can't switch to \(target): \(error.localizedDescription)")
+            return PromptResponse(stopReason: .endTurn)
+        }
+        lock.withLock {
+            modelBySession[session.id] = target
+            lastResponseIdBySession[session.id] = nil
+        }
+        await session.sendText("Model set to \(target).")
+        return PromptResponse(stopReason: .endTurn)
+    }
+
+    /// Which providers have credentials in the environment — drives what `/model`
+    /// can switch to. (Local providers ollama/lmstudio need a reachable URL, not a key.)
+    private static func availableProvidersSummary() -> String {
+        let env = ProcessInfo.processInfo.environment
+        var available: [String] = []
+        if env["OPENAI_API_KEY"] != nil { available.append("openai (gpt-*, o*)") }
+        if env["ANTHROPIC_API_KEY"] != nil { available.append("anthropic (claude-*)") }
+        if env["GEMINI_API_KEY"] != nil { available.append("google (gemini-*)") }
+        if env["OLLAMA_URL"] != nil { available.append("ollama (ollama/<model>)") }
+        if env["LMSTUDIO_URL"] != nil { available.append("lmstudio (lmstudio/<model>)") }
+        return available.isEmpty
+            ? "No provider keys found in the environment."
+            : "Providers with keys: " + available.joined(separator: ", ") + ". Switch with /model <id>."
     }
 
     /// Map the OpenAI Responses usage onto ACP's token breakdown.
