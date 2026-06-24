@@ -39,7 +39,14 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
     func newSession(_ request: NewSessionRequest) async throws -> NewSessionResponse {
         let id = "coder-\(UUID().uuidString)"
         lock.withLock { workingDirectoryBySession[id] = request.cwd }
-        return NewSessionResponse(sessionId: id)
+        // Advertise the model menu so native ACP clients render a model picker.
+        return NewSessionResponse(sessionId: id, modelState: Self.modelState(current: model))
+    }
+
+    /// Native model switch (`session/set_model`). Shares one code path with the
+    /// `/model <id>` slash command, so both write the same per-session state.
+    func setModel(_ request: SetSessionModelRequest) async throws {
+        try await switchModel(to: request.modelId, sessionId: request.sessionId)
     }
 
     /// Slash commands the client should offer (published on session start).
@@ -151,10 +158,8 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
     }
 
     /// `/model [id]`: with no id, report the current model + which provider keys
-    /// are present; with an id, validate it against the provider registry (the
-    /// model's provider must be known *and* its key present in the environment)
-    /// and switch — also clearing the rolling response id, since the
-    /// provider-stateful continuity won't carry across a switch.
+    /// are present; with an id, switch via ``switchModel(to:sessionId:)`` (the
+    /// same path `session/set_model` uses), reporting any rejection in-band.
     private func handleModelCommand(_ rest: String, session: ACPServerSession) async -> PromptResponse {
         let target = rest.trimmingCharacters(in: .whitespacesAndNewlines)
         if target.isEmpty {
@@ -163,17 +168,49 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
             return PromptResponse(stopReason: .endTurn)
         }
         do {
-            _ = try await ProviderRegistry.shared.api(for: target)
+            try await switchModel(to: target, sessionId: session.id)
         } catch {
             await session.sendText("Can't switch to \(target): \(error.localizedDescription)")
             return PromptResponse(stopReason: .endTurn)
         }
-        lock.withLock {
-            modelBySession[session.id] = target
-            lastResponseIdBySession[session.id] = nil
-        }
         await session.sendText("Model set to \(target).")
         return PromptResponse(stopReason: .endTurn)
+    }
+
+    /// Validate `target` against the provider registry (its provider must be known
+    /// *and* its key present in the environment) and switch this session to it,
+    /// clearing the rolling response id — provider-stateful continuity can't carry
+    /// across a provider change. Throws on an invalid target: `session/set_model`
+    /// surfaces that to the client, while `/model` catches it for a friendly note.
+    private func switchModel(to target: String, sessionId: SessionId) async throws {
+        _ = try await ProviderRegistry.shared.api(for: target)
+        lock.withLock {
+            modelBySession[sessionId] = target
+            lastResponseIdBySession[sessionId] = nil
+        }
+    }
+
+    /// The model menu advertised to ACP clients (drives a native model picker)
+    /// and the basis for `/model`'s suggestions. SwiftAgents has no model catalog
+    /// — `ProviderRegistry` only *routes* an id to a provider — so this is a
+    /// curated, conservative set per provider whose key is present. The switch
+    /// paths still accept ANY routable id (validated on use), so newer models work
+    /// even when not listed. The current model is always selectable.
+    private static func modelState(current: String) -> SessionModelState {
+        let env = ProcessInfo.processInfo.environment
+        var models: [ModelInfo] = []
+        func add(_ id: String, _ name: String) {
+            guard !models.contains(where: { $0.modelId == id }) else { return }
+            models.append(ModelInfo(modelId: id, name: name))
+        }
+        add(current, current)
+        if env["OPENAI_API_KEY"] != nil { add("gpt-5.4", "GPT-5.4") }
+        if env["ANTHROPIC_API_KEY"] != nil { add("claude-sonnet-4-5", "Claude Sonnet 4.5") }
+        if env["GEMINI_API_KEY"] != nil {
+            add("gemini-2.5-pro", "Gemini 2.5 Pro")
+            add("gemini-2.5-flash", "Gemini 2.5 Flash")
+        }
+        return SessionModelState(currentModelId: current, availableModels: models)
     }
 
     /// Which providers have credentials in the environment — drives what `/model`
