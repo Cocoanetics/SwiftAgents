@@ -77,11 +77,12 @@ let package = Package(
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
 		// Link only SwiftMCP's NIO-free core + the `Client` trait (the MCP
 		// client we use) — NOT the `Server` HTTP transport — so swift-nio stays
-		// out of SwiftAgents' graph and we build on Windows.
-		// Local sibling sources for development (SwiftMCP + SwiftACP); swap to the
-		// published URLs at release time. Client trait keeps swift-nio out.
-		.package(path: "../SwiftMCP", traits: ["Client"]),
-		.package(path: "../SwiftACP"),
+		// out of SwiftAgents' graph and we build on Windows. 1.6.0+ is on
+		// JSONFoundation. (For local sibling development, override with a path
+		// dependency — but keep the published URL committed so CI resolves.)
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.6.0", traits: ["Client"]),
+		// SwiftACP has no tagged release yet; pin to `main` (mirrors SQLiteKit below).
+		.package(url: "https://github.com/Cocoanetics/SwiftACP", branch: "main"),
 		// JSONFoundation by URL (not path) — matches SwiftMCP's and SwiftACP's
 		// published remote reference to the same package identity (a path override
 		// would conflict).
