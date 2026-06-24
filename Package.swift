@@ -164,8 +164,7 @@ let package = Package(
 				"SwiftAgents",
 				"TerminalUI",
 				"SwiftMCP",
-				.product(name: "ACP", package: "SwiftACP"),
-				.product(name: "ACPServer", package: "SwiftACP"),
+				.product(name: "SwiftACP", package: "SwiftACP"),
 				.product(name: "ArgumentParser", package: "swift-argument-parser"),
 				// swift-dotenv 2.1.0 supports Apple platforms (via Darwin)
 				// and Linux (via Glibc), but not Windows or Android. The

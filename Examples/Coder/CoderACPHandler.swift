@@ -1,7 +1,6 @@
-import ACP
-import ACPServer
 import Foundation
 import JSONValue
+import SwiftACP
 import SwiftAgents
 
 /// Exposes Coder as an ACP agent.
