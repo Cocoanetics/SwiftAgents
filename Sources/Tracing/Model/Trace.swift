@@ -1,5 +1,5 @@
 import Foundation
-import JSONValue
+import JSONFoundation
 
 /**
  Represents a single trace in the system.

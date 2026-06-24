@@ -1,5 +1,5 @@
 import Foundation
-import JSONValue
+import JSONFoundation
 import SwiftACP
 import SwiftAgents
 

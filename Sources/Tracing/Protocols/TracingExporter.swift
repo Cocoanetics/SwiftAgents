@@ -1,5 +1,5 @@
 import Foundation
-import JSONValue
+import JSONFoundation
 
 /**
  Protocol defining the interface for trace exporters.

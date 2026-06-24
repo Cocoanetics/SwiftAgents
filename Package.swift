@@ -82,6 +82,10 @@ let package = Package(
 		// published URLs at release time. Client trait keeps swift-nio out.
 		.package(path: "../SwiftMCP", traits: ["Client"]),
 		.package(path: "../SwiftACP"),
+		// JSONFoundation by URL (not path) — matches SwiftMCP's and SwiftACP's
+		// published remote reference to the same package identity (a path override
+		// would conflict).
+		.package(url: "https://github.com/Cocoanetics/JSONFoundation.git", from: "1.2.0"),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
 		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
@@ -102,10 +106,10 @@ let package = Package(
 		.target(
 			name: "Tracing",
 			dependencies: [
-				// Tracing only needs the JSONValue value type (span-data export),
-				// not the MCP client or macros — link the lightweight, NIO-free
-				// JSONValue product rather than the full SwiftMCP module.
-				.product(name: "JSONValue", package: "SwiftMCP"),
+				// Tracing only needs the JSON value type (span-data export), not
+				// the MCP client or macros — link the lightweight, NIO-free
+				// JSONFoundation product rather than the full SwiftMCP module.
+				.product(name: "JSONFoundation", package: "JSONFoundation"),
 				"SwiftCross"
 			],
 			path: "Sources/Tracing"

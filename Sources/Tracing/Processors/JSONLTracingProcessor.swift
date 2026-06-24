@@ -1,5 +1,5 @@
 import Foundation
-import JSONValue
+import JSONFoundation
 
 /**
  A `TracingProcessor` that writes one JSON-line per trace/span lifecycle event

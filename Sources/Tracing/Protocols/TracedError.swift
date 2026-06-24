@@ -1,5 +1,5 @@
 import Foundation
-import JSONValue
+import JSONFoundation
 
 /**
  Errors that want custom rendering on a span can conform to this protocol.

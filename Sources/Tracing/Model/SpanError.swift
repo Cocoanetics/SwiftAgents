@@ -1,5 +1,5 @@
 import Foundation
-import JSONValue
+import JSONFoundation
 
 /**
  Represents an error associated with a span.

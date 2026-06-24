@@ -1,5 +1,5 @@
 import Foundation
-import JSONValue
+import JSONFoundation
 
 /** A processor that batches traces and spans before exporting them.
 
