@@ -18,4 +18,9 @@ public struct Reasoning: Codable, Sendable {
     /// This can be useful for debugging and understanding the model's reasoning process.
     /// One of auto, concise, or detailed.
     public var summary: Summary?
+
+    public init(effort: Effort? = nil, summary: Summary? = nil) {
+        self.effort = effort
+        self.summary = summary
+    }
 }

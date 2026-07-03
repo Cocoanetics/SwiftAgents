@@ -25,24 +25,44 @@ final class CodingAgent: Agent, @unchecked Sendable {
     let tools: [Tool]
     let toolProviders: [MCPToolProviding]
     let mcpServers: [MCPServerProxy]
+    let modelSettings: ModelSettings
+    /// Read-only "plan" mode: the mutating tools (`bash`, `write`, `edit`, and the
+    /// `apply_patch` builtin) are withheld/refused so the agent can explore and
+    /// propose a plan without touching the working tree. Drives ACP session modes.
+    let readOnly: Bool
 
     /// - Parameter isSubAgent: If true, this agent won't spawn its own sub-agent (prevents recursion).
+    /// - Parameter readOnly: Plan/read-only mode — see ``readOnly``. Inherited by the sub-agent.
+    /// - Parameter reasoningEffort: Reasoning effort for reasoning-capable models (ACP config option).
     /// - Parameter config: RunConfig to use for sub-agent runs (passes model, etc.).
     /// - Parameter mcpServers: Already-connected MCP server proxies whose tools the agent
     ///   exposes alongside its built-ins (e.g. the servers an ACP client configures per session).
     init(
         workingDirectory: String,
         isSubAgent: Bool = false,
+        readOnly: Bool = false,
+        reasoningEffort: Reasoning.Effort? = nil,
         config: RunConfig = RunConfig(),
         mcpServers: [MCPServerProxy] = []
     ) {
         self.workingDirectory = workingDirectory
         self.mcpServers = mcpServers
+        self.readOnly = readOnly
+        modelSettings = reasoningEffort.map { ModelSettings(reasoning: Reasoning(effort: $0)) } ?? ModelSettings()
 
         let model = config.model ?? "gpt-4.1"
-        tools = Tool.supportsApplyPatch(model: model) ? [.applyPatch] : []
+        // Plan mode never offers apply_patch (it edits files); the mutating @MCPTool
+        // methods stay advertised but refuse at call time (see `ensureWritable`).
+        tools = (!readOnly && Tool.supportsApplyPatch(model: model)) ? [.applyPatch] : []
 
         let role = isSubAgent ? "a sub-agent" : "a coding agent"
+        let planNote = readOnly ? """
+
+        You are in PLAN (read-only) mode. Do NOT modify anything: the bash, write,
+        edit, and apply_patch tools are disabled and will refuse. Explore with read,
+        ls, find, and grep, then propose a concrete plan of the changes you would
+        make. Tell the user to switch to code mode to carry the plan out.
+        """ : ""
         instructions = """
         You are \(role) working in: \(workingDirectory)
 
@@ -57,10 +77,14 @@ final class CodingAgent: Agent, @unchecked Sendable {
         - Never wrap tool output in triple-backtick code blocks. Present results as plain text.
         - When done, summarize what you did.
         \(isSubAgent ? "" : "- Use sub_agent for exploration or research tasks to keep your own context clean.")
+        \(planNote)
         """
 
         if !isSubAgent {
-            let subAgent = CodingAgent(workingDirectory: workingDirectory, isSubAgent: true, config: config)
+            let subAgent = CodingAgent(
+                workingDirectory: workingDirectory, isSubAgent: true,
+                readOnly: readOnly, reasoningEffort: reasoningEffort, config: config
+            )
             let subAgentProvider = subAgent.asToolProvider(
                 toolName: "sub_agent",
                 toolDescription: """
@@ -86,6 +110,7 @@ final class CodingAgent: Agent, @unchecked Sendable {
     /// - Parameter timeout: Timeout in seconds (optional, no default timeout)
     @MCPTool
     func bash(command: String, timeout: Int? = nil) async throws -> String {
+        try ensureWritable("bash")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = ["-c", command]
@@ -163,6 +188,7 @@ final class CodingAgent: Agent, @unchecked Sendable {
     /// - Parameter content: Content to write to the file
     @MCPTool
     func write(path: String, content: String) throws -> String {
+        try ensureWritable("write")
         let absolutePath = resolve(path)
         let dir = (absolutePath as NSString).deletingLastPathComponent
 
@@ -183,6 +209,7 @@ final class CodingAgent: Agent, @unchecked Sendable {
     ///   instead.
     @MCPTool
     func edit(path: String, edits: [Edit]) throws -> String {
+        try ensureWritable("edit")
         guard !edits.isEmpty else {
             throw CoderToolError.message("edits must not be empty")
         }
@@ -204,7 +231,8 @@ final class CodingAgent: Agent, @unchecked Sendable {
             }
             guard occurrences == 1 else {
                 throw CoderToolError.message(
-                    "edits[\(index)].oldText matches \(occurrences) locations in \(path). Must be unique.")
+                    "edits[\(index)].oldText matches \(occurrences) locations in \(path). Must be unique."
+                )
             }
             guard let range = original.range(of: edit.oldText) else {
                 throw CoderToolError.message("edits[\(index)].oldText could not be located in \(path)")
@@ -217,7 +245,8 @@ final class CodingAgent: Agent, @unchecked Sendable {
         for index in 1 ..< resolved.count
             where resolved[index].range.lowerBound < resolved[index - 1].range.upperBound {
             throw CoderToolError.message(
-                "edits[\(index)] overlaps with another edit; merge them into one edit instead")
+                "edits[\(index)] overlaps with another edit; merge them into one edit instead"
+            )
         }
 
         // Stitch the new file in one pass — no incremental mutation, so
@@ -311,7 +340,8 @@ final class CodingAgent: Agent, @unchecked Sendable {
         if result.exitStatus >= 2 {
             let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             throw CoderToolError.message(
-                detail.isEmpty ? "rg exited with code \(result.exitStatus)" : detail)
+                detail.isEmpty ? "rg exited with code \(result.exitStatus)" : detail
+            )
         }
         return Self.formatRgOutput(result.stdout,
                                    relativizingFrom: absolutePath,
@@ -358,7 +388,8 @@ final class CodingAgent: Agent, @unchecked Sendable {
         if result.exitStatus >= 2 {
             let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             throw CoderToolError.message(
-                detail.isEmpty ? "fd exited with code \(result.exitStatus)" : detail)
+                detail.isEmpty ? "fd exited with code \(result.exitStatus)" : detail
+            )
         }
         var lines = result.stdout.components(separatedBy: "\n")
         if lines.last == "" { lines.removeLast() }
@@ -377,6 +408,17 @@ final class CodingAgent: Agent, @unchecked Sendable {
     func resolve(_ path: String) -> String {
         if path.hasPrefix("/") { return path }
         return (workingDirectory as NSString).appendingPathComponent(path)
+    }
+
+    /// Refuse a mutating tool while in plan/read-only mode. The message is written
+    /// for the model, so it can explain the refusal and offer to switch to code mode.
+    private func ensureWritable(_ tool: String) throws {
+        if readOnly {
+            throw CoderToolError.message(
+                "Plan mode is read-only — the `\(tool)` tool is disabled. "
+                    + "Switch to code mode (session/set_mode → code) to make changes."
+            )
+        }
     }
 
     // MARK: - Subprocess helpers (rg / fd shellouts)
@@ -415,18 +457,18 @@ final class CodingAgent: Agent, @unchecked Sendable {
         switch binary {
             case "rg":
                 return """
-                    `rg` (ripgrep) is required by the grep tool but isn't on PATH.
-                      • macOS:   brew install ripgrep
-                      • Linux:   apt install ripgrep   (or your distro's package manager)
-                      • Source:  https://github.com/BurntSushi/ripgrep/releases
-                    """
+                `rg` (ripgrep) is required by the grep tool but isn't on PATH.
+                  • macOS:   brew install ripgrep
+                  • Linux:   apt install ripgrep   (or your distro's package manager)
+                  • Source:  https://github.com/BurntSushi/ripgrep/releases
+                """
             case "fd":
                 return """
-                    `fd` is required by the find tool but isn't on PATH.
-                      • macOS:   brew install fd
-                      • Linux:   apt install fd-find    (binary is `fdfind` on Debian/Ubuntu — symlink to `fd`)
-                      • Source:  https://github.com/sharkdp/fd/releases
-                    """
+                `fd` is required by the find tool but isn't on PATH.
+                  • macOS:   brew install fd
+                  • Linux:   apt install fd-find    (binary is `fdfind` on Debian/Ubuntu — symlink to `fd`)
+                  • Source:  https://github.com/sharkdp/fd/releases
+                """
             default:
                 return "`\(binary)` is required but isn't on PATH."
         }
@@ -453,7 +495,8 @@ final class CodingAgent: Agent, @unchecked Sendable {
             try process.run()
         } catch {
             throw CoderToolError.message(
-                "failed to invoke \(executable): \(error.localizedDescription)")
+                "failed to invoke \(executable): \(error.localizedDescription)"
+            )
         }
         let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
         let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
@@ -461,7 +504,8 @@ final class CodingAgent: Agent, @unchecked Sendable {
         return CapturedRun(
             stdout: String(data: outData, encoding: .utf8) ?? "",
             stderr: String(data: errData, encoding: .utf8) ?? "",
-            exitStatus: process.terminationStatus)
+            exitStatus: process.terminationStatus
+        )
     }
 
     /// Walk rg's `path:line:content` / `path-line-content` stream,
@@ -487,11 +531,10 @@ final class CodingAgent: Agent, @unchecked Sendable {
             let (relativized, isMatchLine) = isGroupBreak
                 ? (line, false)
                 : Self.rewriteRgLine(line, searchRoot: searchRoot)
-            let truncated: String
-            if isGroupBreak || relativized.count <= 1024 {
-                truncated = relativized
+            let truncated: String = if isGroupBreak || relativized.count <= 1024 {
+                relativized
             } else {
-                truncated = String(relativized.prefix(1024)) + "…"
+                String(relativized.prefix(1024)) + "…"
             }
             let bytes = truncated.utf8.count + 1
             if totalBytes + bytes > byteCap { break }

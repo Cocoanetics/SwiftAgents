@@ -30,6 +30,27 @@ echo 'OPENAI_API_KEY=sk-...' > .env
 swift run Coder
 ```
 
+### ACP mode — drive Coder from any editor
+
+`Coder` also speaks the [Agent Client Protocol](https://agentclientprotocol.com) over stdio, so any ACP client — [`acpx`](https://github.com/openclaw/acpx), Zed, or another editor — can spawn and drive it. Built on [SwiftACP](https://github.com/Cocoanetics/SwiftACP)'s server harness (pinned `traits: []` so the daemon-side transports stay out of the graph — Coder only serves stdio).
+
+```sh
+acpx run swift run Coder acp
+```
+
+The `acp` subcommand serves the protocol until the client disconnects (stdin EOF); `stdout` carries JSON-RPC only, so Coder's own diagnostics go to `stderr`. A client that spawns Coder passes the environment through, so `OPENAI_API_KEY` (or a `.env` in the working directory) is picked up the same way as the REPL.
+
+What the ACP surface exposes:
+
+- **Session lifecycle** — `initialize` / `session/new` / `session/prompt` with streamed `session/update`s (assistant text, reasoning, tool calls), per-turn token usage, and ACP tool-call *kinds* so clients pick sensible icons.
+- **Per-session MCP servers** — the stdio MCP servers a client configures on `session/new` are spawned once per session and exposed to the agent as extra tools.
+- **Slash commands + model picker** — `/new` (clear context) and `/model` are advertised via `available_commands_update`; native clients also get a model menu and `session/set_model`.
+- **Session modes** (`session/set_mode`) — **`code`** (full tool access) vs. **`plan`** (read-only: `bash`, `write`, `edit`, and `apply_patch` are withheld/refused so the agent explores and proposes a plan without touching the working tree). A switch is confirmed with a `current_mode_update`.
+- **Config options** (`session/set_config_option`) — a `reasoning_effort` select (`auto` / `low` / `medium` / `high`) for reasoning-capable models.
+- **Resumable sessions** (`session/load`) — every session persists to `~/.coder/acp-sessions/<id>.json` (working directory, model/mode/effort, the rolling `lastResponseId`, and a short transcript). A client can reconnect to a session after the Coder process restarts: Coder restores the state, reconnects the MCP servers the client re-supplies, replays the transcript, and the next turn continues the same conversation.
+
+`authenticate` is a no-op — Coder advertises no auth methods and reads credentials from the environment (like codex). The daemon transports (TCP / Bonjour / HTTP-SSE) are out of scope: Coder is spawn-per-client over stdio; a daemon holding live sessions is SwiftACP's job.
+
 ## [RealtimeVoiceAgent](RealtimeVoiceAgent/) — iOS realtime voice app
 
 Prototype iPhone app for OpenAI Realtime voice conversations. SwiftUI, `AVAudioEngine` mic capture and playback, websocket transport, local on-device tools (calendar, reminders, notes, time, device info).

@@ -3,6 +3,27 @@
 
 import PackageDescription
 
+// Coder's ACP surface is macOS-gated in the manifest, not just in source: the
+// test target depends on the `Coder` executable, whose `CodingAgent` uses
+// `Foundation.Process` (absent on Android). Gating the *declaration* keeps that
+// dependency edge — and Coder's build — off the Linux/Windows/Android CI jobs,
+// which build with `--build-tests`. macOS runs the full suite and picks it up.
+#if os(macOS)
+let coderTestTargets: [Target] = [
+    .testTarget(
+        name: "CoderTests",
+        dependencies: [
+            "Coder",
+            .product(name: "SwiftACP", package: "SwiftACP"),
+            .product(name: "JSONFoundation", package: "JSONFoundation")
+        ],
+        path: "Tests/CoderTests"
+    )
+]
+#else
+let coderTestTargets: [Target] = []
+#endif
+
 let package = Package(
 	name: "SwiftAgents",
 	platforms: [
@@ -89,7 +110,10 @@ let package = Package(
 		// `traits: []` disables its default-on `Server` trait (the swift-nio
 		// TCP/Bonjour/HTTP-SSE transports used only by the acpxd daemon) — Coder
 		// serves ACP over stdio, and this keeps swift-nio/crypto out of the graph.
-		.package(url: "https://github.com/Cocoanetics/SwiftACP", branch: "main", traits: []),
+		// Pinned to the session-controls branch until it merges to SwiftACP `main`
+		// (this Coder change depends on its session-aware set_mode/set_config_option
+		// API — see #32). Flip back to `branch: "main"` once that PR lands.
+		.package(url: "https://github.com/Cocoanetics/SwiftACP", branch: "claude/acp-session-controls", traits: []),
 		// JSONFoundation by URL (not path) — matches SwiftMCP's and SwiftACP's
 		// published remote reference to the same package identity (a path override
 		// would conflict). 2.5.0 ships the JSON value type, JSON Schema model,
@@ -224,7 +248,7 @@ let package = Package(
 			path: "Tests/ProvidersTests",
 			resources: [.process("Resources")]
 		)
-	],
+	] + coderTestTargets,
 	// Tools 6.1 (needed for SwiftMCP package-trait selection) defaults to the
 	// Swift 6 language mode; the package builds clean under full strict
 	// concurrency.
