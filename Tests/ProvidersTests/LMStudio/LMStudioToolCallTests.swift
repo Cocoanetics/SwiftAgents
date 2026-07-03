@@ -34,7 +34,7 @@ private let lmStudioToolModel = ProcessInfo.processInfo.environment["LMSTUDIO_MO
 struct LMStudioToolCallTests {
     @Test(
         "createChatCompletion(tools:) returns a tool_call from LM Studio",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func directChatCompletionToolCall() async throws {
         let client = try TestClients.lmStudio()
@@ -65,7 +65,7 @@ struct LMStudioToolCallTests {
 
     @Test(
         "Runner end-to-end: tool call + execution + final response via LM Studio",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func runnerToolCallEndToEnd() async throws {
         let agent = BasicAgent(

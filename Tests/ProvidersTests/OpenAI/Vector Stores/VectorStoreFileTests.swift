@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 struct VectorStoreFileTests {
-    @Test("Vector store file reaches completed status", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Vector store file reaches completed status", LiveGate.openAIState)
     func attachesFile() async throws {
         let openAI = try TestClients.openAI()
         let fixture = try TestResources.url(forResource: "pasching", withExtension: "txt")

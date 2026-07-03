@@ -12,10 +12,9 @@ private final class OllamaTools {
 }
 
 struct OllamaChatTests {
-    private static let runOllamaTests = ProcessInfo.processInfo.environment["RUN_OLLAMA_TESTS"] != nil
     @Test(
         "Ollama chat completion",
-        .enabled(if: Self.runOllamaTests && TestClients.hasOllama, "Requires OLLAMA_URL and RUN_OLLAMA_TESTS=1")
+        LiveGate.ollama
     )
     func chatCompletion() async throws {
         let ollama = try TestClients.ollama()
@@ -37,7 +36,7 @@ struct OllamaChatTests {
 
     @Test(
         "Ollama chat streaming",
-        .enabled(if: Self.runOllamaTests && TestClients.hasOllama, "Requires OLLAMA_URL and RUN_OLLAMA_TESTS=1")
+        LiveGate.ollama
     )
     func chatStreaming() async throws {
         let ollama = try TestClients.ollama()
@@ -63,7 +62,7 @@ struct OllamaChatTests {
 
     @Test(
         "Ollama function calling",
-        .enabled(if: Self.runOllamaTests && TestClients.hasOllama, "Requires OLLAMA_URL and RUN_OLLAMA_TESTS=1")
+        LiveGate.ollama
     )
     func chatFunctionCalling() async throws {
         let ollama = try TestClients.ollama()

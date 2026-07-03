@@ -72,13 +72,15 @@ struct GoogleThinkingConfigTests {
         #expect(message.textContent == "Here is the answer.")
     }
 
-    @Test("Gemini 3 Pro Preview with thinking level", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
-    func liveGemini3ProPreviewThinkingLevel() async throws {
+    @Test("Gemini Pro with thinking level", .enabled(if: APIKey.hasGemini, "Requires GEMINI_API_KEY"))
+    func liveGeminiProThinkingLevel() async throws {
         let google = try GoogleAPI(credential: Credential.googleAPIKey(#require(APIKey.gemini as String?)))
         let prompt = "List two Austrian cities and one fun fact about each."
         let thinking = GoogleThinkingConfig(includeThoughts: true, thinkingLevel: .high, thinkingBudget: nil)
         let response = try await google.createChatCompletion(
-            model: "gemini-3-pro-preview",
+            // The auto-updating alias, like `gemini-flash-latest` below —
+            // pinned previews retire (gemini-3-pro-preview died 2026-07).
+            model: "gemini-pro-latest",
             messages: [.init(role: .user, content: .text(prompt))],
             thinkingConfig: thinking
         )

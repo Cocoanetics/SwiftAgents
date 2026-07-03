@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 struct FilesTests {
-    @Test("File upload and delete", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("File upload and delete", LiveGate.openAIState)
     func fileLifecycle() async throws {
         let openAI = try TestClients.openAI()
         let fixture = try TestResources.url(forResource: "pasching", withExtension: "txt")

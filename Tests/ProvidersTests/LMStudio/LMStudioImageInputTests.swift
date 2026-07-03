@@ -32,7 +32,7 @@ private let visionModel = ProcessInfo.processInfo.environment["LMSTUDIO_VISION_M
 struct LMStudioImageInputTests {
     @Test(
         "createChatCompletion accepts a base64 image part",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func directChatCompletionImageInput() async throws {
         let client = try TestClients.lmStudio()
@@ -61,7 +61,7 @@ struct LMStudioImageInputTests {
 
     @Test(
         "Runner.run accepts a multimodal Response.Input against LM Studio",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func runnerMultimodalInput() async throws {
         let agent = BasicAgent(
@@ -92,7 +92,7 @@ struct LMStudioImageInputTests {
 
     @Test(
         "Session round-trip: image input persisted then replayed across runs",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func sessionImageRoundTrip() async throws {
         let agent = BasicAgent(
@@ -153,7 +153,7 @@ struct LMStudioImageInputTests {
 
     @Test(
         "Image-input run emits agent + generation spans",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func tracingForImageInput() async throws {
         // Capture every span the global tracer emits during the agent
@@ -242,10 +242,7 @@ struct LMStudioImageInputTests {
 
     @Test(
         "Traces from an LM Studio image run can be ingested by the OpenAI traces backend",
-        .enabled(
-            if: TestClients.hasLMStudio && APIKey.hasOpenAI,
-            "Requires LMSTUDIO_URL and OPENAI_API_KEY"
-        )
+        LiveGate.lmStudioAndOpenAI
     )
     func tracesShipToOpenAI() async throws {
         // Same Spy pattern, but here we round-trip the captured spans
@@ -317,7 +314,7 @@ struct LMStudioImageInputTests {
 
     @Test(
         "Trace event for an LM Studio run fires exactly once",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func traceEventFiresOnce() async throws {
         // Regression: `withTrace` (ConvenienceFunctions) and
@@ -373,10 +370,7 @@ struct LMStudioImageInputTests {
 
     @Test(
         "Plain-text LM Studio run also ships cleanly to OpenAI traces",
-        .enabled(
-            if: TestClients.hasLMStudio && APIKey.hasOpenAI,
-            "Requires LMSTUDIO_URL and OPENAI_API_KEY"
-        )
+        LiveGate.lmStudioAndOpenAI
     )
     func plainTextRunShipsCleanly() async throws {
         // The auto-registered OpenAITraceExporter swallows errors with

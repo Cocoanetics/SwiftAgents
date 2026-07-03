@@ -510,7 +510,7 @@ struct ResponseTests {
                 name: function.name,
                 description: function.description,
                 parameters: function.parameters,
-                strict: true
+                strict: false
             ))
         }
     }

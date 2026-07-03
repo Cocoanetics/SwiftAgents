@@ -16,6 +16,7 @@ import Foundation
 import Tracing
 @testable import Providers
 @testable import Agents
+import SwiftMCP
 import Testing
 
 struct LMStudioChatTests {
@@ -55,5 +56,30 @@ struct LMStudioChatTests {
         let providers = ProviderRegistry()
         let api = try await providers.api(for: "lmstudio/google/gemma-4-26b-a4b")
         #expect(api is LMStudio)
+    }
+
+    @Test("shouldUseStatefulPath routes structured output by state policy")
+    func statefulPathRouting() {
+        let schemaOutput = TextFormat.jsonSchema(JSONSchemaFormat(name: "test", schema: .string()))
+
+        // LM Studio: stateful for plain text, but `/v1/responses` silently
+        // ignores schemas — structured output must fall back to chat
+        // completions (the live proof is LMStudioResponsesRoutingLiveTests).
+        let lmStudioPolicy = LMStudio().statePolicy
+        #expect(Runner.shouldUseStatefulPath(policy: lmStudioPolicy, outputType: .text))
+        #expect(!Runner.shouldUseStatefulPath(policy: lmStudioPolicy, outputType: .json))
+        #expect(!Runner.shouldUseStatefulPath(policy: lmStudioPolicy, outputType: schemaOutput))
+
+        // OpenAI honors json_schema on the Responses endpoint — stateful
+        // for every output type.
+        let openAIPolicy = OpenAI(credential: Credential.bearer("test")).statePolicy
+        #expect(Runner.shouldUseStatefulPath(policy: openAIPolicy, outputType: .text))
+        #expect(Runner.shouldUseStatefulPath(policy: openAIPolicy, outputType: .json))
+        #expect(Runner.shouldUseStatefulPath(policy: openAIPolicy, outputType: schemaOutput))
+
+        // Stateless providers never take the stateful path.
+        let anthropicPolicy = Anthropic(credential: Credential.apiKey("test")).statePolicy
+        #expect(!Runner.shouldUseStatefulPath(policy: anthropicPolicy, outputType: .text))
+        #expect(!Runner.shouldUseStatefulPath(policy: anthropicPolicy, outputType: schemaOutput))
     }
 }

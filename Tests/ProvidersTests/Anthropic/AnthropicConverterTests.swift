@@ -152,16 +152,21 @@ struct AnthropicConverterTests {
         let tool = Tool.function(FunctionTool(
             name: "get_weather",
             description: "Get the weather",
-            parameters: Parameters(properties: [
+            parameters: .object(.init(properties: [
                 "location": .string(description: "City")
-            ], required: ["location"]),
+            ], required: ["location"])),
             strict: false
         ))
         let converted = Anthropic.convertTools([tool])
         let first = try #require(converted?.first)
         #expect(first.name == "get_weather")
         #expect(first.description == "Get the weather")
-        #expect(first.inputSchema.properties.keys.contains("location"))
+        guard case let .object(object, _) = first.inputSchema else {
+            Issue.record("Expected object schema")
+            return
+        }
+        #expect(object.properties.keys.contains("location"))
+        #expect(object.required == ["location"])
     }
 
     @Test("Tool choice .auto maps to Anthropic auto")

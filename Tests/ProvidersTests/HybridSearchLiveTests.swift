@@ -79,7 +79,7 @@ struct HybridSearchLiveTests {
 
     @Test(
         "OpenAI embeddings drive Canon-style hybrid wiki search",
-        .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY")
+        LiveGate.openAIState
     )
     func openAIHybridWikiSearch() async throws {
         try await assertHybridWikiSearch(embeddingProvider: TestClients.openAI())
@@ -87,7 +87,7 @@ struct HybridSearchLiveTests {
 
     @Test(
         "LM Studio embeddings drive Canon-style hybrid wiki search",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func lmStudioHybridWikiSearch() async throws {
         let client = try TestClients.lmStudio()

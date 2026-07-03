@@ -6,8 +6,8 @@
 //  values, filters, the search page) and `OpenAIVectorStore`'s mapping
 //  onto the shared `SemanticStore` shapes — plus a live round-trip
 //  (index → search → incremental skip → sync prune → delete) gated on
-//  `OPENAI_API_KEY`:
-//      swift test --filter OpenAIVectorStore
+//  `OPENAI_API_KEY` plus `LIVE_STATE_TESTS=1` (mutates hosted state):
+//      LIVE_STATE_TESTS=1 swift test --filter OpenAIVectorStore
 //
 
 import Foundation
@@ -173,7 +173,7 @@ struct OpenAIVectorStoreTests {
 
     @Test(
         "hosted store round-trip: index, search, incremental skip, sync prune",
-        .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY")
+        LiveGate.openAIState
     )
     func hostedLifecycle() async throws {
         let client = try TestClients.openAI()
