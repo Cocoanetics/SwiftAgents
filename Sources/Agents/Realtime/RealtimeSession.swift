@@ -298,19 +298,15 @@ public actor RealtimeSession {
         for proxy in agent.mcpServers {
             let listedTools = try await proxy.listTools()
             for listedTool in listedTools {
-                let parameters: Parameters = if case let .object(object, _) = listedTool.inputSchema {
-                    Parameters(properties: object.properties)
-                } else {
-                    .none
-                }
-
+                // Pass the MCP tool's input schema through unmodified —
+                // required, description, additionalProperties all survive.
                 appendTool(
                     .function(
                         FunctionTool(
                             name: listedTool.name,
                             description: listedTool.description,
-                            parameters: parameters,
-                            strict: true
+                            parameters: listedTool.inputSchema,
+                            strict: false
                         )
                     )
                 )

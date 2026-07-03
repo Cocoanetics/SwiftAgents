@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 /// Function-like tool declaration for the Anthropic Messages API.
 ///
@@ -15,7 +15,7 @@ import SwiftMCP
 public struct AnthropicTool: Codable, Sendable {
     public let name: String
     public let description: String?
-    public let inputSchema: Parameters
+    public let inputSchema: JSONSchema
 
     private enum CodingKeys: String, CodingKey {
         case name
@@ -23,7 +23,7 @@ public struct AnthropicTool: Codable, Sendable {
         case inputSchema = "input_schema"
     }
 
-    public init(name: String, description: String?, inputSchema: Parameters) {
+    public init(name: String, description: String?, inputSchema: JSONSchema) {
         self.name = name
         self.description = description
         self.inputSchema = inputSchema

@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 /// Represents a tool that can be used by the model.
 public enum Tool: Codable, Sendable {
@@ -37,6 +37,7 @@ public enum Tool: Codable, Sendable {
         case name
         case description
         case parameters
+        case strict
         case displayHeight = "display_height"
         case displayWidth = "display_width"
         case environment
@@ -73,6 +74,11 @@ public enum Tool: Codable, Sendable {
                     try container.encode(description, forKey: .description)
                 }
                 try container.encode(tool.parameters, forKey: .parameters)
+                // Only emitted when opted in: this encoder is shared with the
+                // Realtime session wire, where `strict` is not a documented key.
+                if tool.strict {
+                    try container.encode(true, forKey: .strict)
+                }
             case let .fileSearch(tool):
                 try container.encode("file_search", forKey: .type)
                 try container.encode(tool.vectorStoreIds, forKey: .vectorStoreIds)
@@ -121,12 +127,13 @@ public enum Tool: Codable, Sendable {
             case "function":
                 let name = try container.decode(String.self, forKey: .name)
                 let description = try container.decodeIfPresent(String.self, forKey: .description)
-                let parameters = try container.decode(Parameters.self, forKey: .parameters)
+                let parameters = try container.decode(JSONSchema.self, forKey: .parameters)
+                let strict = try container.decodeIfPresent(Bool.self, forKey: .strict) ?? false
                 self = .function(FunctionTool(
                     name: name,
                     description: description,
                     parameters: parameters,
-                    strict: false
+                    strict: strict
                 ))
             case "file_search":
                 let vectorStoreIds = try container.decode([String].self, forKey: .vectorStoreIds)

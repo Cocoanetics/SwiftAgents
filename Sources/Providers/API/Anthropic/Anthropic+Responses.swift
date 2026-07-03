@@ -8,7 +8,7 @@
 //  This is the entry point the Agents SDK runner uses.
 
 import Foundation
-import SwiftMCP
+import JSONFoundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -186,8 +186,11 @@ extension Anthropic {
     /// `sanitizedSchemaForAnthropic(_:)` to drop fields Anthropic's
     /// json_schema validator rejects — see
     /// https://platform.claude.com/docs/en/build-with-claude/structured-outputs.
-    /// `additionalProperties: false` is REQUIRED by Anthropic and is
-    /// what the `@Schema` macro already emits, so it's kept verbatim.
+    /// `additionalProperties: false` is REQUIRED by Anthropic; SwiftAgents
+    /// injects it via JSONFoundation's
+    /// `addingAdditionalPropertiesRestrictionToObjects` in
+    /// `SchemaRepresentable.jsonSchema` (the `@Schema` macro itself never
+    /// emits it), so it's kept verbatim.
     static func convertOutputConfig(from textFormat: TextFormat?) -> AnthropicMessagesRequest.OutputConfig? {
         guard case let .jsonSchema(format) = textFormat,
               let schema = sanitizedSchemaForAnthropic(format.schema) else {
@@ -220,13 +223,13 @@ extension Anthropic {
     /// pattern, maxItems, `$ref`, `$schema`, `definitions`/`$defs`,
     /// recursive schemas.
     ///
-    /// Uses SwiftMCP's `JSONValue(encoding:)` to get a parsed-JSON tree
-    /// straight from the Codable schema — no JSONSerialization round-
-    /// trip, no NSNumber/objCType Bool-vs-Int disambiguation (SwiftMCP
+    /// Uses JSONFoundation's `JSONValue(encoding:)` to get a parsed-JSON
+    /// tree straight from the Codable schema — no JSONSerialization round-
+    /// trip, no NSNumber/objCType Bool-vs-Int disambiguation (JSONFoundation
     /// handles that internally and cross-platform).
     static func sanitizedSchemaForAnthropic(_ schema: JSONSchema) -> JSONValue? {
         guard let value = try? JSONValue(encoding: schema) else { return nil }
-        return stripKeys(value)
+        return value.removingKeys(disallowedAnthropicKeys)
     }
 
     private static let disallowedAnthropicKeys: Set<String> = [
@@ -237,21 +240,6 @@ extension Anthropic {
         "definitions", "$defs",
         "patternProperties"
     ]
-
-    private static func stripKeys(_ value: JSONValue) -> JSONValue {
-        switch value {
-            case let .object(dict):
-                var sanitised: [String: JSONValue] = [:]
-                for (key, child) in dict where !disallowedAnthropicKeys.contains(key) {
-                    sanitised[key] = stripKeys(child)
-                }
-                return .object(sanitised)
-            case let .array(items):
-                return .array(items.map(stripKeys))
-            default:
-                return value
-        }
-    }
 }
 
 extension Anthropic {

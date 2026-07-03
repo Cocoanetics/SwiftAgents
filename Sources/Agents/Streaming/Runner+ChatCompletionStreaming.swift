@@ -1,6 +1,6 @@
 import Foundation
+import JSONFoundation
 import Providers
-import SwiftMCP
 import Tracing
 
 extension Runner {
@@ -28,6 +28,7 @@ extension Runner {
         api: API,
         input: String,
         chatHistory: inout [ChatMessage],
+        decoder: JSONDecoder,
         continuation: AsyncThrowingStream<AgentStreamEvent, Error>.Continuation
     ) async throws -> AgentResult<A.OutputType> {
         if chatHistory.isEmpty {
@@ -202,7 +203,7 @@ extension Runner {
                             try await handoff.callPerform(input: ())
                         } else if let payload = functionCall.arguments.data(using: .utf8),
                             let codableType = handoff.inputType as? Decodable.Type {
-                            let typedInput = try JSONDecoder().decode(codableType, from: payload)
+                            let typedInput = try decoder.decode(codableType, from: payload)
                             try await handoff.callPerform(input: typedInput)
                         }
                     } catch {
@@ -266,15 +267,14 @@ extension Runner {
                 ))
             }
 
-            if A.OutputType.self == String.self {
-                // swiftlint:disable:next force_cast - guarded above by `A.OutputType.self == String.self`.
-                return .finalOutput(roundResult as! A.OutputType, nil)
-            } else if let data = roundResult.data(using: .utf8) {
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                if let decoded = decoder.decodeWithResultsUnwrap(data, as: A.OutputType.self) {
-                    return .finalOutput(decoded, nil)
-                }
+            // Resolve the turn into a typed final output; `nil` means the
+            // response wasn't usable, so repeat the turn. (No image tool on
+            // this path, hence `file: nil`; reasoning isn't surfaced either.)
+            if let result = Self.terminalOutput(
+                for: A.self, text: roundResult, file: nil,
+                reasoning: nil, decoder: decoder
+            ) {
+                return result
             }
 
             // Invalid response, try again

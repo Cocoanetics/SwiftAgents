@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 /// A Codable structure that describes a function.
 /// Each instance of `FunctionDescription` provides information about the name, description and parameters of the
@@ -18,16 +18,21 @@ public struct FunctionDescription: Codable, Sendable {
     /// An optional `String` value that provides a description of the function.
     public var description: String?
 
-    /// An instance of `Parameters` that provides information about the parameters of the function.
-    public var parameters: Parameters
+    /// A JSON schema describing the parameters of the function.
+    public var parameters: JSONSchema
 
     /// Initializer for `FunctionDescription` struct.
     ///
     /// - Parameters:
     ///   - name: A `String` that specifies the name of the function.
     ///   - description: An optional `String` that gives a description of the function.
-    ///   - parameters: An instance of `Parameters` that contains information about the parameters of the function.
-    public init(name: String, description: String? = nil, parameters: Parameters = Parameters()) {
+    ///   - parameters: A `JSONSchema` describing the parameters of the function.
+    ///                 Defaults to an empty object schema for no-argument functions.
+    public init(
+        name: String,
+        description: String? = nil,
+        parameters: JSONSchema = .object(.init(properties: [:], required: []))
+    ) {
         self.name = name
         self.description = description
         self.parameters = parameters

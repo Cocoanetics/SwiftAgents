@@ -6,30 +6,26 @@
 //
 
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 /**
  Extension to SchemaRepresentable that provides schema description functionality.
 
- This extension adds the ability to generate a schema description for any type that conforms to SchemaRepresentable.
+ This extension adds the ability to generate a named JSON schema for any type that conforms to SchemaRepresentable.
  */
 public extension SchemaRepresentable {
     /**
-     Returns a schema description for the conforming type.
+     Returns the named JSON schema for the conforming type, for use in
+     structured-output response formats.
 
-     This computed property generates a SchemaDescription using the type's schema metadata,
-     which includes the name and schema definition.
-
-     - Returns: A SchemaDescription containing the type's name and schema definition.
+     Built from the type's schema metadata, with `additionalProperties: false`
+     applied to every object recursively — the strict shape OpenAI-style
+     structured outputs require (and Anthropic mandates).
      */
-    static var schemaDescription: SchemaDescription {
-        SchemaDescription(name: schemaMetadata.name, schema: schemaMetadata.schema)
-    }
-
     static var jsonSchema: JSONSchemaFormat {
         JSONSchemaFormat(
             name: schemaMetadata.name,
-            schema: schemaDescription.schema.addingAdditionalPropertiesRestrictionToObjects
+            schema: schemaMetadata.schema.addingAdditionalPropertiesRestrictionToObjects
         )
     }
 }

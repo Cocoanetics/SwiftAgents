@@ -3,17 +3,47 @@ import Providers
 import SwiftMCP
 import Tracing
 
+/// A conversational agent: instructions plus tools, MCP servers, handoffs,
+/// and guardrails, executed by `Runner` (`Runner.run` / `Runner.runStreamed`).
+///
+/// Protocol extension defaults make every requirement optional except
+/// `name`, `instructions`, and the `OutputType` associated type, which
+/// conformers must declare (e.g. `typealias OutputType = String`, as
+/// `BasicAgent` does).
 public protocol Agent: AnyObject, Sendable {
+    /// The type of the agent's final output. When it conforms to
+    /// `SchemaRepresentable` (or is an array of schema-representable
+    /// elements), `outputType` switches the run to structured JSON-schema
+    /// output; any other type decodes from the model's plain-text answer.
     associatedtype OutputType: Decodable & Sendable
 
+    /// The name of the agent.
     var name: String { get }
+
+    /// The instructions that define the agent's behavior.
     var instructions: String { get }
+
+    /// A description of the agent. This is used when the agent is used as a handoff, so that an LLM knows what it does
+    /// and when to invoke it.
     var handoffDescription: String? { get }
+
+    /// Providers that supply MCP tools to the agent.
     var toolProviders: [MCPToolProviding] { get }
+
+    /// Explicit tool definitions available to the agent, merged with
+    /// provider- and handoff-derived tools.
     var tools: [Tool] { get }
+
+    /// MCP Servers to include as tools
     var mcpServers: [MCPServerProxy] { get }
+
+    /// Handoffs that are available to the agent
     var handoffs: [any Handoff] { get }
+
+    /// An override to specify the model to be used
     var model: String? { get }
+
+    /// Model settings to apply
     var modelSettings: ModelSettings { get }
 
     /// Guardrails evaluated on the very first input before the agent loop.
@@ -221,17 +251,9 @@ public extension Agent {
 
             // Process results as they complete
             while let (callId, result) = try await group.next() {
-                // Convert result to string, handling strings directly to avoid extra quotes
-                let output: String
-                if let str = result as? String {
-                    output = str
-                } else {
-                    let encoder = JSONEncoder()
-                    //					encoder.outputFormatting = [.prettyPrinted]
-                    encoder.dateEncodingStrategy = .iso8601
-                    let jsonData = try encoder.encode(result)
-                    output = String(data: jsonData, encoding: .utf8)!
-                }
+                // Convert result to the model-visible string via the shared
+                // serializer (strings pass through to avoid extra quotes).
+                let output = try ToolOutputSerialization.string(from: result)
 
                 // Add to inputs for next round
                 let inputElement = Response.Input.Element.functionCallOutput(.init(callId: callId, output: output))
@@ -256,26 +278,12 @@ public extension Agent {
 
     private var handoffTools: [Tool] {
         handoffs.map { handoff in
-            let parameters: Parameters
-
-            if let schemaType = handoff.inputType.self as? SchemaRepresentable.Type {
-                let (props, required): ([String: JSONSchema], [String]) = schemaType.schemaMetadata.parameters
-                    .reduce(into: (
-                        [:],
-                        []
-                    )) { result, property in
-                        result.0[property.name] = property.schema
-                        if property.isRequired {
-                            result.1.append(property.name)
-                        }
-                    }
-
-                parameters = Parameters(
-                    properties: props,
-                    required: required
-                )
+            // `SchemaMetadata.schema` performs the shared properties/required
+            // reduction (and carries the type-level description along).
+            let parameters: JSONSchema = if let schemaType = handoff.inputType.self as? SchemaRepresentable.Type {
+                schemaType.schemaMetadata.schema
             } else {
-                parameters = .none
+                .object(.init(properties: [:], required: []))
             }
 
             return Tool.function(
@@ -283,7 +291,7 @@ public extension Agent {
                     name: handoff.toolName,
                     description: handoff.toolDescription,
                     parameters: parameters,
-                    strict: true
+                    strict: false
                 )
             )
         }

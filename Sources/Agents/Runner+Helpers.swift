@@ -39,16 +39,13 @@ extension Runner {
                 let serverName = await proxy.serverName
                 let mcpTools = try await proxy.listTools()
                 let myTools = mcpTools.map { mcpTool in
-                    let parameters: Parameters = if case let .object(object, _) = mcpTool.inputSchema {
-                        Parameters(properties: object.properties)
-                    } else {
-                        .none
-                    }
-                    return Tool.function(FunctionTool(
+                    // Pass the MCP tool's input schema through unmodified —
+                    // required, description, additionalProperties all survive.
+                    Tool.function(FunctionTool(
                         name: mcpTool.name,
                         description: mcpTool.description,
-                        parameters: parameters,
-                        strict: true
+                        parameters: mcpTool.inputSchema,
+                        strict: false
                     ))
                 }
                 let names = mcpTools.map(\.name)
