@@ -113,12 +113,6 @@ public extension OpenAI {
         //		let string = String(data: request.httpBody!, encoding: .utf8)!
         //		print("Request body: \(string)")
 
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 300
-        config.timeoutIntervalForResource = 300
-
-        let session = URLSession(configuration: config)
-
         let (data, response) = try await session.data(for: request)
 
         return try process(data: data, response: response)
@@ -218,11 +212,6 @@ public extension OpenAI {
             NSLog("[DEBUG] Request body:\n%@", body)
         }
 
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 600
-        config.timeoutIntervalForResource = 600
-        let streamSession = URLSession(configuration: config)
-
         let (asyncBytes, response) = try await streamSession.bytes(for: request)
         return try await processResponseEventStream(asyncBytes: asyncBytes, response: response)
     }
@@ -249,7 +238,7 @@ public extension OpenAI {
 
         let request = try createUrlRequest(path: "/v1/responses/\(id)", queryItems: queryItems)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         return try process(data: data, response: response)
     }
@@ -268,7 +257,7 @@ public extension OpenAI {
     func deleteResponse(id: String) async throws -> Bool {
         let request = try createUrlRequest(httpMethod: "DELETE", path: "/v1/responses/\(id)")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         let deletionStatus: DeletionStatus = try process(data: data, response: response)
 
@@ -324,7 +313,7 @@ public extension OpenAI {
 
         let request = try createUrlRequest(path: "/v1/responses/\(responseId)/input_items", queryItems: queryItems)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         return try process(data: data, response: response)
     }
@@ -340,97 +329,121 @@ public extension OpenAI {
 
      - Returns: An AsyncThrowingStream of ResponsesStreamEvent objects.
 
-     - Throws: An error if the response is invalid (non-200 status code), or if there's an issue parsing the JSON data.
+     - Throws: An error if the response is invalid (non-200 status code); the
+     returned stream itself throws on transport or decoding failures.
      */
     internal func processResponseEventStream(
         asyncBytes: URLSession.AsyncBytes,
         response: URLResponse
     ) async throws -> AsyncThrowingStream<ResponsesStreamEvent, Error> {
-        if let response = response as? HTTPURLResponse, response.statusCode != 200 {
-            // read until end
-            let data = try await asyncBytes.reduce(into: Data()) { partialResult, byte in
-                partialResult.append(byte)
-            }
-
+        try await throwIfStreamError(response: response, asyncBytes: asyncBytes) { data, httpResponse in
             if ProcessInfo.processInfo.environment["DEBUG_RESPONSES"] != nil {
-                let debugLine = "HTTP \(response.statusCode)\n\(String(data: data, encoding: .utf8) ?? "<binary>")\n\n"
+                let body = String(data: data, encoding: .utf8) ?? "<binary>"
+                let debugLine = "HTTP \(httpResponse.statusCode)\n\(body)\n\n"
                 let debugPath = "/tmp/agentcorp_responses.log"
                 try? debugLine.write(toFile: debugPath, atomically: false, encoding: .utf8)
-                NSLog("[DEBUG] Response error: HTTP %d — see %@", response.statusCode, debugPath)
+                NSLog("[DEBUG] Response error: HTTP %d — see %@", httpResponse.statusCode, debugPath)
             }
 
-            throw errorFromResponse(data: data, response: response)
+            return errorFromResponse(data: data, response: httpResponse)
         }
 
-        return AsyncThrowingStream { continuation in
-            Task {
-                var currentEvent = ""
+        return responsesEventStream(from: asyncBytes)
+    }
 
-                for try await line in asyncBytes.lines {
-                    if let range = line.range(of: "event: ") {
-                        currentEvent = String(line[range.upperBound...])
-                        continue
-                    }
+    /// Decodes SSE data payloads into `ResponsesStreamEvent`s.
+    ///
+    /// Framing runs through the shared spec-correct `SSEDataSequence`; the
+    /// event discriminator is read from each payload's top-level `type` field —
+    /// the same payload-driven dispatch the WebSocket transport uses, so both
+    /// channels share the one decode table in
+    /// `ResponsesStreamEvent.Object(type:json:decoder:)`. LM Studio `error`
+    /// events carry no top-level `type` (the name only ever appeared on the
+    /// `event:` line), so typeless payloads fall back to the wrapped
+    /// `ErrorResponse` shape. Generic over the byte source so the framing is
+    /// testable offline.
+    internal func responsesEventStream<Bytes: AsyncSequence & Sendable>(
+        from bytes: Bytes
+    ) -> AsyncThrowingStream<ResponsesStreamEvent, Error> where Bytes.Element == UInt8 {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await payload in SSEDataSequence(bytes: bytes) {
+                        if payload == SSE.doneSentinel {
+                            break
+                        }
 
-                    guard let range = line.range(of: "data: ") else {
-                        // Skip blank lines and other non-data lines (SSE separators)
-                        continue
-                    }
+                        let type = (try? self.decoder.decode(ResponsesSSETypeProbe.self, from: payload))?.type
 
-                    let jsonString = line[range.upperBound...]
-
-                    if jsonString == "[DONE]" {
-                        continuation.finish()
-                        return
-                    }
-
-                    let jsonData = jsonString.data(using: .utf8)!
-
-                    do {
                         // Dump raw SSE JSON to file if DEBUG_RESPONSES is set
                         if ProcessInfo.processInfo.environment["DEBUG_RESPONSES"] != nil {
-                            let debugLine = "event: \(currentEvent)\ndata: \(jsonString)\n\n"
-                            let debugPath = "/tmp/agentcorp_responses.log"
-                            if let handle = FileHandle(forWritingAtPath: debugPath) {
-                                handle.seekToEndOfFile()
-                                handle.write(debugLine.data(using: .utf8)!)
-                                handle.closeFile()
-                            } else {
-                                try? debugLine.write(toFile: debugPath, atomically: false, encoding: .utf8)
-                            }
+                            appendResponsesDebugDump(type: type, payload: payload)
                         }
 
-                        if let object = try ResponsesStreamEvent.Object(
-                            type: currentEvent,
-                            json: jsonData,
-                            decoder: self.decoder
-                        ) {
-                            continuation.yield(ResponsesStreamEvent(type: currentEvent, object: object))
-                        } else {
-                            // Unknown event type: silently ignore apply_patch
-                            // streaming deltas; warn for anything else (matches
-                            // this loop's historical behavior).
-                            if !currentEvent.hasPrefix("response.apply_patch_call") {
-                                print("Unknown event type '\(currentEvent)'")
+                        guard let type else {
+                            // LM Studio sends `error` events as a bare
+                            // `{"error": …}` wrapper without the top-level
+                            // `type` discriminator.
+                            if let wrapped = try? self.decoder.decode(ErrorResponse.self, from: payload) {
+                                continuation.yield(ResponsesStreamEvent(type: "error", object: .error(wrapped.error)))
                             }
+                            continue
                         }
-                    } catch {
-                        if ProcessInfo.processInfo.environment["DEBUG_RESPONSES"] != nil {
-                            NSLog(
-                                "[DEBUG] Decoding error for event '%@': %@\nJSON: %@",
-                                currentEvent,
-                                String(describing: error),
-                                String(jsonString)
-                            )
+
+                        do {
+                            if let object = try ResponsesStreamEvent.Object(
+                                type: type,
+                                json: payload,
+                                decoder: self.decoder
+                            ) {
+                                continuation.yield(ResponsesStreamEvent(type: type, object: object))
+                            } else if !type.hasPrefix("response.apply_patch_call") {
+                                // Unknown event type: silently ignore apply_patch
+                                // streaming deltas; warn for anything else (matches
+                                // this loop's historical behavior).
+                                print("Unknown event type '\(type)'")
+                            }
+                        } catch {
+                            if ProcessInfo.processInfo.environment["DEBUG_RESPONSES"] != nil {
+                                NSLog(
+                                    "[DEBUG] Decoding error for event '%@': %@\nJSON: %@",
+                                    type,
+                                    String(describing: error),
+                                    String(data: payload, encoding: .utf8) ?? "<binary>"
+                                )
+                            }
+                            throw error
                         }
-                        continuation.finish(throwing: error)
                     }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
                 }
-
-                // Stream ended naturally
-                continuation.finish()
             }
+
+            continuation.onTermination = { _ in task.cancel() }
         }
+    }
+}
+
+/// Tolerant probe for the payload's `type` discriminator. Optional because
+/// LM Studio `error` payloads don't carry one — they're handled by the
+/// `ErrorResponse` fallback in `responsesEventStream(from:)`.
+private struct ResponsesSSETypeProbe: Decodable {
+    let type: String?
+}
+
+/// Appends one SSE payload to the `DEBUG_RESPONSES` dump file, mirroring the
+/// wire's `event:`/`data:` framing at payload granularity.
+private func appendResponsesDebugDump(type: String?, payload: Data) {
+    let debugLine = "event: \(type ?? "")\ndata: \(String(data: payload, encoding: .utf8) ?? "<binary>")\n\n"
+    let debugPath = "/tmp/agentcorp_responses.log"
+    if let handle = FileHandle(forWritingAtPath: debugPath) {
+        handle.seekToEndOfFile()
+        handle.write(Data(debugLine.utf8))
+        handle.closeFile()
+    } else {
+        try? debugLine.write(toFile: debugPath, atomically: false, encoding: .utf8)
     }
 }
 

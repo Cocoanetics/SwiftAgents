@@ -14,65 +14,57 @@ import Foundation
 import SwiftMCP
 import SwiftCross
 
+/// Minimal probe for the `type` discriminator that every Anthropic stream
+/// payload carries (it always equals the SSE `event:` name).
+private struct AnthropicEventTypeProbe: Decodable {
+    let type: String
+}
+
 extension Anthropic {
-    /// Parses Anthropic's SSE byte stream into typed events. Each SSE block has
-    /// an `event: <name>` line followed by `data: <json>`. Unknown event
+    /// Parses Anthropic's SSE byte stream into typed events. Unknown event
     /// types come through as `.unknown(type:)` so callers can ignore them
     /// gracefully (Anthropic's docs warn that new event types may be added).
     func processAnthropicStream(
         asyncBytes: URLSession.AsyncBytes,
         response: URLResponse
     ) async throws -> AsyncThrowingStream<AnthropicStreamEvent, Error> {
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            // Drain the body so we can report the error properly.
-            let data = try await asyncBytes.reduce(into: Data()) { partialResult, byte in
-                partialResult.append(byte)
-            }
-            throw anthropicError(from: data, response: httpResponse)
-        }
+        try await throwIfStreamError(response: response, asyncBytes: asyncBytes, mapError: anthropicError)
 
+        return anthropicEventStream(from: asyncBytes)
+    }
+
+    /// Decodes SSE data payloads into `AnthropicStreamEvent`s.
+    ///
+    /// Framing runs through the shared spec-correct `SSEDataSequence`, which
+    /// surfaces only `data` payloads. That's sufficient here because Anthropic
+    /// mirrors each SSE `event:` name into the payload's top-level `type`
+    /// field (documented wire contract, including `{"type":"ping"}` and
+    /// `{"type":"message_stop"}`), so dispatch reads the discriminator from
+    /// the JSON. Generic over the byte source so the framing is testable
+    /// offline.
+    func anthropicEventStream<Bytes: AsyncSequence & Sendable>(
+        from bytes: Bytes
+    ) -> AsyncThrowingStream<AnthropicStreamEvent, Error> where Bytes.Element == UInt8 {
         let decoder = self.anthropicDecoder
         return AsyncThrowingStream { continuation in
-            Task {
-                var currentEvent = ""
-
+            let task = Task {
                 do {
-                    for try await line in asyncBytes.lines {
-                        // SSE framing has each field starting at column 0:
-                        // `event: NAME`, `data: JSON`, blank separator, or
-                        // `: comment`. Match by prefix only — substring
-                        // matching would misinterpret model output that
-                        // happens to contain the literal `event: ` or
-                        // `data: ` inside a JSON `data:` payload.
-                        if line.hasPrefix("event: ") {
-                            currentEvent = String(line.dropFirst("event: ".count))
-                            continue
-                        }
-                        guard line.hasPrefix("data: ") else {
-                            continue
-                        }
-                        let jsonString = line.dropFirst("data: ".count)
-                        guard let jsonData = String(jsonString).data(using: .utf8) else {
-                            continue
-                        }
-
-                        do {
-                            let event = try Anthropic.decode(
-                                eventName: currentEvent,
-                                data: jsonData,
-                                using: decoder
-                            )
-                            continuation.yield(event)
-                        } catch {
-                            continuation.finish(throwing: error)
-                            return
-                        }
+                    for try await payload in SSEDataSequence(bytes: bytes) {
+                        let type = try decoder.decode(AnthropicEventTypeProbe.self, from: payload).type
+                        let event = try Anthropic.decode(
+                            eventName: type,
+                            data: payload,
+                            using: decoder
+                        )
+                        continuation.yield(event)
                     }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
                 }
             }
+
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
