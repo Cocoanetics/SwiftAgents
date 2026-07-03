@@ -59,9 +59,10 @@ final class CodingAgent: Agent, @unchecked Sendable {
         let planNote = readOnly ? """
 
         You are in PLAN (read-only) mode. Do NOT modify anything: the bash, write,
-        edit, and apply_patch tools are disabled and will refuse. Explore with read,
-        ls, find, and grep, then propose a concrete plan of the changes you would
-        make. Tell the user to switch to code mode to carry the plan out.
+        edit, and apply_patch tools are disabled and will refuse, and external
+        (MCP) tools are withheld. Explore with read, ls, find, and grep, then
+        propose a concrete plan of the changes you would make. Tell the user to
+        switch to code mode to carry the plan out.
         """ : ""
         instructions = """
         You are \(role) working in: \(workingDirectory)

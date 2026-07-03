@@ -128,9 +128,17 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
         // The client re-supplies MCP servers on load; the persisted record keeps no
         // live handles, so reconnect them against the session's working directory.
         let (proxies, notice) = await Self.connectMCPServers(request.mcpServers, cwd: state.cwd)
+
+        // The rolling `lastResponseId` only resumes the conversation for providers
+        // that keep history server-side (OpenAI Responses, LM Studio). For stateless
+        // providers (Anthropic, Gemini, Ollama) the id can't rebuild context after a
+        // restart, so drop it and tell the client the model starts fresh — otherwise
+        // the replayed transcript below would imply a memory the model doesn't have.
+        let resumable = await Self.providerResumesFromResponseId(state.model)
         let live = LiveSession(
             cwd: state.cwd, model: state.model, modeId: state.modeId,
-            reasoningEffort: state.reasoningEffort, lastResponseId: state.lastResponseId,
+            reasoningEffort: state.reasoningEffort,
+            lastResponseId: resumable ? state.lastResponseId : nil,
             history: state.history, mcpProxies: proxies, mcpNotice: notice
         )
         lock.withLock { sessions[request.sessionId] = live }
@@ -141,6 +149,12 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
                 case .user: await session.update(.userMessageChunk(.text(turn.text)))
                 case .assistant: await session.sendText(turn.text)
             }
+        }
+        if !resumable, !state.history.isEmpty {
+            await session.sendText(
+                "\n_Note: \(state.model) keeps no server-side conversation state, so the "
+                    + "messages above aren't in my context after a restart — please restate "
+                    + "anything I need to carry forward._")
         }
 
         return LoadSessionResponse(
@@ -278,12 +292,16 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
             throw JSONRPCErrorBody(code: -32602, message: "Unknown session: \(session.id)")
         }
 
+        let planMode = snapshot.modeId == Self.planModeId
         let agent = CodingAgent(
             workingDirectory: snapshot.cwd,
-            readOnly: snapshot.modeId == Self.planModeId,
+            readOnly: planMode,
             reasoningEffort: Self.effort(from: snapshot.reasoningEffort),
             config: RunConfig(model: snapshot.model),
-            mcpServers: snapshot.mcpProxies
+            // Plan mode is read-only, so withhold the client's MCP servers too: their
+            // tools bypass `readOnly`/`ensureWritable` and a filesystem or shell MCP
+            // server could otherwise write files or run commands in "read-only" mode.
+            mcpServers: planMode ? [] : snapshot.mcpProxies
         )
         let result = Runner.runStreamed(
             agent: agent, input: text, maxTurns: 50,
@@ -432,6 +450,16 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
                 .object(["id": .string($0.id), "name": .string($0.name)])
             })
         ])]
+    }
+
+    /// Whether a turn on `model` can resume from a stored `lastResponseId` — true
+    /// only for providers that keep conversation history server-side (OpenAI
+    /// Responses, LM Studio). Defaults to `true` when the provider can't be resolved
+    /// (e.g. no key in the environment): such a session can't run a turn anyway, so
+    /// there's nothing to warn about.
+    private static func providerResumesFromResponseId(_ model: String) async -> Bool {
+        guard let api = try? await ProviderRegistry.shared.api(for: model) else { return true }
+        return api.statePolicy.supportsServerSideHistory
     }
 
     /// Map a stored reasoning-effort value to the model setting. `auto` (and any
