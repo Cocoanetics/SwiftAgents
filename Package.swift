@@ -81,7 +81,10 @@ let package = Package(
 		// client transports on JSONFoundation's shared JSON-RPC runtime. (For
 		// local sibling development, override with a path dependency — but keep
 		// the published URL committed so CI resolves.)
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.9.0", traits: ["Client"]),
+		// `.git` suffix matches SwiftACP's spelling of the same dependency —
+		// mixed spellings alias to one canonical identity but SwiftPM logs an
+		// info and the aliasing needlessly stresses the resolver.
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP.git", from: "1.9.0", traits: ["Client"]),
 		// SwiftACP has no tagged release yet; pin to `main` (mirrors SQLiteKit below).
 		// `traits: []` disables its default-on `Server` trait (the swift-nio
 		// TCP/Bonjour/HTTP-SSE transports used only by the acpxd daemon) — Coder
@@ -91,7 +94,15 @@ let package = Package(
 		// published remote reference to the same package identity (a path override
 		// would conflict). 2.5.0 ships the JSON value type, JSON Schema model,
 		// @Schema macro, and the shared JSON-RPC runtime.
-		.package(url: "https://github.com/Cocoanetics/JSONFoundation.git", from: "2.5.0"),
+		//
+		// The `Subprocess` trait is anchored HERE, not just via SwiftACP: in a
+		// product-scoped build (CI's `swift build --product Providers`), SwiftPM
+		// prunes SwiftACP from the graph, its trait enablement flips off, and
+		// the solver oscillates on swift-subprocess until it fails with
+		// "exhausted attempts to resolve the dependencies graph". Enabling the
+		// trait at the root keeps the dependency set stable across solver
+		// iterations. It links nothing into SwiftAgents' own targets.
+		.package(url: "https://github.com/Cocoanetics/JSONFoundation.git", from: "2.5.0", traits: ["Subprocess"]),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
 		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
