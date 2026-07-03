@@ -18,6 +18,14 @@ enum TestClients {
         return ProcessInfo.processInfo.environment[name]
     }
 
+    /// True only for an affirmative opt-in value — `1`, `true`, or `yes`
+    /// (case-insensitive). Mere presence must not count: CI templates
+    /// commonly ship `FLAG=0`/`false`, and the docs promise `=1` semantics.
+    private static func optedIn(_ name: String) -> Bool {
+        guard let value = env(name) else { return false }
+        return ["1", "true", "yes"].contains(value.lowercased())
+    }
+
     static var hasOllama: Bool {
         env("OLLAMA_URL") != nil
     }
@@ -35,7 +43,7 @@ enum TestClients {
     /// a raw `ProcessInfo` read in a `static let` evaluates before the
     /// `.env` load and silently skips the suite.
     static var runsOllamaTests: Bool {
-        env("RUN_OLLAMA_TESTS") != nil
+        optedIn("RUN_OLLAMA_TESTS")
     }
 
     /// Second-tier opt-in for live OpenAI suites that create, mutate, or
@@ -45,7 +53,7 @@ enum TestClients {
     /// server-side ingestion/convergence timing, so they want an explicit
     /// `LIVE_STATE_TESTS=1` next to `OPENAI_API_KEY`.
     static var runsHostedStateTests: Bool {
-        APIKey.hasOpenAI && env("LIVE_STATE_TESTS") != nil
+        APIKey.hasOpenAI && optedIn("LIVE_STATE_TESTS")
     }
 
     // MARK: - Local-server reachability
