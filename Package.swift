@@ -110,10 +110,7 @@ let package = Package(
 		// `traits: []` disables its default-on `Server` trait (the swift-nio
 		// TCP/Bonjour/HTTP-SSE transports used only by the acpxd daemon) — Coder
 		// serves ACP over stdio, and this keeps swift-nio/crypto out of the graph.
-		// Pinned to the session-controls branch until it merges to SwiftACP `main`
-		// (this Coder change depends on its session-aware set_mode/set_config_option
-		// API — see #32). Flip back to `branch: "main"` once that PR lands.
-		.package(url: "https://github.com/Cocoanetics/SwiftACP", branch: "claude/acp-session-controls", traits: []),
+		.package(url: "https://github.com/Cocoanetics/SwiftACP", branch: "main", traits: []),
 		// JSONFoundation by URL (not path) — matches SwiftMCP's and SwiftACP's
 		// published remote reference to the same package identity (a path override
 		// would conflict). 2.5.0 ships the JSON value type, JSON Schema model,
