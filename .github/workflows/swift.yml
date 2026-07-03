@@ -175,10 +175,15 @@ jobs:
     # runs the offline subset in an emulator (key-gated live-API tests skip
     # without secrets). skiptools builds with `swift build --build-tests`,
     # which is mutually exclusive with `--target`; ProvidersTests is the only
-    # test target, so the build already covers just it + its library graph
-    # (not SwiftMCP's demo executables). `--filter ProvidersTests` scopes the
-    # emulator run. Android also relied on SwiftMCP's `os(Linux)` →
-    # `canImport(FoundationNetworking)` client fix (NIO itself builds here).
+    # test target so the cross-compile covers it + its library graph — but
+    # SwiftMCP's `SwiftMCPAggregator` build-tool executable still builds for
+    # the HOST, where its swift-syntax dependency can race (a transient
+    # `no such module 'SwiftSyntax'` that the build recovers from; benign as
+    # long as the overall exit is 0). Android is `os(Android)`, not
+    # `os(Linux)`: SwiftACP's stdio server doesn't exist here, so Coder's
+    # `acp` subcommand compiles out (see Examples/Coder/Coder.swift), and
+    # SwiftMCP's client needed the `os(Linux)` →
+    # `canImport(FoundationNetworking)` fix (NIO itself builds here).
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
