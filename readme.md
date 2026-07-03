@@ -77,6 +77,13 @@ Tests and the bundled CLI look for these environment variables. The test suite l
 | `LMSTUDIO_MODEL`    | Model pin for the LM Studio live tests (tool calls, structured output) |
 | `LMSTUDIO_EMBED_MODEL` | Embedding model for the hybrid-search live tests (default `text-embedding-nomic-embed-text-v1.5`) |
 | `LMSTUDIO_VISION_MODEL` | Vision model for the LM Studio image-input tests |
+| `LOCAL_LLM_URL`     | Generic OpenAI-compatible local server for the embedding live tests |
+| `RUN_OLLAMA_TESTS`  | Set to `1` to opt into the live Ollama chat suites (also needs a reachable `OLLAMA_URL`) |
+| `LIVE_STATE_TESTS`  | Set to `1` to opt into live tests that mutate hosted OpenAI state (vector stores, conversations — also needs `OPENAI_API_KEY`) |
+
+Local-server suites (LM Studio, Ollama, `LOCAL_LLM_URL`) additionally probe
+reachability and skip when nothing is listening, so an offline `swift test`
+passes with keys configured.
 
 A `.env.example` is provided; copy it to `.env` and fill in your keys. `.env` is gitignored.
 
