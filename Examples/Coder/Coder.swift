@@ -177,6 +177,10 @@ private func makeSessionFileURL() -> URL {
 /// `coder acp` — serve over the Agent Client Protocol on stdio, for ACP clients
 /// (Zed, acpx, …). The handshake succeeds without a key; a missing
 /// `OPENAI_API_KEY` then surfaces as a normal turn error to the client.
+///
+/// Gated to the platforms where SwiftACP's `ACPAgentServer.serveStdio` exists
+/// (Android is `os(Android)`, not `os(Linux)`, and has no stdio server).
+#if os(macOS) || os(Linux) || os(Windows)
 struct Acp: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "acp",
@@ -204,13 +208,20 @@ struct Acp: AsyncParsableCommand {
         )
     }
 }
+#endif
 
 @main
 struct Coder: AsyncParsableCommand {
+    #if os(macOS) || os(Linux) || os(Windows)
     static let configuration = CommandConfiguration(
         abstract: "A bare-bones coding agent.",
         subcommands: [Acp.self]
     )
+    #else
+    static let configuration = CommandConfiguration(
+        abstract: "A bare-bones coding agent."
+    )
+    #endif
 
     @Option(name: [.short, .long], help: "Working directory (default: current directory)")
     var directory: String?

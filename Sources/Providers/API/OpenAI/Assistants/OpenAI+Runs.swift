@@ -119,100 +119,118 @@ extension OpenAI {
 
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: runCreation)
 
-        let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+        let (asyncBytes, response) = try await streamSession.bytes(for: request)
         return try await processEventStream(asyncBytes: asyncBytes, response: response)
     }
 
     /**
-     Processes an asynchronous byte stream from a URLSession and returns a `ChatCompletionResponse`.
+     Turns the Assistants SSE byte stream into a stream of `StreamEvent`s.
 
      - Parameters:
      - asyncBytes: The asynchronous byte stream from the URLSession.
      - response: The HTTP URL response associated with the request.
 
-     - Returns: A `ChatCompletionResponse` object parsed from the asynchronous byte stream.
+     - Returns: An `AsyncThrowingStream` of `StreamEvent` objects, finishing
+     when the server sends the `[DONE]` sentinel or closes the stream.
 
-     - Throws: An error if the response is invalid (non-200 status code), or if there's an issue parsing the JSON data.
-
-     - Note: This function assumes that the API call returns a continuous stream of JSON strings, each representing a `Chunk` object. The function aggregates these `Chunk` objects into a single `ChatCompletionResponse`.
+     - Throws: An error if the response is invalid (non-200 status code); the
+     returned stream itself throws on transport or decoding failures.
 
      */
     func processEventStream(
         asyncBytes: URLSession.AsyncBytes,
         response: URLResponse
     ) async throws -> AsyncThrowingStream<StreamEvent, Error> {
-        if let response = response as? HTTPURLResponse, response.statusCode != 200 {
-            // read until end
-            let data = try await asyncBytes.reduce(into: Data()) { partialResult, byte in
-                partialResult.append(byte)
-            }
+        try await throwIfStreamError(response: response, asyncBytes: asyncBytes, mapError: errorFromResponse)
 
-            throw errorFromResponse(data: data, response: response)
-        }
+        return assistantEventStream(from: asyncBytes.lines)
+    }
 
-        return AsyncThrowingStream { continuation in
-            Task {
+    /// Parses Assistants SSE lines into `StreamEvent`s. The Assistants
+    /// dispatch is event-name-driven (`event: thread.run.requires_action` …)
+    /// and the payloads' `object` field doesn't carry the fully-qualified
+    /// event name, so this loop keeps line-level framing — prefix matching,
+    /// tolerant of blank/comment lines — instead of the payload-driven
+    /// dispatch the other SSE surfaces use. Generic over the line source so
+    /// the framing is testable offline.
+    func assistantEventStream<Lines: AsyncSequence & Sendable>(
+        from lines: Lines
+    ) -> AsyncThrowingStream<StreamEvent, Error> where Lines.Element == String {
+        AsyncThrowingStream { continuation in
+            let task = Task {
                 var currentEvent = ""
 
-                for try await line in asyncBytes.lines {
-                    print(line)
+                do {
+                    for try await line in lines {
+                        if line.hasPrefix("event: ") {
+                            currentEvent = String(line.dropFirst("event: ".count))
+                            continue
+                        }
 
-                    if let range = line.range(of: "event: ") {
-                        currentEvent = String(line[range.upperBound...])
-                        continue
-                    }
+                        guard line.hasPrefix("data: ") else {
+                            // Skip blank lines, comments and other fields
+                            // (SSE separators).
+                            continue
+                        }
 
-                    guard let range = line.range(of: "data: ") else {
-                        throw APIError.apiError("Didn't get data at beginning of line")
-                    }
+                        let jsonString = line.dropFirst("data: ".count)
 
-                    let jsonString = line[range.upperBound...]
+                        if jsonString == "[DONE]" {
+                            break
+                        }
 
-                    if jsonString == "[DONE]" {
-                        continuation.finish()
-                        return
-                    }
-
-                    let jsonData = jsonString.data(using: .utf8)!
-
-                    do {
-                        if currentEvent.hasPrefix("thread.message.delta") {
-                            let messageDelta = try self.decoder.decode(ThreadMessageDelta.self, from: jsonData)
-                            let event = StreamEvent(type: currentEvent, object: .messageDelta(messageDelta))
-                            continuation.yield(event)
-                        } else if currentEvent.hasPrefix("thread.run.step.delta") {
-                            let runStepDelta = try self.decoder.decode(RunStepDelta.self, from: jsonData)
-                            let event = StreamEvent(type: currentEvent, object: .runStepDelta(runStepDelta))
-                            continuation.yield(event)
-                        } else if currentEvent.hasPrefix("thread.run.step") {
-                            let runStep = try self.decoder.decode(RunStep.self, from: jsonData)
-                            let event = StreamEvent(type: currentEvent, object: .runStep(runStep))
-                            continuation.yield(event)
-                        } else if currentEvent.hasPrefix("thread.run") {
-                            let run = try self.decoder.decode(Run.self, from: jsonData)
-                            let event = StreamEvent(type: currentEvent, object: .run(run))
-                            continuation.yield(event)
-                        } else if currentEvent.hasPrefix("thread.message") {
-                            let message = try self.decoder.decode(Message.self, from: jsonData)
-                            let event = StreamEvent(type: currentEvent, object: .message(message))
-                            continuation.yield(event)
-                        } else if currentEvent.hasPrefix("thread") {
-                            let thread = try self.decoder.decode(Thread.self, from: jsonData)
-                            let event = StreamEvent(type: currentEvent, object: .thread(thread))
-                            continuation.yield(event)
-                        } else if currentEvent.hasPrefix("error") {
-                            let error = try self.decoder.decode(ErrorDetail.self, from: jsonData)
-                            let event = StreamEvent(type: currentEvent, object: .error(error))
+                        if let event = try OpenAI.decodeAssistantEvent(
+                            named: currentEvent,
+                            data: Data(jsonString.utf8),
+                            using: self.decoder
+                        ) {
                             continuation.yield(event)
                         } else {
                             print("Unknown event type '\(currentEvent)'")
                         }
-                    } catch {
-                        continuation.finish(throwing: error)
                     }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
                 }
             }
+
+            continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// Decodes a single Assistants SSE event by name, or `nil` for event
+    /// types this SDK doesn't model. Dispatch is on the event-name prefix,
+    /// from most to least specific.
+    static func decodeAssistantEvent(
+        named eventName: String,
+        data: Data,
+        using decoder: JSONDecoder
+    ) throws -> StreamEvent? {
+        if eventName.hasPrefix("thread.message.delta") {
+            let messageDelta = try decoder.decode(ThreadMessageDelta.self, from: data)
+            return StreamEvent(type: eventName, object: .messageDelta(messageDelta))
+        } else if eventName.hasPrefix("thread.run.step.delta") {
+            let runStepDelta = try decoder.decode(RunStepDelta.self, from: data)
+            return StreamEvent(type: eventName, object: .runStepDelta(runStepDelta))
+        } else if eventName.hasPrefix("thread.run.step") {
+            let runStep = try decoder.decode(RunStep.self, from: data)
+            return StreamEvent(type: eventName, object: .runStep(runStep))
+        } else if eventName.hasPrefix("thread.run") {
+            let run = try decoder.decode(Run.self, from: data)
+            return StreamEvent(type: eventName, object: .run(run))
+        } else if eventName.hasPrefix("thread.message") {
+            let message = try decoder.decode(Message.self, from: data)
+            return StreamEvent(type: eventName, object: .message(message))
+        } else if eventName.hasPrefix("thread") {
+            let thread = try decoder.decode(Thread.self, from: data)
+            return StreamEvent(type: eventName, object: .thread(thread))
+        } else if eventName.hasPrefix("error") {
+            let error = try decoder.decode(ErrorDetail.self, from: data)
+            return StreamEvent(type: eventName, object: .error(error))
+        }
+
+        return nil
     }
 
     /**
@@ -251,7 +269,7 @@ extension OpenAI {
 
         let request = try createUrlRequest(path: "/v1/threads/\(threadId)/runs", queryItems: queryItems)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         return try process(data: data, response: response)
     }
@@ -270,7 +288,7 @@ extension OpenAI {
     func retrieveRun(threadId: String, runId: String) async throws -> Run {
         let request = try createUrlRequest(path: "/v1/threads/\(threadId)/runs/\(runId)")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         return try process(data: data, response: response)
     }
@@ -299,7 +317,7 @@ extension OpenAI {
             body: body
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         return try process(data: data, response: response)
     }
@@ -319,7 +337,7 @@ extension OpenAI {
         let endpoint = "/v1/threads/\(threadId)/runs/\(runId)/cancel"
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         return try process(data: data, response: response)
     }
@@ -349,7 +367,7 @@ extension OpenAI {
         let submission = ToolOutputsSubmission(toolOutputs: toolOutputs, stream: false)
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: submission)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         return try process(data: data, response: response)
     }
@@ -369,7 +387,7 @@ extension OpenAI {
         let submission = ToolOutputsSubmission(toolOutputs: toolOutputs, stream: true)
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: submission)
 
-        let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+        let (asyncBytes, response) = try await streamSession.bytes(for: request)
         return try await processEventStream(asyncBytes: asyncBytes, response: response)
     }
 

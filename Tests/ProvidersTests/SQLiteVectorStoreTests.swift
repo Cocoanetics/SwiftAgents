@@ -562,11 +562,11 @@ struct SQLiteVectorStoreTests {
     }
     #endif
 
-    // MARK: - OpenAI (gated on OPENAI_API_KEY)
+    // MARK: - OpenAI (gated on OPENAI_API_KEY + LIVE_STATE_TESTS=1)
 
     @Test(
         "Semantic search over real OpenAI embeddings",
-        .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY")
+        LiveGate.openAIState
     )
     func openAISemanticSearch() async throws {
         let store = try SQLiteVectorStore(embeddingProvider: try TestClients.openAI())

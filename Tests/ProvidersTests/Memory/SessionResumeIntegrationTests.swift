@@ -4,8 +4,8 @@
 //
 //  End-to-end exercise of the Session abstraction: a session is passed to
 //  two consecutive `Runner.run` calls and the second turn references
-//  context provided in the first. Gated on OPENAI_API_KEY so it doesn't
-//  block PRs without keys.
+//  context provided in the first. Gated on OPENAI_API_KEY plus
+//  LIVE_STATE_TESTS=1 so it doesn't block PRs without keys.
 //
 
 import Foundation
@@ -17,7 +17,7 @@ import Testing
 struct SessionResumeIntegrationTests {
     @Test(
         "Session preserves context across consecutive Runner.run calls",
-        .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY")
+        LiveGate.openAIState
     )
     func sessionResumesAcrossRuns() async throws {
         let agent = BasicAgent(
@@ -60,7 +60,7 @@ struct SessionResumeIntegrationTests {
 
     @Test(
         "Scalar previousResponseId resume: lastResponseId from one run chains the next",
-        .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY")
+        LiveGate.openAIState
     )
     func scalarResumeViaLastResponseId() async throws {
         let agent = BasicAgent(

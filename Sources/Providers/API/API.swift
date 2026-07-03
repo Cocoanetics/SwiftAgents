@@ -21,6 +21,13 @@ open class API: @unchecked Sendable {
     package let endpointURL: URL
     let session: URLSession
 
+    /// Session for the SSE streaming endpoints. Kept separate from `session`
+    /// because that one caps the *total* response load at 360 s
+    /// (`timeoutIntervalForResource`), which would hard-kill long generations
+    /// mid-stream. Both timeouts here are 600 s, matching the dedicated
+    /// stream sessions the Responses and Anthropic paths use.
+    let streamSession: URLSession
+
     let versionPath: String
 
     /// How the Runner should handle conversation state and tracing for this
@@ -95,9 +102,6 @@ open class API: @unchecked Sendable {
         }
     }
 
-    public var streamingChunkHandler: (Chunk) -> Void = { _ in
-    }
-
     /// Authorizes outgoing requests. Providers set this from their initializer
     /// (an API key becomes the matching ``Credential``); it stays settable so a
     /// caller can swap in OAuth or other credentials afterward.
@@ -118,6 +122,15 @@ open class API: @unchecked Sendable {
 
         // Create a URLSession with the configuration
         session = URLSession(configuration: configuration)
+
+        // Streaming needs a generous *resource* timeout: the request timeout
+        // only bounds idle time between bytes, but the resource timeout caps
+        // the whole transfer — a long generation would be cut off mid-stream
+        // by the 360 s above.
+        let streamConfiguration = URLSessionConfiguration.default
+        streamConfiguration.timeoutIntervalForRequest = 600
+        streamConfiguration.timeoutIntervalForResource = 600
+        streamSession = URLSession(configuration: streamConfiguration)
     }
 
     // MARK: - Models
@@ -202,38 +215,9 @@ open class API: @unchecked Sendable {
         let endpoint = "/\(versionPath)/chat/completions"
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: chatCompletionRequest)
 
-        // logHttpRequest(request)
-
         let (data, response) = try await session.data(for: request)
 
         return try process(data: data, response: response)
-    }
-
-    func logHttpRequest(_ request: URLRequest) {
-        // Log the HTTP method and URL
-        let httpMethod = request.httpMethod ?? "UNKNOWN METHOD"
-        let url = request.url?.absoluteString ?? "UNKNOWN URL"
-        NSLog("HTTP Request: %@ %@", httpMethod, url)
-
-        // Log headers
-        if let headers = request.allHTTPHeaderFields {
-            NSLog("Headers: %@", headers.description)
-        } else {
-            NSLog("No headers")
-        }
-
-        // Log the body
-        if let body = request.httpBody,
-            let json = try? JSONSerialization.jsonObject(with: body, options: []),
-            let prettyJsonData = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted]),
-            let prettyJsonString = String(data: prettyJsonData, encoding: .utf8) {
-            NSLog("Body: %@", prettyJsonString)
-        } else if let body = request.httpBody,
-            let plainText = String(data: body, encoding: .utf8) {
-            NSLog("Body: %@", plainText)
-        } else {
-            NSLog("No body or unreadable body")
-        }
     }
 
     /**
@@ -308,7 +292,7 @@ open class API: @unchecked Sendable {
         let endpoint = "/\(versionPath)/chat/completions"
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: chatCompletionRequest)
 
-        let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+        let (asyncBytes, response) = try await streamSession.bytes(for: request)
         return try await processStream(asyncBytes: asyncBytes, response: response)
     }
 
@@ -446,11 +430,7 @@ open class API: @unchecked Sendable {
         rateLimit = RateLimit(response: response)
 
         if response.statusCode == 200 {
-            do {
-                return try decoder.decode(C.self, from: data)
-            } catch {
-                throw error
-            }
+            return try decoder.decode(C.self, from: data)
         } else {
             throw errorFromResponse(data: data, response: response)
         }
@@ -471,252 +451,59 @@ open class API: @unchecked Sendable {
     }
 
     /**
-     Processes an asynchronous byte stream from a URLSession and returns a `ChatCompletionResponse`.
+     Turns the SSE byte stream of a streaming chat-completion request into a
+     stream of `Chunk`s.
 
      - Parameters:
      - asyncBytes: The asynchronous byte stream from the URLSession.
      - response: The HTTP URL response associated with the request.
 
-     - Returns: A `ChatCompletionResponse` object parsed from the asynchronous byte stream.
+     - Returns: An `AsyncThrowingStream` of `Chunk` objects, finishing when the
+     server sends the `[DONE]` sentinel or closes the stream.
 
-     - Throws: An error if the response is invalid (non-200 status code), or if there's an issue parsing the JSON data.
-
-     - Note: This function assumes that the API call returns a continuous stream of JSON strings, each representing a `Chunk` object. The function aggregates these `Chunk` objects into a single `ChatCompletionResponse`.
-
-     */
-    fileprivate func process(
-        asyncBytes: URLSession.AsyncBytes,
-        response: URLResponse
-    ) async throws -> ChatCompletionResponse {
-        guard let response = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        rateLimit = RateLimit(response: response)
-
-        guard response.statusCode == 200 else {
-            // read until end
-            let data = try await asyncBytes.reduce(into: Data()) { partialResult, byte in
-                partialResult.append(byte)
-            }
-
-            throw errorFromResponse(data: data, response: response)
-        }
-
-        var chatReponse: ChatCompletionResponse!
-
-        var choiceToolCalls = [Int: [Int: ToolCallDelta]]()
-
-        for try await line in asyncBytes.lines {
-            guard let range = line.range(of: "data: ") else {
-                throw APIError.apiError("Didn't get data at beginning of line")
-            }
-
-            let jsonString = line[range.upperBound...]
-
-            if jsonString == "[DONE]" {
-                break
-            }
-
-            let jsonData = jsonString.data(using: .utf8)!
-
-            let assembler = ChatCompletionAssembler()
-
-            do {
-                let chunk = try decoder.decode(Chunk.self, from: jsonData)
-                assembler.processChunk(chunk)
-
-                streamingChunkHandler(chunk)
-
-                if chatReponse == nil {
-                    let choices = chunk.choices.map { chunkChoice in
-                        let message = ChatMessage(
-                            role: chunkChoice.delta.role ?? .assistant,
-                            content: chunkChoice.delta.content.map { .text($0) }
-                        )
-                        return ChatCompletionResponse.Choice(
-                            message: message,
-                            finishReason: chunkChoice.finishReason,
-                            index: chunkChoice.index
-                        )
-                    }
-
-                    chatReponse = ChatCompletionResponse(
-                        id: chunk.id,
-                        object: "chat.completion",
-                        created: chunk.created,
-                        model: chunk.model,
-                        usage: nil,
-                        choices: choices
-                    )
-                } else {
-                    let updatedChoices = chatReponse.choices.map { choice in
-                        guard let chunkChoice = chunk.choices.first(where: { $0.index == choice.index }) else {
-                            // no matching chunk choice, return unchanged
-                            return choice
-                        }
-
-                        var message = choice.message
-
-                        let delta = chunkChoice.delta
-
-                        if let deltaMsg = delta.content {
-                            let existing = message.textContent ?? ""
-                            message.content = .text(existing + deltaMsg)
-                        }
-
-                        return ChatCompletionResponse.Choice(
-                            message: message,
-                            finishReason: choice.finishReason ?? chunkChoice.finishReason,
-                            index: choice.index
-                        )
-                    }
-
-                    chatReponse.choices = updatedChoices
-                }
-
-                // update tools for all choices
-
-                for choice in chunk.choices {
-                    var choiceCalls = choiceToolCalls[choice.index] ?? [:]
-
-                    for tool in choice.delta.toolCalls ?? [] {
-                        guard let toolIndex = tool.index else {
-                            continue
-                        }
-
-                        if var priorTool = choiceCalls[toolIndex] {
-                            // update priorTool where there are values
-
-                            if let id = tool.id {
-                                priorTool.id = priorTool.id ?? "" + id
-                            }
-
-                            if let newFunction = tool.function {
-                                if var priorFunction = priorTool.function {
-                                    if let arguments = newFunction.arguments {
-                                        priorFunction.arguments = (priorFunction.arguments ?? "") + arguments
-                                    }
-
-                                    priorTool.function = priorFunction
-
-                                } else {
-                                    priorTool.function = tool.function
-                                }
-                            }
-
-                            choiceCalls[toolIndex] = priorTool
-                        } else {
-                            choiceCalls[toolIndex] = tool
-                        }
-                    }
-
-                    choiceToolCalls[choice.index] = choiceCalls
-                }
-
-            } catch {
-                print(error)
-            }
-        }
-
-        let updatedChoices: [ChatCompletionResponse.Choice] = chatReponse.choices.map { oldChoice in
-            let choiceCalls = choiceToolCalls[oldChoice.index] ?? [:]
-
-            let sortedToolCalls = choiceCalls.values.sorted { ($0.index ?? Int.max) < ($1.index ?? Int.max) }
-
-            let toolCalls = sortedToolCalls.compactMap { toolCallDelta in
-                if let id = toolCallDelta.id,
-                    let type = toolCallDelta.type,
-                    let function = toolCallDelta.function,
-                    let name = function.name,
-                    let arguments = function.arguments {
-                    let newFunction = FunctionCall(name: name, arguments: arguments)
-                    return ToolCall(id: id, type: type, function: newFunction)
-                }
-
-                return nil
-            }
-
-            var updatedMessage = oldChoice.message
-
-            if toolCalls.isEmpty {
-                updatedMessage.toolCalls = nil
-            } else {
-                updatedMessage.toolCalls = toolCalls
-            }
-
-            return ChatCompletionResponse.Choice(
-                message: updatedMessage,
-                finishReason: oldChoice.finishReason,
-                index: oldChoice.index
-            )
-        }
-
-        chatReponse.choices = updatedChoices
-
-        return chatReponse
-    }
-
-    /**
-     Processes an asynchronous byte stream from a URLSession and returns a `ChatCompletionResponse`.
-
-     - Parameters:
-     - asyncBytes: The asynchronous byte stream from the URLSession.
-     - response: The HTTP URL response associated with the request.
-
-     - Returns: A `ChatCompletionResponse` object parsed from the asynchronous byte stream.
-
-     - Throws: An error if the response is invalid (non-200 status code), or if there's an issue parsing the JSON data.
-
-     - Note: This function assumes that the API call returns a continuous stream of JSON strings, each representing a `Chunk` object. The function aggregates these `Chunk` objects into a single `ChatCompletionResponse`.
+     - Throws: An error if the response is invalid (non-200 status code); the
+     returned stream itself throws on transport or decoding failures.
 
      */
     func processStream(
         asyncBytes: URLSession.AsyncBytes,
         response: URLResponse
     ) async throws -> AsyncThrowingStream<Chunk, Error> {
-        guard let response = response as? HTTPURLResponse else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
 
-        rateLimit = RateLimit(response: response)
+        rateLimit = RateLimit(response: httpResponse)
 
-        guard response.statusCode == 200 else {
-            // read until end
-            let data = try await asyncBytes.reduce(into: Data()) { partialResult, byte in
-                partialResult.append(byte)
-            }
+        try await throwIfStreamError(response: response, asyncBytes: asyncBytes, mapError: errorFromResponse)
 
-            throw errorFromResponse(data: data, response: response)
-        }
+        return chunkStream(from: asyncBytes)
+    }
 
-        return AsyncThrowingStream { continuation in
-            Task {
+    /// Decodes SSE data payloads into chat-completion `Chunk`s. Framing runs
+    /// through the shared spec-correct `SSEDataSequence` (comments and blank
+    /// lines that proxies like OpenRouter or LiteLLM interleave are tolerated).
+    /// Generic over the byte source so the framing is testable offline.
+    func chunkStream<Bytes: AsyncSequence & Sendable>(
+        from bytes: Bytes
+    ) -> AsyncThrowingStream<Chunk, Error> where Bytes.Element == UInt8 {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await payload in SSEDataSequence(bytes: bytes) {
+                        if payload == SSE.doneSentinel {
+                            break
+                        }
 
-                for try await line in asyncBytes.lines {
-                    // print(line)
-
-                    guard let range = line.range(of: "data: ") else {
-                        throw APIError.apiError("Didn't get data at beginning of line")
+                        continuation.yield(try self.decoder.decode(Chunk.self, from: payload))
                     }
-
-                    let jsonString = line[range.upperBound...]
-
-                    if jsonString == "[DONE]" {
-                        continuation.finish()
-                        return
-                    }
-
-                    let jsonData = jsonString.data(using: .utf8)!
-
-                    do {
-                        let chunk = try self.decoder.decode(Chunk.self, from: jsonData)
-                        continuation.yield(chunk)
-                    } catch {
-                        continuation.finish(throwing: error)
-                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
                 }
             }
+
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 }

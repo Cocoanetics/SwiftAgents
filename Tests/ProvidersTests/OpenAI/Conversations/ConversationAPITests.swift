@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 struct ConversationAPITests {
-    @Test("Conversation can be created and retrieved", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Conversation can be created and retrieved", LiveGate.openAIState)
     func conversationLifecycle() async throws {
         let openAI = try TestClients.openAI()
         let conversation = try await openAI.createConversation(
@@ -20,7 +20,7 @@ struct ConversationAPITests {
         _ = try? await openAI.deleteConversation(id: conversation.id)
     }
 
-    @Test("Conversation metadata can be updated", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Conversation metadata can be updated", LiveGate.openAIState)
     func conversationUpdate() async throws {
         let openAI = try TestClients.openAI()
         let conversation = try await openAI.createConversation(
@@ -39,7 +39,7 @@ struct ConversationAPITests {
         _ = try? await openAI.deleteConversation(id: conversation.id)
     }
 
-    @Test("Conversation can be deleted", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Conversation can be deleted", LiveGate.openAIState)
     func conversationDeletion() async throws {
         let openAI = try TestClients.openAI()
         let conversation = try await openAI.createConversation()
@@ -48,7 +48,7 @@ struct ConversationAPITests {
         #expect(deleted == true)
     }
 
-    @Test("Conversation items can be created and listed", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Conversation items can be created and listed", LiveGate.openAIState)
     func conversationItemsLifecycle() async throws {
         let openAI = try TestClients.openAI()
         let conversation = try await openAI.createConversation()
@@ -80,7 +80,7 @@ struct ConversationAPITests {
         _ = try? await openAI.deleteConversation(id: conversation.id)
     }
 
-    @Test("Conversation item can be retrieved", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Conversation item can be retrieved", LiveGate.openAIState)
     func conversationItemRetrieval() async throws {
         let openAI = try TestClients.openAI()
         let conversation = try await openAI.createConversation(items: [
@@ -101,7 +101,7 @@ struct ConversationAPITests {
         _ = try? await openAI.deleteConversation(id: conversation.id)
     }
 
-    @Test("Response attached to conversation persists items", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Response attached to conversation persists items", LiveGate.openAIState)
     func conversationWithResponse() async throws {
         let openAI = try TestClients.openAI()
         let conversation = try await openAI.createConversation()
@@ -130,7 +130,7 @@ struct ConversationAPITests {
         _ = try? await openAI.deleteConversation(id: conversation.id)
     }
 
-    @Test("Conversation item can be deleted", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Conversation item can be deleted", LiveGate.openAIState)
     func conversationItemDeletion() async throws {
         let openAI = try TestClients.openAI()
         let conversation = try await openAI.createConversation(items: [

@@ -9,7 +9,7 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import SwiftMCP
+import JSONFoundation
 
 /// User-facing image configuration for Gemini image generation.
 public struct GoogleImageConfig: Sendable {
@@ -180,16 +180,6 @@ public class GoogleAPI: API, @unchecked Sendable {
         let endpoint = "v1beta/models/\(model):generateContent"
         let urlRequest = try createUrlRequest(httpMethod: "POST", path: endpoint, body: request)
 
-        // Save request JSON with timestamp
-        let timestamp = Int(Date().timeIntervalSince1970)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if let requestData = try? encoder.encode(request),
-            let requestString = String(data: requestData, encoding: .utf8) {
-            let requestURL = URL(fileURLWithPath: "/tmp/google_request_\(timestamp).json")
-            try? requestString.write(to: requestURL, atomically: true, encoding: .utf8)
-        }
-
         let (data, response) = try await session.data(for: urlRequest)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -206,31 +196,7 @@ public class GoogleAPI: API, @unchecked Sendable {
             throw APIError.otherError("\(httpResponse.statusCode)", message)
         }
 
-        // Save response JSON with same timestamp
-        if let responseString = String(data: data, encoding: .utf8) {
-            let responseURL = URL(fileURLWithPath: "/tmp/google_response_\(timestamp).json")
-            try? responseString.write(to: responseURL, atomically: true, encoding: .utf8)
-        }
-
-        let responsePayload = try decoder.decode(GoogleGenerateContentResponse.self, from: data)
-
-        // Extract and save images from response
-        for (index, candidate) in responsePayload.candidates.enumerated() {
-            guard let content = candidate.content else { continue }
-
-            for (partIndex, part) in content.parts.enumerated() {
-                if let inlineData = part.inlineData {
-                    let fileExtension = inlineData.mimeType.preferredFilenameExtension() ?? "png"
-
-                    let filename =
-                        "google_response_\(timestamp)_candidate\(index)_part\(partIndex).\(fileExtension)"
-                    let imageURL = URL(fileURLWithPath: "/tmp/\(filename)")
-                    try? inlineData.data.write(to: imageURL)
-                }
-            }
-        }
-
-        return responsePayload
+        return try decoder.decode(GoogleGenerateContentResponse.self, from: data)
     }
 
     override public func createChatCompletionStream(
@@ -571,34 +537,23 @@ public class GoogleAPI: API, @unchecked Sendable {
     /// encoded; the caller falls back to no schema in that case.
     private func geminiCompatibleSchema(_ schema: JSONSchema) -> JSONValue? {
         guard let value = try? JSONValue(encoding: schema) else { return nil }
-        return stripGeminiIncompatibleKeys(value)
+        return value.removingKeys(Self.geminiDisallowedKeys)
     }
 
-    /// Drop keys Gemini's schema subset rejects, recursively. Documented
-    /// at https://ai.google.dev/api/caching#Schema — the @Schema macro
-    /// emits `additionalProperties: false` by default which is the
-    /// practical concern; the rest are belt-and-braces.
-    private func stripGeminiIncompatibleKeys(_ value: JSONValue) -> JSONValue {
-        let disallowed: Set<String> = [
-            "additionalProperties",
-            "$schema",
-            "definitions",
-            "$defs",
-            "patternProperties"
-        ]
-        switch value {
-            case let .object(dict):
-                var sanitised: [String: JSONValue] = [:]
-                for (key, child) in dict where !disallowed.contains(key) {
-                    sanitised[key] = stripGeminiIncompatibleKeys(child)
-                }
-                return .object(sanitised)
-            case let .array(items):
-                return .array(items.map(stripGeminiIncompatibleKeys))
-            default:
-                return value
-        }
-    }
+    /// Keys Gemini's schema subset rejects, dropped recursively via
+    /// `JSONValue.removingKeys(_:)`. Documented at
+    /// https://ai.google.dev/api/caching#Schema — `additionalProperties:
+    /// false` is injected by JSONFoundation's
+    /// `addingAdditionalPropertiesRestrictionToObjects` in
+    /// `SchemaRepresentable.jsonSchema` (the @Schema macro itself never
+    /// emits it) and is the practical concern; the rest are belt-and-braces.
+    private static let geminiDisallowedKeys: Set<String> = [
+        "additionalProperties",
+        "$schema",
+        "definitions",
+        "$defs",
+        "patternProperties"
+    ]
 
     private func makeGoogleTools(from tools: [ToolDescription]?) -> [GoogleGenerateContentRequest.Tool]? {
         guard let tools else {
@@ -609,10 +564,19 @@ public class GoogleAPI: API, @unchecked Sendable {
             guard let function = tool.function else {
                 return nil
             }
+            // Google recommends omitting `parameters` entirely for
+            // no-argument functions; everything else goes through the
+            // Gemini sanitiser to drop rejected vocabulary.
+            let parameters: JSONValue?
+            if case let .object(object, _) = function.parameters, object.properties.isEmpty {
+                parameters = nil
+            } else {
+                parameters = geminiCompatibleSchema(function.parameters)
+            }
             return GoogleGenerateContentRequest.FunctionDeclaration(
                 name: function.name,
                 description: function.description,
-                parameters: function.parameters
+                parameters: parameters
             )
         }
 

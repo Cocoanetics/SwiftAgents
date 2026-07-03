@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 public struct RealtimeResponse: Codable, Sendable {
     public let id: String
@@ -181,7 +181,7 @@ public struct RealtimeServerEvent: Sendable {
                 let payload = try decodePayload(ErrorEvent.self)
                 return .init(type: eventType, eventId: payload.eventId, object: .error(payload))
             default:
-                let raw = rawDictionary.mapValues(JSONValue.init(jsonObject:))
+                let raw = [String: JSONValue](jsonObject: rawDictionary)
                 return .init(type: eventType, eventId: rawDictionary["event_id"] as? String, object: .unknown(raw))
         }
     }

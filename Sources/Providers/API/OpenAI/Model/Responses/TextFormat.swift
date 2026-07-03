@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 /// Format options for text responses.
 public enum TextFormat: Codable, Sendable {

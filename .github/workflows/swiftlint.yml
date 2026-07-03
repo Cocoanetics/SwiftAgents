@@ -12,19 +12,34 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SWIFTLINT_VERSION: 0.63.2
 
 jobs:
   lint:
-    # macOS + Homebrew SwiftLint keeps CI aligned with the local
-    # pre-commit hook (scripts/hooks/pre-commit) — same binary, same
-    # rule set, no version drift between dev and CI.
+    # CI pins SWIFTLINT_VERSION (above) because the gate runs `--strict`:
+    # every warning is fatal, and SwiftLint minor releases regularly add or
+    # tighten default-on rules, so an unpinned install could redden CI on
+    # every PR with no repo change. Update the pin deliberately, together
+    # with any fixes the new rules require. The local pre-commit hook
+    # (scripts/hooks/pre-commit) uses the developer's brew install, which
+    # may drift from this pin.
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-      - name: Install SwiftLint
-        run: brew install swiftlint
+      - name: Install SwiftLint ${{ env.SWIFTLINT_VERSION }}
+        # Portable release binary, unzipped into $RUNNER_TEMP and prepended
+        # to PATH via $GITHUB_PATH so it wins over any Homebrew SwiftLint
+        # preinstalled on the runner image. `curl -f` fails the step on a
+        # missing asset instead of unzipping an error page.
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/swiftlint.zip" \
+            "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/portable_swiftlint.zip"
+          mkdir -p "$RUNNER_TEMP/swiftlint"
+          unzip -oq "$RUNNER_TEMP/swiftlint.zip" -d "$RUNNER_TEMP/swiftlint"
+          echo "$RUNNER_TEMP/swiftlint" >> "$GITHUB_PATH"
       - name: SwiftLint version
+        # Doubles as a sanity check that the pinned binary is on PATH.
         run: swiftlint --version
       - name: Lint
         run: swiftlint lint --strict --quiet

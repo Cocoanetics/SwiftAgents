@@ -3,8 +3,8 @@
 //  ProvidersTests
 //
 //  Integration tests for the OpenAI-Conversations-backed Session. Gated
-//  on OPENAI_API_KEY since each test creates and tears down a real
-//  conversation on OpenAI's servers.
+//  on OPENAI_API_KEY plus LIVE_STATE_TESTS=1 since each test creates and
+//  tears down a real conversation on OpenAI's servers.
 //
 
 import Foundation
@@ -16,7 +16,7 @@ import Testing
 struct OpenAIConversationsSessionTests {
     @Test(
         "OpenAIConversationsSession lazy-creates a conversation on first use",
-        .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY")
+        LiveGate.openAIState
     )
     func lazyCreate() async throws {
         let client = try TestClients.openAI()
@@ -28,7 +28,7 @@ struct OpenAIConversationsSessionTests {
 
     @Test(
         "addItems / getItems round-trip via the Conversations API",
-        .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY")
+        LiveGate.openAIState
     )
     func addAndGetItems() async throws {
         let client = try TestClients.openAI()
@@ -53,7 +53,7 @@ struct OpenAIConversationsSessionTests {
 
     @Test(
         "Runner can use OpenAIConversationsSession as a transparent Session",
-        .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY")
+        LiveGate.openAIState
     )
     func runnerWithOpenAIConversationsSession() async throws {
         let client = try TestClients.openAI()

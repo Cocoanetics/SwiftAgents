@@ -23,10 +23,11 @@ public final class BasicAgent: Agent, @unchecked Sendable {
     /// and when to invoke it.
     public let handoffDescription: String?
 
-    /// The tools available to the agent.
+    /// Providers that supply MCP tools to the agent.
     public let toolProviders: [MCPToolProviding]
 
-    /// Tool descriptions available
+    /// Explicit tool definitions available to the agent, merged with
+    /// provider- and handoff-derived tools.
     public let tools: [Tool]
 
     /// MCP Servers to include as tools
@@ -91,7 +92,7 @@ public extension [MCPToolProviding] {
                     name: function.name,
                     description: function.description,
                     parameters: function.parameters,
-                    strict: true
+                    strict: false
                 ))
             }
         }

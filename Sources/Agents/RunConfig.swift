@@ -3,11 +3,10 @@ import Providers
 
 /** Configuration options for running an agent workflow
 
- This struct provides configuration parameters that control how an agent workflow executes.
-
- Properties:
- - model: Optional OpenAI model identifier to use for this run
- - workFlowName: Name identifier for the workflow being executed
+ Per-run configuration for `Runner.run` / `Runner.runStreamed`. The run's
+ provider is resolved from the model string via the shared `ProviderRegistry`
+ (OpenAI, Anthropic, Google, Ollama, LM Studio, …) — or supplied directly
+ through ``api``, bypassing name-based routing.
  */
 public struct RunConfig: Sendable {
     /// The model to use for a run
@@ -44,8 +43,17 @@ public struct RunConfig: Sendable {
     /** Initialize a new RunConfig
 
      - Parameters:
-        - model: Optional OpenAI model identifier. If nil, uses the agent's default model
-        - workFlowName: Name for the workflow. Defaults to "Agent Workflow"
+        - model: Optional model identifier, routed to any registered provider
+          (e.g. "gpt-4.1", "claude-sonnet-4-5", "lmstudio/qwen3-coder"). If nil,
+          uses the agent's default model
+        - api: Optional explicit transport for this run, bypassing provider-name
+          routing — e.g. a per-session ``OpenAIResponsesWebSocket``
+        - requestedMedia: Optional per-run override of the output modalities to
+          request, replacing what the agent declares via `RequestsMedia`
+        - workFlowName: Name for the workflow, used for tracing spans. Defaults
+          to "Agent Workflow"
+        - dateDecodingStrategy: Strategy for decoding dates in provider
+          responses. Defaults to `.iso8601`
      */
     public init(
         model: String? = nil,

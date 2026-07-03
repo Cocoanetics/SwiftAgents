@@ -4,7 +4,7 @@ import Foundation
 import Testing
 
 struct AssistantAPITests {
-    @Test("Assistant can be created and retrieved", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Assistant can be created and retrieved", LiveGate.openAIState)
     func assistantLifecycle() async throws {
         let openAI = try TestClients.openAI()
         let assistant = try await openAI.createAssistant(
@@ -21,7 +21,7 @@ struct AssistantAPITests {
         _ = try? await openAI.deleteAssistant(id: assistant.id)
     }
 
-    @Test("Thread run completes and yields messages", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Thread run completes and yields messages", LiveGate.openAIState)
     func threadRunLifecycle() async throws {
         let openAI = try TestClients.openAI()
         let assistant = try await openAI.createAssistant(

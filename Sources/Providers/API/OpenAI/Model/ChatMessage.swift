@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 /// Represents a message in a conversation.
 /// - Note: requires conversion to and from snake case, and iso date parsing strategy
@@ -487,29 +487,7 @@ public struct FunctionCall: Codable, Sendable {
     }
 
     public func argumentsDictionary() throws -> [String: JSONValue] {
-        guard !arguments.isEmpty,
-            let data = arguments.data(using: .utf8) else {
-            return [:]
-        }
-
-        let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
-
-        if let dict = jsonObject as? [String: Any] {
-            return .init(jsonObject: dict)
-        } else if let array = jsonObject as? [[String: Any]] {
-            var argumentsDict: [String: JSONValue] = [:]
-
-            for item in array {
-                if let name = item["name"] as? String,
-                    let value = item["value"] {
-                    argumentsDict[name] = .init(jsonObject: value)
-                }
-            }
-
-            return argumentsDict
-        }
-
-        return [:]
+        try arguments.functionArgumentsDictionary()
     }
 
     public var description: String {

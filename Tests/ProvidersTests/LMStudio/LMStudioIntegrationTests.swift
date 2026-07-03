@@ -19,7 +19,7 @@ struct LMStudioIntegrationTests {
         ProcessInfo.processInfo.environment["LMSTUDIO_MODEL"] ?? "qwen3-coder"
     }
 
-    @Test("Native chat endpoint returns a Response", .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL"))
+    @Test("Native chat endpoint returns a Response", LiveGate.lmStudio)
     func nativeChatRoundtrip() async throws {
         let client = try TestClients.lmStudio()
         let response = try await client.createResponse(
@@ -33,7 +33,7 @@ struct LMStudioIntegrationTests {
 
     @Test(
         "Chaining via previous_response_id continues the conversation",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func chainedTurns() async throws {
         let client = try TestClients.lmStudio()

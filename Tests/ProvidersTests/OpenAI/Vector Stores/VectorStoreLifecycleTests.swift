@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 struct VectorStoreLifecycleTests {
-    @Test("Vector store attaches and cleans up files", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Vector store attaches and cleans up files", LiveGate.openAIState)
     func vectorStoreFileLifecycle() async throws {
         do {
             let openAI = try TestClients.openAI()
@@ -41,7 +41,7 @@ struct VectorStoreLifecycleTests {
         }
     }
 
-    @Test("Vector store file batch completes", .enabled(if: APIKey.hasOpenAI, "Requires OPENAI_API_KEY"))
+    @Test("Vector store file batch completes", LiveGate.openAIState)
     func vectorStoreFileBatch() async throws {
         let openAI = try TestClients.openAI()
         let store = try await openAI.createVectorStore(

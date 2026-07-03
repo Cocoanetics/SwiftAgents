@@ -205,9 +205,6 @@ public class OllamaAPI: API, @unchecked Sendable {
                 return message
             }
 
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = .prettyPrinted
-
             let functions = toolsWithFunction.compactMap(\.function)
 
             let modifiedContent = (message.textContent ?? "") +

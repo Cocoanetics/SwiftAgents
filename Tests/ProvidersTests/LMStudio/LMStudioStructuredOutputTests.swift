@@ -42,7 +42,7 @@ private final class ColourGuessAgent: Agent {
 struct LMStudioStructuredOutputTests {
     @Test(
         "createChatCompletion(responseFormat: jsonSchema) returns JSON matching the schema",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func directChatCompletionWithSchema() async throws {
         let client = try TestClients.lmStudio()
@@ -74,7 +74,7 @@ struct LMStudioStructuredOutputTests {
 
     @Test(
         "Runner falls back to chat completions for LM Studio structured-output runs",
-        .enabled(if: TestClients.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func runnerStructuredOutput() async throws {
         let agent = ColourGuessAgent()

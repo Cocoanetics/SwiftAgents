@@ -93,7 +93,7 @@ struct AgentGuardrailTest {
                 #expect(error.result.tripwireTriggered == true)
                 let metadata = try #require(error.result.metadata, "Expected metadata for guardrail")
                 let forbidden = try #require(
-                    metadata["forbiddenWord"]?.value as? String,
+                    metadata["forbiddenWord"]?.jsonObject as? String,
                     "Expected forbiddenWord metadata"
                 )
                 #expect(forbidden == "banana")
@@ -117,7 +117,7 @@ struct AgentGuardrailTest {
                 #expect(error.result.tripwireTriggered == true)
                 let metadata = try #require(error.result.metadata, "Expected metadata for guardrail")
                 let containsSensitive = try #require(
-                    metadata["contains_sensitive"]?.value as? Bool,
+                    metadata["contains_sensitive"]?.jsonObject as? Bool,
                     "Expected contains_sensitive metadata"
                 )
                 #expect(containsSensitive == true, "The 'contains_sensitive' metadata should be true.")

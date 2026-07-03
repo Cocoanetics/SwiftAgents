@@ -123,24 +123,39 @@ jobs:
 
   build-windows:
     # swift-nio (whose Windows port doesn't compile) is out of the graph —
-    # SwiftAgents links only SwiftMCP's NIO-free `Client` trait — so Windows
-    # builds. We build the `SwiftAgents` umbrella TARGET, not a product:
-    # `swift build --product` is ignored for automatic library products and
-    # ends up compiling SwiftMCP's demo executables, which carry their own
-    # unrelated Windows gaps. `--target` scopes the build to what we ship.
+    # SwiftAgents links only SwiftMCP's NIO-free `Client` trait, and SwiftACP
+    # is included with `traits: []` so its default-on `Server` trait (the NIO
+    # transports) is disabled — so Windows builds. We build the `SwiftAgents`
+    # umbrella TARGET, not a product: `swift build --product` is ignored for
+    # automatic library products and ends up compiling SwiftMCP's demo
+    # executables, which carry their own unrelated Windows gaps. `--target`
+    # scopes the build to what we ship.
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
       - name: Setup Swift
+        # `@latest` is the action's documented usage: its Swift version map is
+        # bundled and ships via this auto-moved tag, so pinning a release tag
+        # would stop newer toolchains from resolving.
         uses: SwiftyLab/setup-swift@latest
         with:
-          swift-version: "6.3.1"
+          # Same patch as the Android job below, so the two cross-compiled
+          # platforms test the same toolchain.
+          swift-version: "6.3.2"
       - name: Verify Swift version
         run: swift --version
       - name: Build SwiftAgents (Windows)
         shell: pwsh
         run: swift build -v --target SwiftAgents
+      - name: Build Coder (Windows)
+        # `--product` IS honored for executable products, so this compiles
+        # only Coder's dependency closure — transitively TerminalUI and
+        # SwiftACP — not SwiftMCP's demo executables. Mirrors the Linux job
+        # so a Windows-breaking change in Coder/TerminalUI/SwiftACP can't
+        # ship invisibly.
+        shell: pwsh
+        run: swift build -v --product Coder
       - name: Test (Windows)
         shell: pwsh
         timeout-minutes: 15
@@ -160,10 +175,15 @@ jobs:
     # runs the offline subset in an emulator (key-gated live-API tests skip
     # without secrets). skiptools builds with `swift build --build-tests`,
     # which is mutually exclusive with `--target`; ProvidersTests is the only
-    # test target, so the build already covers just it + its library graph
-    # (not SwiftMCP's demo executables). `--filter ProvidersTests` scopes the
-    # emulator run. Android also relied on SwiftMCP's `os(Linux)` →
-    # `canImport(FoundationNetworking)` client fix (NIO itself builds here).
+    # test target so the cross-compile covers it + its library graph — but
+    # SwiftMCP's `SwiftMCPAggregator` build-tool executable still builds for
+    # the HOST, where its swift-syntax dependency can race (a transient
+    # `no such module 'SwiftSyntax'` that the build recovers from; benign as
+    # long as the overall exit is 0). Android is `os(Android)`, not
+    # `os(Linux)`: SwiftACP's stdio server doesn't exist here, so Coder's
+    # `acp` subcommand compiles out (see Examples/Coder/Coder.swift), and
+    # SwiftMCP's client needed the `os(Linux)` →
+    # `canImport(FoundationNetworking)` fix (NIO itself builds here).
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

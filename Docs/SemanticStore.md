@@ -39,7 +39,8 @@ It's behind an opt-in package trait so the default build stays free of the
 SQLite engine. In your `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/Cocoanetics/SwiftAgents", from: "x.y.z", traits: ["SQLiteVectorStore"]),
+// SwiftAgents has no tagged releases yet — depend on `main` until versions land.
+.package(url: "https://github.com/Cocoanetics/SwiftAgents", branch: "main", traits: ["SQLiteVectorStore"]),
 // …
 .target(name: "MyApp", dependencies: [
     .product(name: "SemanticStore", package: "SwiftAgents"),
@@ -63,7 +64,7 @@ let store = try SQLiteVectorStore(storage: .file("\(appSupport)/memory.sqlite"))
 // …or bring your own embedder:
 let store = try SQLiteVectorStore(
     storage: .file(dbPath),
-    embeddingProvider: OpenAI(apiKey: key)            // or OllamaAPI(endpointURL:)
+    embeddingProvider: OpenAI(credential: Credential.bearer(key))   // or OllamaAPI(endpointURL:)
 )
 
 // Index ad-hoc text under a (path, source) identity.
@@ -141,7 +142,7 @@ the `file_search` tool, PDFs/docx parsed for you):
 import Providers
 import SemanticStore
 
-let client = OpenAI(apiKey: key)
+let client = OpenAI()   // reads OPENAI_API_KEY; or OpenAI(credential: Credential.bearer(key))
 let store = try await OpenAIVectorStore.openOrCreate(named: "my-knowledge", client: client)
 
 try await store.indexText(noteBody, path: "ideas/2026-06.md", source: "notes")

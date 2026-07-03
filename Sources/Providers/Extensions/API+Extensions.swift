@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 public extension API {
     func createStructuredChatCompletion<T: Decodable & SchemaRepresentable>(
@@ -17,7 +17,10 @@ public extension API {
             throw APIError.invalidResponse
         }
 
-        return try JSONDecoder().decode(T.self, from: data)
+        // Decode via the shared configured decoder (ISO-8601 dates etc.) —
+        // the schema maps `Date` to string/date-time, which the default
+        // `.deferredToDate` strategy would always reject.
+        return try JSONCoding.makeDecoder().decode(T.self, from: data)
     }
 
     func withRetry<T>(maxRetries: Int = 3, operation: @escaping () async throws -> T) async throws -> T {

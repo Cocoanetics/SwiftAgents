@@ -10,7 +10,8 @@
 //     pinned precisely in `LMStudioResponsesRoutingLiveTests`).
 //  2. The runner sees multiple real text deltas, not one synthetic event.
 //
-//  Gated on `LMSTUDIO_URL` being set so CI without a local server skips.
+//  Gated on a reachable LM Studio at `LMSTUDIO_URL` so CI without a local
+//  server skips.
 //
 
 import Foundation
@@ -21,12 +22,11 @@ import SwiftMCP
 import Testing
 
 struct LMStudioStreamingTests {
-    private static let hasLMStudio = ProcessInfo.processInfo.environment["LMSTUDIO_URL"] != nil
     private let model = "google/gemma-4-26b-a4b"
 
     @Test(
         "LM Studio runner streams text deltas",
-        .enabled(if: Self.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func runnerStreamingViaLMStudio() async throws {
         // The shared Providers registry creates the LM Studio API instance
@@ -74,7 +74,7 @@ struct LMStudioStreamingTests {
 
     @Test(
         "LM Studio streaming runner emits traces",
-        .enabled(if: Self.hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func runnerStreamingEmitsTraces() async throws {
         _ = try await ProviderRegistry.shared.api(for: "lmstudio/\(model)")

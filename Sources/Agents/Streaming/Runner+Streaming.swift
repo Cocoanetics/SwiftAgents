@@ -1,6 +1,5 @@
 import Foundation
 import Providers
-import SwiftMCP
 import Tracing
 
 extension Runner {
@@ -88,6 +87,12 @@ extension Runner {
             }
         }
 
+        // Build the run-configured decoder once (mirroring the non-streaming
+        // loop) so typed final outputs and typed handoff inputs honor
+        // `RunConfig.dateDecodingStrategy`.
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = config.dateDecodingStrategy
+
         var currentAgent: A = agent
         // Chat history accumulates across handoffs on the chat-completion
         // fallback path so the receiving agent sees the prior agent's
@@ -129,33 +134,7 @@ extension Runner {
 
                 let chatResult: AgentResult<A.OutputType> = try await withSpan { agentSpan in
                     var tools: [Tool] = await currentAgent.createTools()
-
-                    for proxy in currentAgent.mcpServers {
-                        tools += try await withSpan { mcpListSpan in
-                            let serverName = await proxy.serverName
-                            let mcpTools = try await proxy.listTools()
-
-                            let myTools = mcpTools.map { mcpTool in
-                                let parameters: Parameters = if case let .object(object, _) = mcpTool.inputSchema {
-                                    Parameters(properties: object.properties)
-                                } else {
-                                    .none
-                                }
-                                return Tool.function(FunctionTool(
-                                    name: mcpTool.name,
-                                    description: mcpTool.description,
-                                    parameters: parameters,
-                                    strict: true
-                                ))
-                            }
-
-                            mcpListSpan.spanData = MCPListToolsSpanData(
-                                server: serverName,
-                                result: mcpTools.map(\.name)
-                            )
-                            return myTools
-                        }
-                    }
+                    tools += try await Self.collectMCPTools(for: currentAgent)
 
                     agentSpan.spanData = AgentSpanData(
                         name: currentAgent.name,
@@ -172,6 +151,7 @@ extension Runner {
                         api: api,
                         input: input,
                         chatHistory: &chatHistory,
+                        decoder: decoder,
                         continuation: continuation
                     )
                 }
@@ -202,31 +182,7 @@ extension Runner {
 
             let result: AgentResult<A.OutputType> = try await withSpan { agentSpan in
                 var tools: [Tool] = await currentAgent.createTools()
-
-                // List MCP server tools
-                for proxy in currentAgent.mcpServers {
-                    tools += try await withSpan { mcpListSpan in
-                        let serverName = await proxy.serverName
-                        let mcpTools = try await proxy.listTools()
-
-                        let myTools = mcpTools.map { mcpTool in
-                            let parameters: Parameters = if case let .object(object, _) = mcpTool.inputSchema {
-                                Parameters(properties: object.properties)
-                            } else {
-                                .none
-                            }
-                            return Tool.function(FunctionTool(
-                                name: mcpTool.name,
-                                description: mcpTool.description,
-                                parameters: parameters,
-                                strict: true
-                            ))
-                        }
-
-                        mcpListSpan.spanData = MCPListToolsSpanData(server: serverName, result: mcpTools.map(\.name))
-                        return myTools
-                    }
-                }
+                tools += try await Self.collectMCPTools(for: currentAgent)
 
                 // Realize an image intent as the OpenAI image_generation tool
                 // (this branch is the OpenAI Responses streaming path).
@@ -249,6 +205,7 @@ extension Runner {
                     openAI: openAI,
                     input: .text(input),
                     previousResponseId: previousResponseId,
+                    decoder: decoder,
                     continuation: continuation,
                     resultRef: resultRef
                 )
@@ -305,6 +262,7 @@ extension Runner {
         openAI: OpenAI,
         input: Response.Input,
         previousResponseId: String?,
+        decoder: JSONDecoder,
         continuation: AsyncThrowingStream<AgentStreamEvent, Error>.Continuation,
         resultRef: RunResultStreaming
     ) async throws -> AgentResult<A.OutputType> {
@@ -484,7 +442,7 @@ extension Runner {
                             try await handoff.callPerform(input: ())
                         } else if let payload = functionCall.arguments.data(using: .utf8),
                             let codableType = handoff.inputType as? Decodable.Type {
-                            let typedInput = try JSONDecoder().decode(codableType, from: payload)
+                            let typedInput = try decoder.decode(codableType, from: payload)
                             try await handoff.callPerform(input: typedInput)
                         }
                     } catch {
@@ -543,22 +501,13 @@ extension Runner {
                 continue
             }
 
-            // No tool calls — this is the final output
-            if A.OutputType.self == String.self {
-                // swiftlint:disable:next force_cast - guarded above by `A.OutputType.self == String.self`.
-                return .finalOutput(roundResult as! A.OutputType, roundReasoning)
-            } else if A.OutputType.self == GeneratedFile.self {
-                if let file = roundFile {
-                    // swiftlint:disable:next force_cast - guarded above by `A.OutputType.self == GeneratedFile.self`.
-                    return .finalOutput(file as! A.OutputType, roundReasoning)
-                }
-                // No image came back this turn — fall through and retry.
-            } else if let data = roundResult.data(using: .utf8) {
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                if let decoded = decoder.decodeWithResultsUnwrap(data, as: A.OutputType.self) {
-                    return .finalOutput(decoded, roundReasoning)
-                }
+            // No tool calls — resolve the turn into a typed final output;
+            // `nil` means the response wasn't usable, so repeat the turn.
+            if let result = Self.terminalOutput(
+                for: A.self, text: roundResult, file: roundFile,
+                reasoning: roundReasoning, decoder: decoder
+            ) {
+                return result
             }
 
             // Invalid response, try again

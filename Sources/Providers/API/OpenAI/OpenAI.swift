@@ -20,7 +20,8 @@ open class OpenAI: API, @unchecked Sendable {
     /// keep streaming via `/v1/chat/completions`.
     open var prefersResponsesStreaming: Bool { endpointURL == .openAI }
 
-    /// Initializes OpenAI API. If now API key is provided, then we're looking for OPENAI_API_KEY in the environment
+    /// Initializes an OpenAI API client. If no credential is provided, falls back
+    /// to the `OPENAI_API_KEY` environment variable (as a bearer token).
     override public init(
         credential: (any RequestAuthorizing)? = nil,
         endpointURL: URL = .openAI,
@@ -103,8 +104,6 @@ open class OpenAI: API, @unchecked Sendable {
         let endpoint = "/\(versionPath)/chat/completions"
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: chatCompletionRequest)
 
-        // logHttpRequest(request)
-
         let (data, response) = try await session.data(for: request)
         return try process(data: data, response: response)
     }
@@ -156,7 +155,7 @@ open class OpenAI: API, @unchecked Sendable {
         let endpoint = "/\(versionPath)/chat/completions"
         let request = try createUrlRequest(httpMethod: "POST", path: endpoint, body: chatCompletionRequest)
 
-        let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+        let (asyncBytes, response) = try await streamSession.bytes(for: request)
         return try await processStream(asyncBytes: asyncBytes, response: response)
     }
 

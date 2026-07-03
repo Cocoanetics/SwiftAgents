@@ -53,7 +53,7 @@ struct LocalVectorStoreTests {
     }
     #endif
 
-    @Test("Embeddings from local LLM endpoint", .enabled(if: TestClients.hasLocalLLM, "Requires LOCAL_LLM_URL"))
+    @Test("Embeddings from local LLM endpoint", LiveGate.localLLM)
     func localHostedEmbeddingProvider() async throws {
         let endpoint = try #require(TestClients.localLLMEndpoint(), "LOCAL_LLM_URL must point to a valid server")
         let localAI = OpenAI(endpointURL: endpoint)
@@ -63,7 +63,7 @@ struct LocalVectorStoreTests {
         try await assertPaschingResult(in: vectors, query: "Wann starb Leopold Pasching?")
     }
 
-    @Test("Embeddings from Ollama", .enabled(if: TestClients.hasOllama, "Requires OLLAMA_URL"))
+    @Test("Embeddings from Ollama", LiveGate.ollamaReachable)
     func ollamaEmbeddingProvider() async throws {
         let ollama = try TestClients.ollama()
         guard await TestClients.ensureEmbeddingModel(on: ollama) else { return }

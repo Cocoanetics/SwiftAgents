@@ -40,10 +40,10 @@ let package = Package(
 			name: "SwiftAgents",
 			targets: ["SwiftAgents"]
 		),
-		// Semantic search stores unified behind the `SemanticStore` protocol:
-		// the in-memory `LocalVectorStore`, the trait-gated persistent
-		// `SQLiteVectorStore` (vec0 + FTS5 hybrid), and the hosted
-		// `OpenAIVectorStore` — plus chunkers, query expansion, RRF, and
+		// Semantic search stores: the trait-gated persistent `SQLiteVectorStore`
+		// (vec0 + FTS5 hybrid) and the hosted `OpenAIVectorStore` unified behind
+		// the `SemanticStore` protocol, plus the standalone in-memory
+		// `LocalVectorStore` — with chunkers, query expansion, RRF, and
 		// reranking. Cross-platform; the on-device `NLContextualEmbedding`
 		// default embedder is Apple-only (other platforms supply a provider).
 		.library(
@@ -77,16 +77,32 @@ let package = Package(
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
 		// Link only SwiftMCP's NIO-free core + the `Client` trait (the MCP
 		// client we use) — NOT the `Server` HTTP transport — so swift-nio stays
-		// out of SwiftAgents' graph and we build on Windows. 1.6.0+ is on
-		// JSONFoundation. (For local sibling development, override with a path
-		// dependency — but keep the published URL committed so CI resolves.)
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP", from: "1.6.0", traits: ["Client"]),
+		// out of SwiftAgents' graph and we build on Windows. 1.9.0+ runs the
+		// client transports on JSONFoundation's shared JSON-RPC runtime. (For
+		// local sibling development, override with a path dependency — but keep
+		// the published URL committed so CI resolves.)
+		// `.git` suffix matches SwiftACP's spelling of the same dependency —
+		// mixed spellings alias to one canonical identity but SwiftPM logs an
+		// info and the aliasing needlessly stresses the resolver.
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP.git", from: "1.9.0", traits: ["Client"]),
 		// SwiftACP has no tagged release yet; pin to `main` (mirrors SQLiteKit below).
-		.package(url: "https://github.com/Cocoanetics/SwiftACP", branch: "main"),
+		// `traits: []` disables its default-on `Server` trait (the swift-nio
+		// TCP/Bonjour/HTTP-SSE transports used only by the acpxd daemon) — Coder
+		// serves ACP over stdio, and this keeps swift-nio/crypto out of the graph.
+		.package(url: "https://github.com/Cocoanetics/SwiftACP", branch: "main", traits: []),
 		// JSONFoundation by URL (not path) — matches SwiftMCP's and SwiftACP's
 		// published remote reference to the same package identity (a path override
-		// would conflict).
-		.package(url: "https://github.com/Cocoanetics/JSONFoundation.git", from: "1.2.0"),
+		// would conflict). 2.5.0 ships the JSON value type, JSON Schema model,
+		// @Schema macro, and the shared JSON-RPC runtime.
+		//
+		// The `Subprocess` trait is anchored HERE, not just via SwiftACP: in a
+		// product-scoped build (CI's `swift build --product Providers`), SwiftPM
+		// prunes SwiftACP from the graph, its trait enablement flips off, and
+		// the solver oscillates on swift-subprocess until it fails with
+		// "exhausted attempts to resolve the dependencies graph". Enabling the
+		// trait at the root keeps the dependency set stable across solver
+		// iterations. It links nothing into SwiftAgents' own targets.
+		.package(url: "https://github.com/Cocoanetics/JSONFoundation.git", from: "2.5.0", traits: ["Subprocess"]),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
 		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
@@ -121,6 +137,14 @@ let package = Package(
 				"SwiftMCP",
 				"SwiftCross",
 				"Tracing",
+				// The JSON value + schema model used throughout the wire types.
+				// Declared explicitly (not just via SwiftMCP's re-export) so the
+				// pure model files can `import JSONFoundation` without coupling
+				// to the MCP client module.
+				.product(name: "JSONFoundation", package: "JSONFoundation"),
+				// Spec-correct incremental SSE decoding for the provider
+				// streaming paths — framing codec only, no transports.
+				.product(name: "JSONRPCWire", package: "JSONFoundation"),
 				.product(name: "Logging", package: "swift-log")
 			],
 			path: "Sources/Providers"
@@ -130,7 +154,10 @@ let package = Package(
 			dependencies: [
 				"Providers",
 				"Tracing",
-				"SwiftMCP"
+				"SwiftMCP",
+				// Direct dependency for the JSON value + schema model (see
+				// Providers above).
+				.product(name: "JSONFoundation", package: "JSONFoundation")
 			],
 			path: "Sources/Agents"
 		),

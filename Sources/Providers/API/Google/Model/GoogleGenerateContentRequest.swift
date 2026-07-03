@@ -1,5 +1,5 @@
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 /// Request payload for Gemini's native `models.generateContent` endpoint.
 /// Documentation: https://ai.google.dev/api/rest/v1/models/generateContent
@@ -18,9 +18,16 @@ public struct GoogleGenerateContentRequest: Codable, Sendable {
     public struct FunctionDeclaration: Codable, Sendable {
         public let name: String
         public let description: String?
-        public let parameters: Parameters?
+        /// The function's input schema. Stored as a `JSONValue` (not
+        /// `JSONSchema`) because Gemini accepts only a subset of the
+        /// OpenAPI 3.0 schema vocabulary and rejects fields like
+        /// `additionalProperties` / `$schema` outright — see
+        /// `geminiCompatibleSchema(_:)` in GoogleAPI for the sanitiser.
+        /// `nil` omits the field, which Google recommends for no-argument
+        /// functions.
+        public let parameters: JSONValue?
 
-        public init(name: String, description: String? = nil, parameters: Parameters? = nil) {
+        public init(name: String, description: String? = nil, parameters: JSONValue? = nil) {
             self.name = name
             self.description = description
             self.parameters = parameters

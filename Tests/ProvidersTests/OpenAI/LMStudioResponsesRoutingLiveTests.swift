@@ -10,7 +10,8 @@
 //  Routing is proven by a `createUrlRequest`-recording `LMStudio` subclass,
 //  since both streaming paths emit identical normalized events.
 //
-//  Gated on LMSTUDIO_URL; model from LMSTUDIO_MODEL (default qwen3-4b-mlx).
+//  Gated on a reachable LM Studio at LMSTUDIO_URL; model from
+//  LMSTUDIO_MODEL (default qwen3-4b-mlx).
 //
 
 import Foundation
@@ -20,7 +21,6 @@ import SwiftCross
 import SwiftMCP
 import Testing
 
-private let lmURL = ProcessInfo.processInfo.environment["LMSTUDIO_URL"] ?? "http://localhost:1234"
 private let lmModel = ProcessInfo.processInfo.environment["LMSTUDIO_MODEL"] ?? "qwen3-4b-mlx"
 
 private final class PathRecorder: @unchecked Sendable {
@@ -58,14 +58,12 @@ private final class ColourAgent: Agent {
 }
 
 struct LMStudioResponsesRoutingLiveTests {
-    private static let hasLMStudio = ProcessInfo.processInfo.environment["LMSTUDIO_URL"] != nil
-
     @Test(
         "LM Studio: text streamed run routes through /v1/responses",
-        .enabled(if: hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func textStreamsViaResponses() async throws {
-        let api = RecordingLMStudio(endpointURL: try #require(URL(string: lmURL)))
+        let api = RecordingLMStudio(endpointURL: try TestClients.lmStudioURL())
         let agent = BasicAgent(
             name: "Streamer",
             model: lmModel,
@@ -96,10 +94,10 @@ struct LMStudioResponsesRoutingLiveTests {
 
     @Test(
         "LM Studio: structured-output streamed run falls back to /v1/chat/completions and decodes",
-        .enabled(if: hasLMStudio, "Requires LMSTUDIO_URL")
+        LiveGate.lmStudio
     )
     func structuredStreamsViaChatCompletions() async throws {
-        let api = RecordingLMStudio(endpointURL: try #require(URL(string: lmURL)))
+        let api = RecordingLMStudio(endpointURL: try TestClients.lmStudioURL())
         let result = Runner.runStreamed(
             agent: ColourAgent(),
             input: "What colour is grass?",

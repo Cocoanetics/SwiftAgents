@@ -9,7 +9,7 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import SwiftMCP
+import JSONFoundation
 
 extension OpenAI {
     /// Sends trace data to the OpenAI traces API
@@ -25,16 +25,10 @@ extension OpenAI {
         // Wrap the trace data in a TraceIngest struct
         let ingest = TraceIngest(data: traceData)
 
-        // Create a custom encoder for traces with proper ISO date formatting
+        // Timestamps are pre-formatted ISO-8601 strings in the JSONValue payload;
+        // only the key strategy matters here, converting camelCase keys of
+        // Encodable-wrapped span payloads to the API's snake_case.
         let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        encoder.dateEncodingStrategy = .custom { date, encoder in
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            let string = formatter.string(from: date)
-            var container = encoder.singleValueContainer()
-            try container.encode(string)
-        }
         encoder.keyEncodingStrategy = .convertToSnakeCase
 
         // Encode the trace ingest data
