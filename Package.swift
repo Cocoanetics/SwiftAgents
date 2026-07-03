@@ -3,6 +3,27 @@
 
 import PackageDescription
 
+// Coder's ACP surface is macOS-gated in the manifest, not just in source: the
+// test target depends on the `Coder` executable, whose `CodingAgent` uses
+// `Foundation.Process` (absent on Android). Gating the *declaration* keeps that
+// dependency edge — and Coder's build — off the Linux/Windows/Android CI jobs,
+// which build with `--build-tests`. macOS runs the full suite and picks it up.
+#if os(macOS)
+let coderTestTargets: [Target] = [
+    .testTarget(
+        name: "CoderTests",
+        dependencies: [
+            "Coder",
+            .product(name: "SwiftACP", package: "SwiftACP"),
+            .product(name: "JSONFoundation", package: "JSONFoundation")
+        ],
+        path: "Tests/CoderTests"
+    )
+]
+#else
+let coderTestTargets: [Target] = []
+#endif
+
 let package = Package(
 	name: "SwiftAgents",
 	platforms: [
@@ -224,7 +245,7 @@ let package = Package(
 			path: "Tests/ProvidersTests",
 			resources: [.process("Resources")]
 		)
-	],
+	] + coderTestTargets,
 	// Tools 6.1 (needed for SwiftMCP package-trait selection) defaults to the
 	// Swift 6 language mode; the package builds clean under full strict
 	// concurrency.
