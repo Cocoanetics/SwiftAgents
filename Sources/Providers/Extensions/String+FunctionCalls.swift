@@ -6,9 +6,45 @@
 //
 
 import Foundation
+import JSONFoundation
 
 /// Extend the String class to add functionality for extracting function calls.
 extension String {
+    /// Parses the calling String instance as a function-call arguments JSON string.
+    ///
+    /// Supports the standard JSON-object form as well as the `[{"name": …, "value": …}]`
+    /// array form some models emit.
+    ///
+    /// - Returns: The arguments as a `[String: JSONValue]` dictionary; empty for
+    /// non-object/non-array JSON.
+    /// - Throws: Decoding errors when the string is not valid JSON.
+    func functionArgumentsDictionary() throws -> [String: JSONValue] {
+        guard !isEmpty, let data = data(using: .utf8) else {
+            return [:]
+        }
+
+        let value = try JSONDecoder().decode(JSONValue.self, from: data)
+
+        if let dictionary = value.dictionaryValue {
+            return dictionary
+        }
+
+        if let array = value.arrayValue {
+            var argumentsDict: [String: JSONValue] = [:]
+
+            for item in array {
+                if let name = item["name"]?.stringValue,
+                    let value = item["value"] {
+                    argumentsDict[name] = value
+                }
+            }
+
+            return argumentsDict
+        }
+
+        return [:]
+    }
+
     /// Extracts function calls from a JSON-formatted string embedded within the calling String instance.
     /// Before extraction, strips out any inline comments that follow the '//' pattern, which are not part of the
     /// official JSON specification.
@@ -92,133 +128,6 @@ extension String {
 
         return functionCalls
     }
-
-    /*
-
-     let jsonData = string.data(using: .utf8)!
-
-     guard let jsonObject = try? JSONSerialization.jsonObject(with: jsonData, options: []) else {
-     return nil
-     }
-
-     guard let jsonDict = jsonObject as? [String: Any] else
-     {
-     return nil
-     }
-
-     if let tool = jsonDict["tool"] as? String
-     {
-     if let toolInput = jsonDict["tool_input"] as? [String: String],
-     let argumentsData = try? JSONSerialization.data(withJSONObject: toolInput, options: [])
-     {
-     let argumentsString = String(data: argumentsData, encoding: .utf8) ?? ""
-     return FunctionCall(name: tool, arguments: argumentsString)
-     }
-     else if let argumentsArray = jsonDict["arguments"] as? [[String: Any]]
-     {
-     var mergedArguments = [String: Codable]()
-
-     for dictionary in argumentsArray
-     {
-     if let name = dictionary["name"] as? String, let value = dictionary["value"]
-     {
-     mergedArguments[name] = value
-     }
-     else
-     {
-     for key in dictionary.keys
-     {
-     mergedArguments[key] = dictionary[key]
-     }
-     }
-     }
-
-     let argumentsData = try! JSONSerialization.data(withJSONObject: mergedArguments, options: [])
-     let argumentsString = String(data: argumentsData, encoding: .utf8) ?? ""
-     return FunctionCall(name: tool, arguments: argumentsString)
-     }
-     else
-     {
-     var arguments = [String: Any]()
-
-     for (key, value) in jsonDict
-     {
-     guard key != "tool" else
-     {
-     continue
-     }
-
-     arguments[key] = value
-     }
-
-     if	let argumentsData = try? JSONSerialization.data(withJSONObject: arguments, options: [])
-     {
-     let argumentsString = String(data: argumentsData, encoding: .utf8) ?? ""
-     return FunctionCall(name: tool, arguments: argumentsString)
-     }
-     }
-     }
-
-     if let function = jsonDict["function"] as? String {
-     var arguments: [String: String] = [:]
-
-     for (key, value) in jsonDict where key != "function" {
-     if let stringValue = value as? String {
-     arguments[key] = stringValue
-     }
-     }
-
-     if !arguments.isEmpty {
-     guard let argumentsData = try? JSONSerialization.data(withJSONObject: arguments, options: []) else {
-     return nil
-     }
-
-     let argumentsString = String(data: argumentsData, encoding: .utf8) ?? ""
-     return FunctionCall(name: function, arguments: argumentsString)
-     }
-
-     let argsOrParams = jsonDict["arguments"] ?? jsonDict["parameters"] ?? jsonDict["data"]
-
-     if let argumentsDict = argsOrParams as? [String: String] {
-     guard let argumentsData = try? JSONSerialization.data(withJSONObject: argumentsDict, options: []) else {
-     return nil
-     }
-
-     let argumentsString = String(data: argumentsData, encoding: .utf8) ?? ""
-     return FunctionCall(name: function, arguments: argumentsString)
-     }
-
-     if let argumentsArray = argsOrParams as? [[String: Any]]
-     {
-     var mergedArguments = [String: String]()
-
-     for dictionary in argumentsArray {
-     if let name = dictionary["name"] as? String, let value = dictionary["value"] as? String
-     {
-     // Case where each dictionary has "name" and "value"
-     mergedArguments[name] = value
-     } else {
-     // Case where dictionary directly contains param_name: param_value
-     for (key, value) in dictionary {
-     if let stringValue = value as? String {
-     mergedArguments[key] = stringValue
-     }
-     }
-     }
-     }
-
-     guard let argumentsData = try? JSONSerialization.data(withJSONObject: mergedArguments, options: []) else {
-     return nil
-     }
-
-     let argumentsString = String(data: argumentsData, encoding: .utf8) ?? ""
-     return FunctionCall(name: function, arguments: argumentsString)
-     }
-     }
-
-     return nil
-
-     */
 
     public func containedJsonStrings() -> [String] {
         var jsonObjects = [String]()

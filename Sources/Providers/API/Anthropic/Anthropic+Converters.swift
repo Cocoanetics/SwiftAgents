@@ -8,7 +8,7 @@
 //  `Tool`, `ToolDescription`) and Anthropic's native Messages API types.
 
 import Foundation
-import SwiftMCP
+import JSONFoundation
 
 extension Anthropic {
     // MARK: - ChatMessage[] → Anthropic
@@ -415,7 +415,7 @@ extension Anthropic {
     /// the JSON-string shape the rest of the codebase passes around for
     /// function-call arguments.
     static func anthropicInputToJSONString(_ value: JSONValue) -> String {
-        let encoder = JSONEncoder()
+        let encoder = JSONCoding.makeWireEncoder()
         guard let data = try? encoder.encode(value),
             let string = String(data: data, encoding: .utf8) else {
             return "{}"

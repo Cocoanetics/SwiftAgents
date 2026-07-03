@@ -36,9 +36,8 @@ public extension [MCPToolProviding] {
                 return ToolOutput(toolCallId: toolCall.id, output: string)
             }
 
-            let jsonEncoder = JSONEncoder()
+            let jsonEncoder = JSONCoding.makeValueEncoder()
             jsonEncoder.outputFormatting = [.prettyPrinted]
-            jsonEncoder.dateEncodingStrategy = .iso8601
             let data = try jsonEncoder.encode(result)
             let string = String(data: data, encoding: .utf8) ?? "Error: Failed to serialize JSON result"
 
