@@ -2,6 +2,7 @@ import Foundation
 import JSONFoundation
 import SwiftACP
 import SwiftAgents
+import SwiftMCP
 
 /// Exposes Coder as an ACP agent.
 ///
@@ -9,7 +10,9 @@ import SwiftAgents
 /// runner: each ACP `session/prompt` drives `Runner.runStreamed`, whose events
 /// are mapped onto `session/update` notifications (text, reasoning, tool calls),
 /// and whose provider token usage is returned on the prompt response. Cross-turn
-/// continuity is preserved per session via the rolling `lastResponseId`.
+/// continuity is preserved per session via the rolling `lastResponseId`, and the
+/// stdio MCP servers a client configures on `session/new` are spawned once per
+/// session and exposed to the agent as extra tools.
 final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
     private let defaultWorkingDirectory: String
     private let model: String
@@ -17,6 +20,15 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
     private var workingDirectoryBySession: [SessionId: String] = [:]
     private var lastResponseIdBySession: [SessionId: String] = [:]
     private var modelBySession: [SessionId: String] = [:]
+    /// Connected per-session MCP server proxies. Never torn down on
+    /// `cancel(sessionId:)` — that's per-turn cancellation and later turns still
+    /// need the servers. ACP has no session-teardown hook, so they live until the
+    /// process exits (the spawned stdio children exit with it, on stdin EOF).
+    private var mcpProxiesBySession: [SessionId: [MCPServerProxy]] = [:]
+    /// Servers that couldn't be set up on `session/new` (connect failure or an
+    /// unsupported network transport). `newSession` has no `ACPServerSession` to
+    /// stream text through, so the notice is surfaced on the session's first prompt.
+    private var mcpNoticeBySession: [SessionId: String] = [:]
 
     init(workingDirectory: String, model: String) {
         defaultWorkingDirectory = workingDirectory
@@ -37,9 +49,51 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
 
     func newSession(_ request: NewSessionRequest) async throws -> NewSessionResponse {
         let id = "coder-\(UUID().uuidString)"
-        lock.withLock { workingDirectoryBySession[id] = request.cwd }
+        let (proxies, notice) = await Self.connectMCPServers(request.mcpServers, cwd: request.cwd)
+        lock.withLock {
+            workingDirectoryBySession[id] = request.cwd
+            mcpProxiesBySession[id] = proxies
+            mcpNoticeBySession[id] = notice
+        }
         // Advertise the model menu so native ACP clients render a model picker.
         return NewSessionResponse(sessionId: id, modelState: Self.modelState(current: model))
+    }
+
+    /// Spawn and connect the stdio MCP servers a client configured for the session.
+    /// A per-server connect failure must not fail session creation, so failures —
+    /// and non-stdio specs, whose network transports Coder doesn't support — are
+    /// collected into a notice for the first prompt instead of thrown.
+    private static func connectMCPServers(
+        _ specs: [MCPServerSpec], cwd: String
+    ) async -> (proxies: [MCPServerProxy], notice: String?) {
+        var proxies: [MCPServerProxy] = []
+        var problems: [String] = []
+        for spec in specs {
+            switch spec {
+                case let .stdio(server):
+                    let proxy = MCPServerProxy(config: .stdio(config: MCPServerStdioConfig(
+                        command: server.command,
+                        args: server.args,
+                        workingDirectory: cwd,
+                        // Clients may repeat a variable name; last occurrence wins.
+                        environment: Dictionary(
+                            server.env.map { ($0.name, $0.value) },
+                            uniquingKeysWith: { _, last in last }
+                        )
+                    )))
+                    do {
+                        try await proxy.connect()
+                        proxies.append(proxy)
+                    } catch {
+                        problems.append("\(server.name) failed to connect: \(error.localizedDescription)")
+                    }
+                case let .other(value):
+                    let name = value["name"]?.stringValue ?? "unnamed"
+                    problems.append("\(name) uses an unsupported transport (only stdio MCP servers are supported)")
+            }
+        }
+        guard !problems.isEmpty else { return (proxies, nil) }
+        return (proxies, "Skipped MCP server(s) — " + problems.joined(separator: "; ") + ".")
     }
 
     /// Native model switch (`session/set_model`). Shares one code path with the
@@ -61,6 +115,12 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
     }
 
     func prompt(_ request: PromptRequest, session: ACPServerSession) async throws -> PromptResponse {
+        // Deferred setup problems from `session/new` (see `mcpNoticeBySession`),
+        // reported once on the session's first prompt.
+        if let notice = lock.withLock({ mcpNoticeBySession.removeValue(forKey: session.id) }) {
+            await session.sendText(notice + "\n\n")
+        }
+
         let text = request.prompt.compactMap(\.text).joined()
 
         // Intercept known slash commands before the model. Anything else (incl.
@@ -78,15 +138,20 @@ final class CoderACPHandler: ACPAgentHandler, @unchecked Sendable {
             }
         }
 
-        let (workingDirectory, previousResponseId, currentModel) = lock.withLock {
+        let (workingDirectory, previousResponseId, currentModel, mcpServers) = lock.withLock {
             (
                 workingDirectoryBySession[session.id] ?? defaultWorkingDirectory,
                 lastResponseIdBySession[session.id],
-                modelBySession[session.id] ?? model
+                modelBySession[session.id] ?? model,
+                mcpProxiesBySession[session.id] ?? []
             )
         }
 
-        let agent = CodingAgent(workingDirectory: workingDirectory, config: RunConfig(model: currentModel))
+        let agent = CodingAgent(
+            workingDirectory: workingDirectory,
+            config: RunConfig(model: currentModel),
+            mcpServers: mcpServers
+        )
         let result = Runner.runStreamed(
             agent: agent, input: text, maxTurns: 50,
             previousResponseId: previousResponseId,

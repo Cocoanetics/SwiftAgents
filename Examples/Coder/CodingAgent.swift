@@ -24,11 +24,20 @@ final class CodingAgent: Agent, @unchecked Sendable {
     let workingDirectory: String
     let tools: [Tool]
     let toolProviders: [MCPToolProviding]
+    let mcpServers: [MCPServerProxy]
 
     /// - Parameter isSubAgent: If true, this agent won't spawn its own sub-agent (prevents recursion).
     /// - Parameter config: RunConfig to use for sub-agent runs (passes model, etc.).
-    init(workingDirectory: String, isSubAgent: Bool = false, config: RunConfig = RunConfig()) {
+    /// - Parameter mcpServers: Already-connected MCP server proxies whose tools the agent
+    ///   exposes alongside its built-ins (e.g. the servers an ACP client configures per session).
+    init(
+        workingDirectory: String,
+        isSubAgent: Bool = false,
+        config: RunConfig = RunConfig(),
+        mcpServers: [MCPServerProxy] = []
+    ) {
         self.workingDirectory = workingDirectory
+        self.mcpServers = mcpServers
 
         let model = config.model ?? "gpt-4.1"
         tools = Tool.supportsApplyPatch(model: model) ? [.applyPatch] : []
