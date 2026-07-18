@@ -350,6 +350,11 @@ extension Runner {
             var functionCalls = [OutputItem.FunctionCall]()
             var applyPatchCalls = [ApplyPatchCallOutput]()
             var completedResponse: Response?
+            // Every output item as delivered by `response.output_item.done`,
+            // in order. The codex backend sends `response.completed` with an
+            // EMPTY `output` array — the done events are the only complete
+            // record of the turn (codex-rs likewise accumulates from them).
+            var doneOutputItems = [OutputItem]()
             var roundResult = ""
             var roundReasoning: String?
             var roundFile: GeneratedFile?
@@ -410,6 +415,8 @@ extension Runner {
 
                     switch event.object {
                         case let .outputItemDone(info):
+                            doneOutputItems.append(info.item)
+
                             switch info.item {
                                 case let .functionCall(functionCall):
                                     functionCalls.append(functionCall)
@@ -500,8 +507,21 @@ extension Runner {
             // server ids stripped, mirroring codex under `store: false`: the
             // backend discards unknown-id items, which would orphan the
             // paired function_call_output).
-            if !serverKeepsHistory, let response = completedResponse {
-                accumulatedInput.append(contentsOf: response.output.compactMap {
+            // What this turn actually produced. Stateful providers report
+            // the full item list on `response.completed` (kept as the
+            // source, byte-identical to before); the codex backend sends
+            // `output: []` there, so the stateless path prefers the
+            // item-done events and falls back to the completed payload for
+            // Responses servers that do populate it.
+            let turnOutput: [OutputItem]
+            if serverKeepsHistory {
+                turnOutput = completedResponse?.output ?? []
+            } else {
+                turnOutput = doneOutputItems.isEmpty ? (completedResponse?.output ?? []) : doneOutputItems
+            }
+
+            if !serverKeepsHistory {
+                accumulatedInput.append(contentsOf: turnOutput.compactMap {
                     $0.toInputElement(preservingReasoning: true, preservingServerIDs: false)
                 })
             }
@@ -514,8 +534,8 @@ extension Runner {
             // reasoning item is rejected by the Responses API — and store
             // them id-less, since the session replays into the same
             // stateless backend on the next run.
-            if let session, let response = completedResponse {
-                let responseElements = response.output.compactMap {
+            if let session {
+                let responseElements = turnOutput.compactMap {
                     $0.toInputElement(
                         preservingReasoning: !serverKeepsHistory,
                         preservingServerIDs: serverKeepsHistory
@@ -527,16 +547,14 @@ extension Runner {
             }
 
             // Extract apply_patch calls and any generated image from the
-            // completed response — the streaming deltas may be incomplete, but
-            // the final response carries the full output items.
-            if let response = completedResponse {
-                for outputItem in response.output {
-                    if case let .applyPatchCall(patchCall) = outputItem {
-                        applyPatchCalls.append(patchCall)
-                    }
-                    if case let .imageGenerationCall(imageCall) = outputItem, let bytes = imageCall.result {
-                        roundFile = GeneratedFile(data: bytes, mimeType: imageCall.mimeType, id: imageCall.id)
-                    }
+            // turn's items — the streaming deltas may be incomplete, but the
+            // done items / final response carry the full payloads.
+            for outputItem in turnOutput {
+                if case let .applyPatchCall(patchCall) = outputItem {
+                    applyPatchCalls.append(patchCall)
+                }
+                if case let .imageGenerationCall(imageCall) = outputItem, let bytes = imageCall.result {
+                    roundFile = GeneratedFile(data: bytes, mimeType: imageCall.mimeType, id: imageCall.id)
                 }
             }
 

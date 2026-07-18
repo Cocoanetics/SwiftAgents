@@ -127,7 +127,11 @@ private enum CodexFixture {
         #"{"type":"response.output_item.done","output_index":0,"item":\#(item)}"#
     }
 
-    static func responseCompleted(id: String, outputItems: [String]) -> String {
+    /// The live codex backend sends `response.completed` with an EMPTY
+    /// `output` array — items arrive only via `response.output_item.done`.
+    /// The default mirrors that; the stateful (api.openai.com) fixture
+    /// passes explicit items, matching the first-party behavior.
+    static func responseCompleted(id: String, outputItems: [String] = []) -> String {
         let response = #"{"id":"\#(id)","object":"response","created_at":1700000000,"#
             + #""status":"completed","model":"gpt-5.3-codex","#
             + #""output":[\#(outputItems.joined(separator: ","))],"parallel_tool_calls":true,"#
@@ -280,10 +284,7 @@ struct ChatGPTCodexTests {
         CodexBackendStub.script([
             CodexFixture.sse([
                 CodexFixture.outputItemDone(CodexFixture.messageItem("Hello from codex.")),
-                CodexFixture.responseCompleted(
-                    id: "resp_1",
-                    outputItems: [CodexFixture.messageItem("Hello from codex.")]
-                )
+                CodexFixture.responseCompleted(id: "resp_1")
             ])
         ])
 
@@ -323,19 +324,14 @@ struct ChatGPTCodexTests {
         CodexBackendStub.script([
             // Turn 1: the model thinks, then calls the weather tool.
             CodexFixture.sse([
+                CodexFixture.outputItemDone(CodexFixture.reasoningItem),
                 CodexFixture.outputItemDone(CodexFixture.functionCallItem),
-                CodexFixture.responseCompleted(
-                    id: "resp_1",
-                    outputItems: [CodexFixture.reasoningItem, CodexFixture.functionCallItem]
-                )
+                CodexFixture.responseCompleted(id: "resp_1")
             ]),
             // Turn 2: with the tool output in context, the model answers.
             CodexFixture.sse([
                 CodexFixture.outputItemDone(CodexFixture.messageItem("Mild and cloudy in Berlin.")),
-                CodexFixture.responseCompleted(
-                    id: "resp_2",
-                    outputItems: [CodexFixture.messageItem("Mild and cloudy in Berlin.")]
-                )
+                CodexFixture.responseCompleted(id: "resp_2")
             ])
         ])
 
@@ -396,27 +392,19 @@ struct ChatGPTCodexTests {
         CodexBackendStub.script([
             // Run 1, turn 1: the model thinks, then calls the weather tool.
             CodexFixture.sse([
+                CodexFixture.outputItemDone(CodexFixture.reasoningItem),
                 CodexFixture.outputItemDone(CodexFixture.functionCallItem),
-                CodexFixture.responseCompleted(
-                    id: "resp_1",
-                    outputItems: [CodexFixture.reasoningItem, CodexFixture.functionCallItem]
-                )
+                CodexFixture.responseCompleted(id: "resp_1")
             ]),
             // Run 1, turn 2: final answer.
             CodexFixture.sse([
                 CodexFixture.outputItemDone(CodexFixture.messageItem("Mild and cloudy in Berlin.")),
-                CodexFixture.responseCompleted(
-                    id: "resp_2",
-                    outputItems: [CodexFixture.messageItem("Mild and cloudy in Berlin.")]
-                )
+                CodexFixture.responseCompleted(id: "resp_2")
             ]),
             // Run 2, turn 1: answer to the follow-up.
             CodexFixture.sse([
                 CodexFixture.outputItemDone(CodexFixture.messageItem("Cooler tomorrow.")),
-                CodexFixture.responseCompleted(
-                    id: "resp_3",
-                    outputItems: [CodexFixture.messageItem("Cooler tomorrow.")]
-                )
+                CodexFixture.responseCompleted(id: "resp_3")
             ])
         ])
 
