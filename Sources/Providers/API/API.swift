@@ -19,14 +19,18 @@ public extension URL {
 
 open class API: @unchecked Sendable {
     package let endpointURL: URL
-    let session: URLSession
+
+    /// `var` (not `let`) purely as a test seam: offline tests swap in a
+    /// session whose configuration routes through a stubbed `URLProtocol`.
+    var session: URLSession
 
     /// Session for the SSE streaming endpoints. Kept separate from `session`
     /// because that one caps the *total* response load at 360 s
     /// (`timeoutIntervalForResource`), which would hard-kill long generations
     /// mid-stream. Both timeouts here are 600 s, matching the dedicated
     /// stream sessions the Responses and Anthropic paths use.
-    let streamSession: URLSession
+    /// `var` for the same test seam as `session`.
+    var streamSession: URLSession
 
     let versionPath: String
 
