@@ -368,17 +368,21 @@ struct ChatGPTCodexTests {
 
         // Turn 2 resends the whole conversation: user message, the turn-1
         // reasoning item (encrypted content intact), the function_call, and
-        // the executed tool's output.
+        // the executed tool's output. Server-assigned item ids must be
+        // STRIPPED — the backend discards unknown-id items under
+        // store:false, orphaning the function_call_output (codex strips
+        // them too; `call_id` is the pairing key and stays).
         let secondInput = try #require(secondBody["input"] as? [[String: Any]])
         #expect(secondInput.count == 4)
 
         #expect(secondInput[0]["role"] as? String == "user")
 
         #expect(secondInput[1]["type"] as? String == "reasoning")
-        #expect(secondInput[1]["id"] as? String == "rs_1")
+        #expect(secondInput[1]["id"] == nil)
         #expect(secondInput[1]["encrypted_content"] as? String == "ENCRYPTED_BLOB")
 
         #expect(secondInput[2]["type"] as? String == "function_call")
+        #expect(secondInput[2]["id"] == nil)
         #expect(secondInput[2]["call_id"] as? String == "call_1")
         #expect(secondInput[2]["name"] as? String == "get_weather")
 
@@ -458,9 +462,11 @@ struct ChatGPTCodexTests {
         #expect(firstUserContent?.first?["text"] as? String == "What's the weather in Berlin?")
 
         #expect(input[1]["type"] as? String == "reasoning")
+        #expect(input[1]["id"] == nil)
         #expect(input[1]["encrypted_content"] as? String == "ENCRYPTED_BLOB")
 
         #expect(input[2]["type"] as? String == "function_call")
+        #expect(input[2]["id"] == nil)
         #expect(input[2]["call_id"] as? String == "call_1")
 
         #expect(input[3]["type"] as? String == "function_call_output")

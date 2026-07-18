@@ -496,10 +496,13 @@ extension Runner {
 
             // Stateless backends: fold this turn's output into the locally
             // accumulated conversation so the next request resends everything
-            // (reasoning items included, encrypted content and all).
+            // (reasoning items included, encrypted content and all — but with
+            // server ids stripped, mirroring codex under `store: false`: the
+            // backend discards unknown-id items, which would orphan the
+            // paired function_call_output).
             if !serverKeepsHistory, let response = completedResponse {
                 accumulatedInput.append(contentsOf: response.output.compactMap {
-                    $0.toInputElement(preservingReasoning: true)
+                    $0.toInputElement(preservingReasoning: true, preservingServerIDs: false)
                 })
             }
 
@@ -507,11 +510,16 @@ extension Runner {
             // — and any resumption of this session — picks them up
             // (mirroring the non-streaming runner's post-response
             // `session.addItems`). Stateless backends persist reasoning
-            // items too: replaying a function_call without its preceding
-            // reasoning item is rejected by the Responses API.
+            // items too — replaying a function_call without its preceding
+            // reasoning item is rejected by the Responses API — and store
+            // them id-less, since the session replays into the same
+            // stateless backend on the next run.
             if let session, let response = completedResponse {
                 let responseElements = response.output.compactMap {
-                    $0.toInputElement(preservingReasoning: !serverKeepsHistory)
+                    $0.toInputElement(
+                        preservingReasoning: !serverKeepsHistory,
+                        preservingServerIDs: serverKeepsHistory
+                    )
                 }
                 if !responseElements.isEmpty {
                     try await session.addItems(responseElements)

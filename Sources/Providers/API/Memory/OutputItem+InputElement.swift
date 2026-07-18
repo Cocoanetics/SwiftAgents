@@ -20,18 +20,33 @@ public extension OutputItem {
     /// storing in a `Session`. Returns nil for output items that have no
     /// input-side equivalent the runner would want to replay.
     ///
-    /// - Parameter preservingReasoning: replay `reasoning` items too (as raw
-    ///   input items, encrypted content included). Off by default — reasoning
-    ///   is server-side state on stateful backends — but required for
-    ///   stateless backends (`store: false`), where the Responses API rejects
-    ///   a resent `function_call` whose preceding reasoning item is missing.
-    func toInputElement(preservingReasoning: Bool = false) -> Response.Input.Element? {
+    /// - Parameters:
+    ///   - preservingReasoning: replay `reasoning` items too (as raw
+    ///     input items, encrypted content included). Off by default — reasoning
+    ///     is server-side state on stateful backends — but required for
+    ///     stateless backends (`store: false`), where the Responses API rejects
+    ///     a resent `function_call` whose preceding reasoning item is missing.
+    ///   - preservingServerIDs: keep the server-assigned item ids (`fc_…`,
+    ///     `rs_…`) on the replayed items. On by default (stateful replay is
+    ///     byte-identical to what the server produced). Stateless backends
+    ///     (`store: false`) pass false, mirroring codex's
+    ///     `prepare_response_items_for_request`: the backend discards
+    ///     unknown-id items under `store: false`, which orphans the paired
+    ///     `function_call_output` ("No tool call found for function call
+    ///     output with call_id …"). Server-tool call records that are
+    ///     nothing but their server identity (file/web search, computer and
+    ///     image-generation calls) are dropped entirely in this mode.
+    func toInputElement(
+        preservingReasoning: Bool = false,
+        preservingServerIDs: Bool = true
+    ) -> Response.Input.Element? {
         switch self {
             case let .message(message):
                 // Assistant text must be `output_text` on the wire when
                 // replayed as input (OpenAI rejects `input_text` on
                 // assistant messages); user/system/tool messages use
-                // `input_text`.
+                // `input_text`. (No server id on the input message shape,
+                // so both replay modes agree here.)
                 let useOutputText = message.role == .assistant
                 let pieces: [Response.Input.ContentElement] = message.content.compactMap { piece in
                     if case let .outputText(text) = piece {
@@ -45,17 +60,31 @@ public extension OutputItem {
                     phase: message.phase
                 ))
             case let .functionCall(call):
+                guard preservingServerIDs else {
+                    // Stateless replay: resend the call without its
+                    // server-assigned `id` (and without `status`), exactly
+                    // like codex does under `store: false`. `call_id` is the
+                    // pairing key for the function_call_output and stays.
+                    return .raw(.object([
+                        "type": .string("function_call"),
+                        "call_id": .string(call.callId),
+                        "name": .string(call.name),
+                        "arguments": .string(call.arguments)
+                    ]))
+                }
                 return .functionCall(call)
             case let .fileSearch(file):
-                return .fileSearch(file)
+                return preservingServerIDs ? .fileSearch(file) : nil
             case let .webSearch(web):
-                return .webSearch(web)
+                return preservingServerIDs ? .webSearch(web) : nil
             case let .imageGenerationCall(call):
                 // Replayed as a bare `{ type, id }` reference so a later turn
                 // can edit or refer to the image without resending the bytes.
-                return .imageGenerationCall(call)
+                // Meaningless without server-side state, so the stateless
+                // mode drops it.
+                return preservingServerIDs ? .imageGenerationCall(call) : nil
             case let .computer(comp):
-                return .computerCall(comp)
+                return preservingServerIDs ? .computerCall(comp) : nil
             case let .reasoning(reasoning):
                 // Reasoning summaries are server-side state on the original
                 // turn; they aren't replayed as input on the next turn —
@@ -68,11 +97,13 @@ public extension OutputItem {
                 // request encoder's key strategy leaves them untouched).
                 var object: [String: JSONValue] = [
                     "type": .string("reasoning"),
-                    "id": .string(reasoning.id),
                     "summary": .array(reasoning.summary.map { item in
                         .object(["type": .string(item.type), "text": .string(item.text)])
                     })
                 ]
+                if preservingServerIDs {
+                    object["id"] = .string(reasoning.id)
+                }
                 if let encrypted = reasoning.encryptedContent {
                     object["encrypted_content"] = .string(encrypted)
                 }
