@@ -87,4 +87,16 @@ public struct ConversationStatePolicy: Sendable, Equatable {
         responseIdsAreOpenAIRoutable: false,
         supportsStructuredOutput: true
     )
+
+    /// The ChatGPT Codex backend (chatgpt.com/backend-api/codex): the same
+    /// Responses wire shape, but nothing is persisted server-side (`store`
+    /// is forced false), so responses can never chain via
+    /// `previous_response_id` — the streamed Runner resends the full
+    /// accumulated input every turn instead. Ids aren't routable to OpenAI
+    /// tracing.
+    public static let chatGPTCodex = ConversationStatePolicy(
+        supportsServerSideHistory: false,
+        responseIdsAreOpenAIRoutable: false,
+        supportsStructuredOutput: true
+    )
 }

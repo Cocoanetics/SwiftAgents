@@ -18,9 +18,25 @@ extension Runner {
     ///   `outputTextDelta` / `runItemEvent` events. Providers whose streaming
     ///   isn't wired up yet fall back to non-streaming `Runner.run()` and emit
     ///   the final output as a single event.
+    ///
+    /// - Parameter session: provider-agnostic conversation log, mirroring
+    ///   `Runner.run(session:)`. Seeded with this run's user input, replayed
+    ///   as the starting context on the Responses streaming path (the full
+    ///   history every turn on stateless backends like the ChatGPT Codex
+    ///   backend; fresh-chain seeding on stateful ones), and appended with
+    ///   the run's outputs (assistant messages, tool calls and outputs —
+    ///   plus reasoning items on stateless backends), so consecutive
+    ///   `runStreamed` calls sharing one session form an ongoing
+    ///   conversation. Mutually exclusive with `previousResponseId` — they
+    ///   are alternative ways to track the same conversation. The
+    ///   chat-completion streaming fallback does not read or write the
+    ///   session yet — a run that stays on that path leaves it untouched
+    ///   (seeding only happens once a turn takes the Responses path, so no
+    ///   orphan user turns end up in a shared session).
     public static func runStreamed(
         agent: some Agent,
         input: String,
+        session: Providers.Session? = nil,
         maxTurns: Int = 10,
         previousResponseId: String? = nil,
         config: RunConfig = RunConfig()
@@ -34,6 +50,7 @@ extension Runner {
                 try await _runStreamedLoop(
                     agent: agent,
                     input: input,
+                    session: session,
                     maxTurns: maxTurns,
                     previousResponseId: previousResponseId,
                     config: config,
@@ -62,6 +79,7 @@ extension Runner {
     private static func _runStreamedLoop<A: Agent>(
         agent: A,
         input: String,
+        session: Providers.Session?,
         maxTurns: Int,
         previousResponseId: String?,
         config: RunConfig,
@@ -78,6 +96,7 @@ extension Runner {
                 try await _runStreamedLoop(
                     agent: agent,
                     input: input,
+                    session: session,
                     maxTurns: maxTurns,
                     previousResponseId: previousResponseId,
                     config: config,
@@ -86,6 +105,15 @@ extension Runner {
                 )
             }
         }
+
+        // Session and chain pointer are alternative ways to track the same
+        // conversation — mirror the non-streaming runner's exclusivity rule.
+        try validateSessionConversationSettings(
+            session: session,
+            conversationId: nil,
+            previousResponseId: previousResponseId,
+            autoPreviousResponseId: false
+        )
 
         // Build the run-configured decoder once (mirroring the non-streaming
         // loop) so typed final outputs and typed handoff inputs honor
@@ -99,6 +127,12 @@ extension Runner {
         // assistant message + the handoff tool result instead of restarting
         // from the original user input.
         var chatHistory: [ChatMessage] = []
+        // Session seeding is deferred until a turn actually takes the
+        // Responses streaming path: the chat-completion fallback neither
+        // reads nor appends to the session, so seeding up front would
+        // strand an orphan user turn in a shared session. Once per run —
+        // handoffs re-enter the loop and must not double-add.
+        var sessionSeeded = false
 
         repeat {
             let modelSpec = config.model ?? currentAgent.model ?? "gpt-4.1"
@@ -116,14 +150,17 @@ extension Runner {
 
             // Use the Responses streaming API only when the provider opts in via
             // `prefersResponsesStreaming` (first-party OpenAI, LM Studio, and the
-            // ChatGPT backend) AND this turn can run statefully. Structured-output
-            // turns fall back to chat-completion streaming on providers whose
-            // Responses endpoint ignores the schema (LM Studio), so `response_format`
-            // still constrains the model — mirroring the non-streaming gate. Chat-only
+            // ChatGPT Codex backend). Server-side history is NOT required — a
+            // stateless Responses backend (Codex) streams here too, with the
+            // turn loop resending the full accumulated input instead of chaining
+            // `previous_response_id`. Structured-output turns fall back to
+            // chat-completion streaming on providers whose Responses endpoint
+            // ignores the schema (LM Studio), so `response_format` still
+            // constrains the model — mirroring the non-streaming gate. Chat-only
             // OpenAI-compat servers (e.g. llama.cpp) stream via `/v1/chat/completions`.
             guard let openAI = api as? OpenAI,
                   openAI.prefersResponsesStreaming,
-                  Self.shouldUseStatefulPath(policy: api.statePolicy, outputType: currentAgent.outputType)
+                  Self.shouldStreamViaResponses(policy: api.statePolicy, outputType: currentAgent.outputType)
             else {
                 // Media output (image/audio) can't be streamed token-wise on the
                 // chat-completion path, and there's no stream event to carry the
@@ -180,6 +217,14 @@ extension Runner {
                 }
             }
 
+            // Seed the session with the user input, exactly like the
+            // non-streaming runner (Runner.run) — the flag keeps handoffs
+            // and turn retries from double-adding it.
+            if let session, !sessionSeeded {
+                try await session.addItems([.userMessage(input)])
+                sessionSeeded = true
+            }
+
             let result: AgentResult<A.OutputType> = try await withSpan { agentSpan in
                 var tools: [Tool] = await currentAgent.createTools()
                 tools += try await Self.collectMCPTools(for: currentAgent)
@@ -204,6 +249,7 @@ extension Runner {
                     model: model,
                     openAI: openAI,
                     input: .text(input),
+                    session: session,
                     previousResponseId: previousResponseId,
                     decoder: decoder,
                     continuation: continuation,
@@ -261,12 +307,47 @@ extension Runner {
         model: String,
         openAI: OpenAI,
         input: Response.Input,
+        session: Providers.Session?,
         previousResponseId: String?,
         decoder: JSONDecoder,
         continuation: AsyncThrowingStream<AgentStreamEvent, Error>.Continuation,
         resultRef: RunResultStreaming
     ) async throws -> AgentResult<A.OutputType> {
-        var currentInput = input
+        // Stateless Responses backends (`supportsServerSideHistory == false`,
+        // e.g. the ChatGPT Codex backend) never persist responses: `store` is
+        // forced false, `previous_response_id` can never resolve, and the
+        // instructions must ride along on every turn. The loop keeps the full
+        // conversation locally instead — the initial input items plus, after
+        // each turn, the response's output items (reasoning included: the
+        // Responses API rejects a resent function_call whose preceding
+        // reasoning item is missing) and the tool outputs.
+        let serverKeepsHistory = openAI.statePolicy.supportsServerSideHistory
+        var accumulatedInput: [Response.Input.Element]
+        switch input {
+            case let .text(text):
+                accumulatedInput = [.userMessage(text)]
+            case let .array(elements):
+                accumulatedInput = elements
+        }
+
+        // A session is the canonical cross-run conversation log; the caller
+        // already seeded it with this run's user input. Start from the full
+        // session history instead of just the new input — the same seeding
+        // `dispatchStatefulTurn` performs on the non-streaming path when no
+        // chain pointer is set (session + previousResponseId is rejected at
+        // the entry point, so a session always means a fresh chain here).
+        if let session {
+            let sessionItems = try await session.getItems()
+            if !sessionItems.isEmpty {
+                accumulatedInput = sessionItems
+            }
+        }
+
+        var currentInput: Response.Input = if serverKeepsHistory {
+            session != nil ? .array(accumulatedInput) : input
+        } else {
+            .array(accumulatedInput)
+        }
         var previousResponseId = previousResponseId
         var turns = 0
 
@@ -279,6 +360,11 @@ extension Runner {
             var functionCalls = [OutputItem.FunctionCall]()
             var applyPatchCalls = [ApplyPatchCallOutput]()
             var completedResponse: Response?
+            // Every output item as delivered by `response.output_item.done`,
+            // in order. The codex backend sends `response.completed` with an
+            // EMPTY `output` array — the done events are the only complete
+            // record of the turn (codex-rs likewise accumulates from them).
+            var doneOutputItems = [OutputItem]()
             var roundResult = ""
             var roundReasoning: String?
             var roundFile: GeneratedFile?
@@ -292,8 +378,10 @@ extension Runner {
                     responseSpan.spanData = ResponseSpanData(input: currentInput)
                 }
 
-                // When continuing a conversation, skip instructions — the API has them via previousResponseId
-                let instructions = previousResponseId == nil ? agent.instructions : nil
+                // When continuing a conversation, skip instructions — the API has
+                // them via previousResponseId. Stateless backends have no
+                // server-side context, so they get the instructions every turn.
+                let instructions = (serverKeepsHistory && previousResponseId != nil) ? nil : agent.instructions
 
                 // A WebSocket-backed client streams the turn over its persistent
                 // socket (same `ResponsesStreamEvent` shape); everyone else uses
@@ -313,13 +401,16 @@ extension Runner {
                     stream = try await openAI.createResponseStream(
                         input: currentInput,
                         model: model,
+                        // Stateless backends must return the encrypted
+                        // reasoning payload so it can be replayed as input.
+                        include: serverKeepsHistory ? nil : [.reasoningEncryptedContent],
                         instructions: instructions,
                         maxOutputTokens: agent.modelSettings.maxCompletionTokens,
                         metadata: agent.modelSettings.metadata,
                         parallelToolCalls: agent.modelSettings.parallelToolCalls,
-                        previousResponseId: previousResponseId,
+                        previousResponseId: serverKeepsHistory ? previousResponseId : nil,
                         reasoning: agent.modelSettings.reasoning,
-                        store: agent.modelSettings.store,
+                        store: serverKeepsHistory ? agent.modelSettings.store : false,
                         temperature: agent.modelSettings.temperature,
                         toolChoice: agent.modelSettings.toolChoice,
                         tools: tools,
@@ -334,6 +425,8 @@ extension Runner {
 
                     switch event.object {
                         case let .outputItemDone(info):
+                            doneOutputItems.append(info.item)
+
                             switch info.item {
                                 case let .functionCall(functionCall):
                                     functionCalls.append(functionCall)
@@ -418,17 +511,60 @@ extension Runner {
             previousResponseId = completedResponse?.id
             resultRef.lastResponseId = previousResponseId
 
+            // Stateless backends: fold this turn's output into the locally
+            // accumulated conversation so the next request resends everything
+            // (reasoning items included, encrypted content and all — but with
+            // server ids stripped, mirroring codex under `store: false`: the
+            // backend discards unknown-id items, which would orphan the
+            // paired function_call_output).
+            // What this turn actually produced. Stateful providers report
+            // the full item list on `response.completed` (kept as the
+            // source, byte-identical to before); the codex backend sends
+            // `output: []` there, so the stateless path prefers the
+            // item-done events and falls back to the completed payload for
+            // Responses servers that do populate it.
+            let turnOutput: [OutputItem]
+            if serverKeepsHistory {
+                turnOutput = completedResponse?.output ?? []
+            } else {
+                turnOutput = doneOutputItems.isEmpty ? (completedResponse?.output ?? []) : doneOutputItems
+            }
+
+            if !serverKeepsHistory {
+                accumulatedInput.append(contentsOf: turnOutput.compactMap {
+                    $0.toInputElement(preservingReasoning: true, preservingServerIDs: false)
+                })
+            }
+
+            // Append the assistant's outputs to the session so the next run
+            // — and any resumption of this session — picks them up
+            // (mirroring the non-streaming runner's post-response
+            // `session.addItems`). Stateless backends persist reasoning
+            // items too — replaying a function_call without its preceding
+            // reasoning item is rejected by the Responses API — and store
+            // them id-less, since the session replays into the same
+            // stateless backend on the next run.
+            if let session {
+                let responseElements = turnOutput.compactMap {
+                    $0.toInputElement(
+                        preservingReasoning: !serverKeepsHistory,
+                        preservingServerIDs: serverKeepsHistory
+                    )
+                }
+                if !responseElements.isEmpty {
+                    try await session.addItems(responseElements)
+                }
+            }
+
             // Extract apply_patch calls and any generated image from the
-            // completed response — the streaming deltas may be incomplete, but
-            // the final response carries the full output items.
-            if let response = completedResponse {
-                for outputItem in response.output {
-                    if case let .applyPatchCall(patchCall) = outputItem {
-                        applyPatchCalls.append(patchCall)
-                    }
-                    if case let .imageGenerationCall(imageCall) = outputItem, let bytes = imageCall.result {
-                        roundFile = GeneratedFile(data: bytes, mimeType: imageCall.mimeType, id: imageCall.id)
-                    }
+            // turn's items — the streaming deltas may be incomplete, but the
+            // done items / final response carry the full payloads.
+            for outputItem in turnOutput {
+                if case let .applyPatchCall(patchCall) = outputItem {
+                    applyPatchCalls.append(patchCall)
+                }
+                if case let .imageGenerationCall(imageCall) = outputItem, let bytes = imageCall.result {
+                    roundFile = GeneratedFile(data: bytes, mimeType: imageCall.mimeType, id: imageCall.id)
                 }
             }
 
@@ -451,6 +587,19 @@ extension Runner {
 
                     try await withSpan { span in
                         span.spanData = HandoffSpanData(fromAgent: agent.name, toAgent: targetAgent.name)
+                    }
+
+                    // Close the handoff call in the session with the same
+                    // transfer output the non-streaming runner records —
+                    // the turn output above already stored the handoff
+                    // function_call, and a session ending on an unmatched
+                    // call breaks the next run (stateless backends resend
+                    // the whole history and reject the dangling call).
+                    if let session {
+                        try await session.addItems([.functionCallOutput(.init(
+                            callId: functionCall.callId,
+                            output: handoff.getTransferMessage()
+                        ))])
                     }
 
                     continuation.yield(.runItemEvent(
@@ -496,7 +645,19 @@ extension Runner {
             }
 
             if !allResults.isEmpty {
-                currentInput = .array(allResults)
+                if serverKeepsHistory {
+                    // The server holds the prior turns — send only the delta.
+                    currentInput = .array(allResults)
+                } else {
+                    // No server-side state — resend the whole conversation.
+                    accumulatedInput.append(contentsOf: allResults)
+                    currentInput = .array(accumulatedInput)
+                }
+                // Persist tool outputs / patch results so a resumed session
+                // replays them (mirrors the non-streaming runner).
+                if let session {
+                    try await session.addItems(allResults)
+                }
                 try? await Task.sleep(nanoseconds: 200_000)
                 continue
             }

@@ -95,6 +95,28 @@ extension Runner {
         return true
     }
 
+    /// Decides whether a streamed turn rides the provider's Responses
+    /// streaming endpoint or falls back to chat-completion streaming.
+    /// Unlike `shouldUseStatefulPath`, server-side history is NOT required:
+    /// a stateless Responses backend (the ChatGPT Codex backend, which has
+    /// no chat-completions surface at all) still streams via `/responses`,
+    /// with the streamed loop maintaining the full input locally instead of
+    /// chaining `previous_response_id`. The structured-output bypass is
+    /// shared with the stateful gate: providers whose Responses endpoint
+    /// silently ignores the schema (LM Studio) fall back to chat
+    /// completions so `response_format` still constrains the model.
+    static func shouldStreamViaResponses(
+        policy: ConversationStatePolicy,
+        outputType: TextFormat
+    ) -> Bool {
+        let needsStructuredOutput: Bool = switch outputType {
+            case .text: false
+            case .json, .jsonSchema: true
+        }
+        if needsStructuredOutput, !policy.supportsStructuredOutput { return false }
+        return true
+    }
+
     /// Dispatch one stateful turn, choosing incremental vs. full input and
     /// recovering from a lost chain base.
     ///
