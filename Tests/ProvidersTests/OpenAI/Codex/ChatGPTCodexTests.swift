@@ -164,17 +164,20 @@ private final class CodexWeatherTools {
 struct ChatGPTCodexTests {
     private static let instructions = "You are a codex test agent."
 
-    private func makeStubbedCodex(accountID: String? = "acct_123") -> ChatGPTCodex {
-        let api = ChatGPTCodex(authorization: ChatGPTCodexAuthorization(
-            accessToken: "test-token",
-            accountID: accountID
-        ))
-
+    private func attachStub(to api: API) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [CodexBackendStub.self]
         let stubbed = URLSession(configuration: configuration)
         api.session = stubbed
         api.streamSession = stubbed
+    }
+
+    private func makeStubbedCodex(accountID: String? = "acct_123") -> ChatGPTCodex {
+        let api = ChatGPTCodex(authorization: ChatGPTCodexAuthorization(
+            accessToken: "test-token",
+            accountID: accountID
+        ))
+        attachStub(to: api)
         return api
     }
 
@@ -382,5 +385,149 @@ struct ChatGPTCodexTests {
         #expect(secondInput[3]["type"] as? String == "function_call_output")
         #expect(secondInput[3]["call_id"] as? String == "call_1")
         #expect((secondInput[3]["output"] as? String)?.contains("18°C") == true)
+    }
+
+    @Test("consecutive runs sharing one InMemorySession replay the full conversation")
+    func sessionCarriesConversationAcrossRuns() async throws {
+        CodexBackendStub.script([
+            // Run 1, turn 1: the model thinks, then calls the weather tool.
+            CodexFixture.sse([
+                CodexFixture.outputItemDone(CodexFixture.functionCallItem),
+                CodexFixture.responseCompleted(
+                    id: "resp_1",
+                    outputItems: [CodexFixture.reasoningItem, CodexFixture.functionCallItem]
+                )
+            ]),
+            // Run 1, turn 2: final answer.
+            CodexFixture.sse([
+                CodexFixture.outputItemDone(CodexFixture.messageItem("Mild and cloudy in Berlin.")),
+                CodexFixture.responseCompleted(
+                    id: "resp_2",
+                    outputItems: [CodexFixture.messageItem("Mild and cloudy in Berlin.")]
+                )
+            ]),
+            // Run 2, turn 1: answer to the follow-up.
+            CodexFixture.sse([
+                CodexFixture.outputItemDone(CodexFixture.messageItem("Cooler tomorrow.")),
+                CodexFixture.responseCompleted(
+                    id: "resp_3",
+                    outputItems: [CodexFixture.messageItem("Cooler tomorrow.")]
+                )
+            ])
+        ])
+
+        let api = makeStubbedCodex()
+        let session = InMemorySession()
+        let agent = BasicAgent(
+            name: "CodexAgent",
+            model: "gpt-5.3-codex",
+            instructions: Self.instructions,
+            toolProvider: [CodexWeatherTools()]
+        )
+
+        let first = Runner.runStreamed(
+            agent: agent,
+            input: "What's the weather in Berlin?",
+            session: session,
+            config: RunConfig(api: api)
+        )
+        for try await _ in first.events {}
+
+        let second = Runner.runStreamed(
+            agent: agent,
+            input: "And tomorrow?",
+            session: session,
+            config: RunConfig(api: api)
+        )
+        for try await _ in second.events {}
+
+        let recorded = CodexBackendStub.recorded
+        #expect(recorded.count == 3)
+
+        // The follow-up run's first POST replays the whole first
+        // conversation — user message, reasoning (encrypted content
+        // intact), tool call and output, assistant reply — before the new
+        // user message. Still stateless: instructions present, store
+        // false, no previous_response_id.
+        let followUpBody = try expectCodexWireFormat(try #require(recorded.last))
+        let input = try #require(followUpBody["input"] as? [[String: Any]])
+        #expect(input.count == 6)
+
+        #expect(input[0]["role"] as? String == "user")
+        let firstUserContent = input[0]["content"] as? [[String: Any]]
+        #expect(firstUserContent?.first?["text"] as? String == "What's the weather in Berlin?")
+
+        #expect(input[1]["type"] as? String == "reasoning")
+        #expect(input[1]["encrypted_content"] as? String == "ENCRYPTED_BLOB")
+
+        #expect(input[2]["type"] as? String == "function_call")
+        #expect(input[2]["call_id"] as? String == "call_1")
+
+        #expect(input[3]["type"] as? String == "function_call_output")
+        #expect(input[3]["call_id"] as? String == "call_1")
+
+        #expect(input[4]["role"] as? String == "assistant")
+        let assistantContent = input[4]["content"] as? [[String: Any]]
+        #expect(assistantContent?.first?["type"] as? String == "output_text")
+        #expect(assistantContent?.first?["text"] as? String == "Mild and cloudy in Berlin.")
+
+        #expect(input[5]["role"] as? String == "user")
+        let followUpContent = input[5]["content"] as? [[String: Any]]
+        #expect(followUpContent?.first?["text"] as? String == "And tomorrow?")
+    }
+
+    @Test("stateful OpenAI streamed run without a session still chains previous_response_id")
+    func statefulPathUnchangedWithoutSession() async throws {
+        CodexBackendStub.script([
+            CodexFixture.sse([
+                CodexFixture.outputItemDone(CodexFixture.functionCallItem),
+                CodexFixture.responseCompleted(id: "resp_1", outputItems: [CodexFixture.functionCallItem])
+            ]),
+            CodexFixture.sse([
+                CodexFixture.outputItemDone(CodexFixture.messageItem("Done.")),
+                CodexFixture.responseCompleted(id: "resp_2", outputItems: [CodexFixture.messageItem("Done.")])
+            ])
+        ])
+
+        let api = OpenAI(credential: Credential.bearer("sk-test"))
+        attachStub(to: api)
+        let agent = BasicAgent(
+            name: "OpenAIAgent",
+            model: "gpt-4.1",
+            instructions: Self.instructions,
+            toolProvider: [CodexWeatherTools()]
+        )
+
+        let result = Runner.runStreamed(agent: agent, input: "Call the tool.", config: RunConfig(api: api))
+        for try await _ in result.events {}
+
+        let recorded = CodexBackendStub.recorded
+        #expect(recorded.count == 2)
+
+        // Turn 1: pre-change wire format, byte for byte — plain-text input,
+        // instructions, no include / store / previous_response_id, and the
+        // assistants=v2 header the first-party endpoint stamps.
+        let firstRequest = try #require(recorded.first)
+        #expect(firstRequest.request.url?.absoluteString == "https://api.openai.com/v1/responses")
+        #expect(firstRequest.request.value(forHTTPHeaderField: "OpenAI-Beta") == "assistants=v2")
+        let firstBody = try body(of: firstRequest)
+        #expect(firstBody["input"] as? String == "Call the tool.")
+        #expect(firstBody["instructions"] as? String == Self.instructions)
+        #expect(firstBody["stream"] as? Bool == true)
+        #expect(firstBody["previous_response_id"] == nil)
+        #expect(firstBody["store"] == nil)
+        #expect(firstBody["include"] == nil)
+
+        // Turn 2: chained via previous_response_id, instructions omitted,
+        // and only the tool-output delta as input.
+        let secondBody = try body(of: try #require(recorded.last))
+        #expect(secondBody["previous_response_id"] as? String == "resp_1")
+        #expect(secondBody["instructions"] == nil)
+        #expect(secondBody["store"] == nil)
+        #expect(secondBody["include"] == nil)
+        let delta = try #require(secondBody["input"] as? [[String: Any]])
+        #expect(delta.count == 1)
+        #expect(delta.first?["type"] as? String == "function_call_output")
+        #expect(delta.first?["call_id"] as? String == "call_1")
     }
 }

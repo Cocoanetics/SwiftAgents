@@ -18,9 +18,22 @@ extension Runner {
     ///   `outputTextDelta` / `runItemEvent` events. Providers whose streaming
     ///   isn't wired up yet fall back to non-streaming `Runner.run()` and emit
     ///   the final output as a single event.
+    ///
+    /// - Parameter session: provider-agnostic conversation log, mirroring
+    ///   `Runner.run(session:)`. Seeded with this run's user input, replayed
+    ///   as the starting context on the Responses streaming path (the full
+    ///   history every turn on stateless backends like the ChatGPT Codex
+    ///   backend; fresh-chain seeding on stateful ones), and appended with
+    ///   the run's outputs (assistant messages, tool calls and outputs —
+    ///   plus reasoning items on stateless backends), so consecutive
+    ///   `runStreamed` calls sharing one session form an ongoing
+    ///   conversation. Mutually exclusive with `previousResponseId` — they
+    ///   are alternative ways to track the same conversation. The
+    ///   chat-completion streaming fallback does not consult the session yet.
     public static func runStreamed(
         agent: some Agent,
         input: String,
+        session: Providers.Session? = nil,
         maxTurns: Int = 10,
         previousResponseId: String? = nil,
         config: RunConfig = RunConfig()
@@ -34,6 +47,7 @@ extension Runner {
                 try await _runStreamedLoop(
                     agent: agent,
                     input: input,
+                    session: session,
                     maxTurns: maxTurns,
                     previousResponseId: previousResponseId,
                     config: config,
@@ -62,6 +76,7 @@ extension Runner {
     private static func _runStreamedLoop<A: Agent>(
         agent: A,
         input: String,
+        session: Providers.Session?,
         maxTurns: Int,
         previousResponseId: String?,
         config: RunConfig,
@@ -78,6 +93,7 @@ extension Runner {
                 try await _runStreamedLoop(
                     agent: agent,
                     input: input,
+                    session: session,
                     maxTurns: maxTurns,
                     previousResponseId: previousResponseId,
                     config: config,
@@ -85,6 +101,22 @@ extension Runner {
                     resultRef: resultRef
                 )
             }
+        }
+
+        // Session and chain pointer are alternative ways to track the same
+        // conversation — mirror the non-streaming runner's exclusivity rule.
+        try validateSessionConversationSettings(
+            session: session,
+            conversationId: nil,
+            previousResponseId: previousResponseId,
+            autoPreviousResponseId: false
+        )
+
+        // Seed the session with the user input, exactly like the
+        // non-streaming runner (Runner.run) — once per run, before the
+        // agent loop, so handoffs and turn retries don't double-add it.
+        if let session {
+            try await session.addItems([.userMessage(input)])
         }
 
         // Build the run-configured decoder once (mirroring the non-streaming
@@ -207,6 +239,7 @@ extension Runner {
                     model: model,
                     openAI: openAI,
                     input: .text(input),
+                    session: session,
                     previousResponseId: previousResponseId,
                     decoder: decoder,
                     continuation: continuation,
@@ -264,6 +297,7 @@ extension Runner {
         model: String,
         openAI: OpenAI,
         input: Response.Input,
+        session: Providers.Session?,
         previousResponseId: String?,
         decoder: JSONDecoder,
         continuation: AsyncThrowingStream<AgentStreamEvent, Error>.Continuation,
@@ -286,7 +320,24 @@ extension Runner {
                 accumulatedInput = elements
         }
 
-        var currentInput = serverKeepsHistory ? input : .array(accumulatedInput)
+        // A session is the canonical cross-run conversation log; the caller
+        // already seeded it with this run's user input. Start from the full
+        // session history instead of just the new input — the same seeding
+        // `dispatchStatefulTurn` performs on the non-streaming path when no
+        // chain pointer is set (session + previousResponseId is rejected at
+        // the entry point, so a session always means a fresh chain here).
+        if let session {
+            let sessionItems = try await session.getItems()
+            if !sessionItems.isEmpty {
+                accumulatedInput = sessionItems
+            }
+        }
+
+        var currentInput: Response.Input = if serverKeepsHistory {
+            session != nil ? .array(accumulatedInput) : input
+        } else {
+            .array(accumulatedInput)
+        }
         var previousResponseId = previousResponseId
         var turns = 0
 
@@ -452,6 +503,21 @@ extension Runner {
                 })
             }
 
+            // Append the assistant's outputs to the session so the next run
+            // — and any resumption of this session — picks them up
+            // (mirroring the non-streaming runner's post-response
+            // `session.addItems`). Stateless backends persist reasoning
+            // items too: replaying a function_call without its preceding
+            // reasoning item is rejected by the Responses API.
+            if let session, let response = completedResponse {
+                let responseElements = response.output.compactMap {
+                    $0.toInputElement(preservingReasoning: !serverKeepsHistory)
+                }
+                if !responseElements.isEmpty {
+                    try await session.addItems(responseElements)
+                }
+            }
+
             // Extract apply_patch calls and any generated image from the
             // completed response — the streaming deltas may be incomplete, but
             // the final response carries the full output items.
@@ -537,6 +603,11 @@ extension Runner {
                     // No server-side state — resend the whole conversation.
                     accumulatedInput.append(contentsOf: allResults)
                     currentInput = .array(accumulatedInput)
+                }
+                // Persist tool outputs / patch results so a resumed session
+                // replays them (mirrors the non-streaming runner).
+                if let session {
+                    try await session.addItems(allResults)
                 }
                 try? await Task.sleep(nanoseconds: 200_000)
                 continue
