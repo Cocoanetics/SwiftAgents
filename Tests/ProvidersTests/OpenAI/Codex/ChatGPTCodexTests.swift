@@ -7,7 +7,9 @@
 //  (…/backend-api/codex/responses), the dropped `OpenAI-Beta` header, and
 //  the streamed Runner's stateless mode — full accumulated input every
 //  turn, `instructions` always present, `store: false` forced, and no
-//  `previous_response_id` chaining.
+//  `previous_response_id` chaining. Also pins the session-sharing
+//  semantics: handoff calls are closed with their transfer output, and
+//  the chat-completion fallback leaves a shared session untouched.
 //
 //  No live network: a `URLProtocol` stub records every request and feeds
 //  back scripted SSE bodies. Serialized because the stub's request log and
@@ -150,6 +152,23 @@ private enum CodexFixture {
         #"{"type":"message","id":"msg_1","role":"assistant","status":"completed","#
             + #""content":[{"type":"output_text","text":"\#(text)","annotations":[]}]}"#
     }
+
+    static func handoffCallItem(toolName: String) -> String {
+        #"{"type":"function_call","id":"fc_h1","call_id":"call_h1","#
+            + #""name":"\#(toolName)","arguments":"{}","status":"completed"}"#
+    }
+
+    /// Chat-completion streaming chunks for the fallback path — endpoints
+    /// that don't prefer Responses streaming go through `/v1/chat/completions`.
+    static func chatChunk(content: String) -> String {
+        #"{"id":"chatcmpl_1","object":"chat.completion.chunk","created":1700000000,"#
+            + #""model":"stub-model","choices":[{"index":0,"#
+            + #""delta":{"role":"assistant","content":"\#(content)"},"finish_reason":null}]}"#
+    }
+
+    static let chatStopChunk = #"{"id":"chatcmpl_1","object":"chat.completion.chunk","#
+        + #""created":1700000000,"model":"stub-model","#
+        + #""choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}"#
 }
 
 // MARK: - Test tool
@@ -468,6 +487,123 @@ struct ChatGPTCodexTests {
         #expect(input[5]["role"] as? String == "user")
         let followUpContent = input[5]["content"] as? [[String: Any]]
         #expect(followUpContent?.first?["text"] as? String == "And tomorrow?")
+    }
+
+    @Test("streamed handoff with a session persists the transfer output")
+    func handoffPersistsTransferOutput() async throws {
+        CodexBackendStub.script([
+            // Turn 1 (triage): the model calls the handoff tool.
+            CodexFixture.sse([
+                CodexFixture.outputItemDone(CodexFixture.handoffCallItem(toolName: "transfer_to_specialist")),
+                CodexFixture.responseCompleted(id: "resp_1")
+            ]),
+            // Turn 2 (specialist): answers with the replayed history.
+            CodexFixture.sse([
+                CodexFixture.outputItemDone(CodexFixture.messageItem("Specialist reporting.")),
+                CodexFixture.responseCompleted(id: "resp_2")
+            ])
+        ])
+
+        let api = makeStubbedCodex()
+        let session = InMemorySession()
+        let specialist = BasicAgent(
+            name: "Specialist",
+            model: "gpt-5.3-codex",
+            instructions: "You are the specialist."
+        )
+        let triage = BasicAgent(
+            name: "Triage",
+            model: "gpt-5.3-codex",
+            instructions: Self.instructions,
+            handoffs: [BasicHandoff(targetAgent: specialist)]
+        )
+
+        let result = Runner.runStreamed(
+            agent: triage,
+            input: "I need an expert.",
+            session: session,
+            config: RunConfig(api: api)
+        )
+        for try await _ in result.events {}
+
+        let recorded = CodexBackendStub.recorded
+        #expect(recorded.count == 2)
+
+        // The specialist's POST replays the full session — and the handoff
+        // function_call is CLOSED by the transfer output (the same pair
+        // `Runner.run` records). Without the output, the stateless backend
+        // would reject the resent history over the dangling call.
+        let secondBody = try body(of: try #require(recorded.last))
+        #expect(secondBody["instructions"] as? String == "You are the specialist.")
+        #expect(secondBody["store"] as? Bool == false)
+        #expect(secondBody["previous_response_id"] == nil)
+
+        let input = try #require(secondBody["input"] as? [[String: Any]])
+        #expect(input.count == 3)
+        #expect(input[0]["role"] as? String == "user")
+        #expect(input[1]["type"] as? String == "function_call")
+        #expect(input[1]["call_id"] as? String == "call_h1")
+        #expect(input[1]["name"] as? String == "transfer_to_specialist")
+        #expect(input[2]["type"] as? String == "function_call_output")
+        #expect(input[2]["call_id"] as? String == "call_h1")
+        #expect(input[2]["output"] as? String == "{'assistant': 'Specialist'}")
+
+        // Session end state: user message, handoff call, transfer output,
+        // and the specialist's final assistant message.
+        let items = try await session.getItems()
+        #expect(items.count == 4)
+    }
+
+    @Test("chat-completion fallback with a session leaves the session untouched")
+    func chatFallbackLeavesSessionUntouched() async throws {
+        CodexBackendStub.script([
+            CodexFixture.sse([
+                CodexFixture.chatChunk(content: "Hi there."),
+                CodexFixture.chatStopChunk
+            ])
+        ])
+
+        // A non-first-party endpoint keeps `prefersResponsesStreaming`
+        // false, so the runner takes the chat-completion streaming fallback.
+        let endpoint = try #require(URL(string: "https://chat.example.com"))
+        let api = OpenAI(credential: Credential.bearer("sk-test"), endpointURL: endpoint)
+        attachStub(to: api)
+        #expect(!api.prefersResponsesStreaming)
+
+        let session = InMemorySession()
+        let agent = BasicAgent(
+            name: "ChatAgent",
+            model: "compat-model",
+            instructions: Self.instructions
+        )
+
+        let result = Runner.runStreamed(
+            agent: agent,
+            input: "Hello?",
+            session: session,
+            config: RunConfig(api: api)
+        )
+        var messages: [String] = []
+        for try await event in result.events {
+            if case let .runItemEvent(name, item) = event,
+               name == .messageOutputCreated,
+               case let .message(text) = item {
+                messages.append(text)
+            }
+        }
+        #expect(messages == ["Hi there."])
+
+        // The run streamed via /v1/chat/completions...
+        let recorded = CodexBackendStub.recorded
+        #expect(recorded.count == 1)
+        #expect(recorded.first?.request.url?.absoluteString == "https://chat.example.com/v1/chat/completions")
+
+        // ...and the fallback neither seeds nor appends to the session — an
+        // eager seed would strand an orphan user turn that a later
+        // session-sharing run (Runner.run, or a Responses-path runStreamed)
+        // would replay as bogus history.
+        let items = try await session.getItems()
+        #expect(items.isEmpty)
     }
 
     @Test("stateful OpenAI streamed run without a session still chains previous_response_id")

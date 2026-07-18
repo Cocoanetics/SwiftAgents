@@ -29,7 +29,10 @@ extension Runner {
     ///   `runStreamed` calls sharing one session form an ongoing
     ///   conversation. Mutually exclusive with `previousResponseId` — they
     ///   are alternative ways to track the same conversation. The
-    ///   chat-completion streaming fallback does not consult the session yet.
+    ///   chat-completion streaming fallback does not read or write the
+    ///   session yet — a run that stays on that path leaves it untouched
+    ///   (seeding only happens once a turn takes the Responses path, so no
+    ///   orphan user turns end up in a shared session).
     public static func runStreamed(
         agent: some Agent,
         input: String,
@@ -112,13 +115,6 @@ extension Runner {
             autoPreviousResponseId: false
         )
 
-        // Seed the session with the user input, exactly like the
-        // non-streaming runner (Runner.run) — once per run, before the
-        // agent loop, so handoffs and turn retries don't double-add it.
-        if let session {
-            try await session.addItems([.userMessage(input)])
-        }
-
         // Build the run-configured decoder once (mirroring the non-streaming
         // loop) so typed final outputs and typed handoff inputs honor
         // `RunConfig.dateDecodingStrategy`.
@@ -131,6 +127,12 @@ extension Runner {
         // assistant message + the handoff tool result instead of restarting
         // from the original user input.
         var chatHistory: [ChatMessage] = []
+        // Session seeding is deferred until a turn actually takes the
+        // Responses streaming path: the chat-completion fallback neither
+        // reads nor appends to the session, so seeding up front would
+        // strand an orphan user turn in a shared session. Once per run —
+        // handoffs re-enter the loop and must not double-add.
+        var sessionSeeded = false
 
         repeat {
             let modelSpec = config.model ?? currentAgent.model ?? "gpt-4.1"
@@ -213,6 +215,14 @@ extension Runner {
                             throw RunnerError.exceededMaxTurns
                         }
                 }
+            }
+
+            // Seed the session with the user input, exactly like the
+            // non-streaming runner (Runner.run) — the flag keeps handoffs
+            // and turn retries from double-adding it.
+            if let session, !sessionSeeded {
+                try await session.addItems([.userMessage(input)])
+                sessionSeeded = true
             }
 
             let result: AgentResult<A.OutputType> = try await withSpan { agentSpan in
@@ -577,6 +587,19 @@ extension Runner {
 
                     try await withSpan { span in
                         span.spanData = HandoffSpanData(fromAgent: agent.name, toAgent: targetAgent.name)
+                    }
+
+                    // Close the handoff call in the session with the same
+                    // transfer output the non-streaming runner records —
+                    // the turn output above already stored the handoff
+                    // function_call, and a session ending on an unmatched
+                    // call breaks the next run (stateless backends resend
+                    // the whole history and reject the dangling call).
+                    if let session {
+                        try await session.addItems([.functionCallOutput(.init(
+                            callId: functionCall.callId,
+                            output: handoff.getTransferMessage()
+                        ))])
                     }
 
                     continuation.yield(.runItemEvent(
