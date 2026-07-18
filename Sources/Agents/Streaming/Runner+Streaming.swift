@@ -116,14 +116,17 @@ extension Runner {
 
             // Use the Responses streaming API only when the provider opts in via
             // `prefersResponsesStreaming` (first-party OpenAI, LM Studio, and the
-            // ChatGPT backend) AND this turn can run statefully. Structured-output
-            // turns fall back to chat-completion streaming on providers whose
-            // Responses endpoint ignores the schema (LM Studio), so `response_format`
-            // still constrains the model — mirroring the non-streaming gate. Chat-only
+            // ChatGPT Codex backend). Server-side history is NOT required — a
+            // stateless Responses backend (Codex) streams here too, with the
+            // turn loop resending the full accumulated input instead of chaining
+            // `previous_response_id`. Structured-output turns fall back to
+            // chat-completion streaming on providers whose Responses endpoint
+            // ignores the schema (LM Studio), so `response_format` still
+            // constrains the model — mirroring the non-streaming gate. Chat-only
             // OpenAI-compat servers (e.g. llama.cpp) stream via `/v1/chat/completions`.
             guard let openAI = api as? OpenAI,
                   openAI.prefersResponsesStreaming,
-                  Self.shouldUseStatefulPath(policy: api.statePolicy, outputType: currentAgent.outputType)
+                  Self.shouldStreamViaResponses(policy: api.statePolicy, outputType: currentAgent.outputType)
             else {
                 // Media output (image/audio) can't be streamed token-wise on the
                 // chat-completion path, and there's no stream event to carry the
@@ -266,7 +269,24 @@ extension Runner {
         continuation: AsyncThrowingStream<AgentStreamEvent, Error>.Continuation,
         resultRef: RunResultStreaming
     ) async throws -> AgentResult<A.OutputType> {
-        var currentInput = input
+        // Stateless Responses backends (`supportsServerSideHistory == false`,
+        // e.g. the ChatGPT Codex backend) never persist responses: `store` is
+        // forced false, `previous_response_id` can never resolve, and the
+        // instructions must ride along on every turn. The loop keeps the full
+        // conversation locally instead — the initial input items plus, after
+        // each turn, the response's output items (reasoning included: the
+        // Responses API rejects a resent function_call whose preceding
+        // reasoning item is missing) and the tool outputs.
+        let serverKeepsHistory = openAI.statePolicy.supportsServerSideHistory
+        var accumulatedInput: [Response.Input.Element]
+        switch input {
+            case let .text(text):
+                accumulatedInput = [.userMessage(text)]
+            case let .array(elements):
+                accumulatedInput = elements
+        }
+
+        var currentInput = serverKeepsHistory ? input : .array(accumulatedInput)
         var previousResponseId = previousResponseId
         var turns = 0
 
@@ -292,8 +312,10 @@ extension Runner {
                     responseSpan.spanData = ResponseSpanData(input: currentInput)
                 }
 
-                // When continuing a conversation, skip instructions — the API has them via previousResponseId
-                let instructions = previousResponseId == nil ? agent.instructions : nil
+                // When continuing a conversation, skip instructions — the API has
+                // them via previousResponseId. Stateless backends have no
+                // server-side context, so they get the instructions every turn.
+                let instructions = (serverKeepsHistory && previousResponseId != nil) ? nil : agent.instructions
 
                 // A WebSocket-backed client streams the turn over its persistent
                 // socket (same `ResponsesStreamEvent` shape); everyone else uses
@@ -313,13 +335,16 @@ extension Runner {
                     stream = try await openAI.createResponseStream(
                         input: currentInput,
                         model: model,
+                        // Stateless backends must return the encrypted
+                        // reasoning payload so it can be replayed as input.
+                        include: serverKeepsHistory ? nil : [.reasoningEncryptedContent],
                         instructions: instructions,
                         maxOutputTokens: agent.modelSettings.maxCompletionTokens,
                         metadata: agent.modelSettings.metadata,
                         parallelToolCalls: agent.modelSettings.parallelToolCalls,
-                        previousResponseId: previousResponseId,
+                        previousResponseId: serverKeepsHistory ? previousResponseId : nil,
                         reasoning: agent.modelSettings.reasoning,
-                        store: agent.modelSettings.store,
+                        store: serverKeepsHistory ? agent.modelSettings.store : false,
                         temperature: agent.modelSettings.temperature,
                         toolChoice: agent.modelSettings.toolChoice,
                         tools: tools,
@@ -418,6 +443,15 @@ extension Runner {
             previousResponseId = completedResponse?.id
             resultRef.lastResponseId = previousResponseId
 
+            // Stateless backends: fold this turn's output into the locally
+            // accumulated conversation so the next request resends everything
+            // (reasoning items included, encrypted content and all).
+            if !serverKeepsHistory, let response = completedResponse {
+                accumulatedInput.append(contentsOf: response.output.compactMap {
+                    $0.toInputElement(preservingReasoning: true)
+                })
+            }
+
             // Extract apply_patch calls and any generated image from the
             // completed response — the streaming deltas may be incomplete, but
             // the final response carries the full output items.
@@ -496,7 +530,14 @@ extension Runner {
             }
 
             if !allResults.isEmpty {
-                currentInput = .array(allResults)
+                if serverKeepsHistory {
+                    // The server holds the prior turns — send only the delta.
+                    currentInput = .array(allResults)
+                } else {
+                    // No server-side state — resend the whole conversation.
+                    accumulatedInput.append(contentsOf: allResults)
+                    currentInput = .array(accumulatedInput)
+                }
                 try? await Task.sleep(nanoseconds: 200_000)
                 continue
             }
