@@ -10,23 +10,31 @@ public extension OutputItem {
         /// Reasoning text contents.
         public let summary: [SummaryItem]
 
-        public init(id: String, status: ResponseStatus?, summary: [SummaryItem]) {
+        /// Opaque encrypted reasoning payload, present when the request asked
+        /// for `include: ["reasoning.encrypted_content"]`. Stateless backends
+        /// (`store: false`) replay it as input so the chain of thought
+        /// survives the round-trip.
+        public let encryptedContent: String?
+
+        public init(id: String, status: ResponseStatus?, summary: [SummaryItem], encryptedContent: String? = nil) {
             self.id = id
             self.status = status
             self.summary = summary
+            self.encryptedContent = encryptedContent
         }
     }
 }
 
 extension OutputItem.ReasoningOutput: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, status, summary, content
+        case id, status, summary, content, encryptedContent
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         status = try container.decodeIfPresent(ResponseStatus.self, forKey: .status)
+        encryptedContent = try container.decodeIfPresent(String.self, forKey: .encryptedContent)
 
         // OpenAI uses "summary"; LM Studio uses "content"; LM Studio
         // ALSO sends `summary: []` (empty) alongside the rich `content`,
@@ -53,5 +61,6 @@ extension OutputItem.ReasoningOutput: Codable {
         try container.encode(id, forKey: .id)
         try container.encodeIfPresent(status, forKey: .status)
         try container.encode(summary, forKey: .summary)
+        try container.encodeIfPresent(encryptedContent, forKey: .encryptedContent)
     }
 }
