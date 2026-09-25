@@ -105,7 +105,7 @@ let package = Package(
 		// `.git` suffix matches SwiftACP's spelling of the same dependency —
 		// mixed spellings alias to one canonical identity but SwiftPM logs an
 		// info and the aliasing needlessly stresses the resolver.
-		.package(url: "https://github.com/Cocoanetics/SwiftMCP.git", from: "1.9.0", traits: ["Client"]),
+		.package(url: "https://github.com/Cocoanetics/SwiftMCP.git", from: "1.11.0", traits: ["Client"]),
 		// SwiftACP has no tagged release yet; pin to `main` (mirrors SQLiteKit below).
 		// `traits: []` disables its default-on `Server` trait (the swift-nio
 		// TCP/Bonjour/HTTP-SSE transports used only by the acpxd daemon) — Coder
@@ -123,7 +123,7 @@ let package = Package(
 		// "exhausted attempts to resolve the dependencies graph". Enabling the
 		// trait at the root keeps the dependency set stable across solver
 		// iterations. It links nothing into SwiftAgents' own targets.
-		.package(url: "https://github.com/Cocoanetics/JSONFoundation.git", from: "2.5.0", traits: ["Subprocess"]),
+		.package(url: "https://github.com/Cocoanetics/JSONFoundation.git", from: "3.1.0", traits: ["Subprocess"]),
 		.package(url: "https://github.com/thebarndog/swift-dotenv", from: "2.1.0"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
 		// Cross-platform compatibility shims (URLSession.AsyncBytes / bytes(for:),
