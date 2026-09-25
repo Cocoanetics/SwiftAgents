@@ -21,7 +21,7 @@ public extension MCPToolProviding {
                 })
 
                 // Determine which parameters are required using the isRequired property
-                let required = meta.parameters.filter(\.isRequired).map(\.name)
+                let required = Set(meta.parameters.filter(\.isRequired).map(\.name))
 
                 let parameters = JSONSchema.object(.init(properties: properties, required: required))
 
