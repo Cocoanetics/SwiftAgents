@@ -181,8 +181,10 @@ let lastResponseId = streamed.lastResponseId
 
 For OpenAI-backed models the events come from the Responses streaming API;
 chat-completion-only providers (Anthropic, LM Studio, OpenAI-compatible
-endpoints) are translated per-chunk into the same event shape. Cancel a run
-with `streamed.cancel()`.
+endpoints) are translated per-chunk into the same event shape. The run lives
+as long as its consumer: breaking out of the loop or cancelling the task
+iterating `events` cancels it, and `streamed.cancel()` stops it from anywhere
+else.
 
 ## RunConfig
 
