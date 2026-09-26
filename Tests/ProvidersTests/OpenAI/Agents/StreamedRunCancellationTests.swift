@@ -249,6 +249,32 @@ struct StreamedRunCancellationTests {
         #expect(ToolLoopStub.requestCount == 1)
     }
 
+    @Test("breaking out of a loop over a kept `events` stops the run", arguments: StreamingPath.allCases)
+    func breakingOutOfKeptEventsStopsRun(path: StreamingPath) async throws {
+        ToolLoopStub.reset()
+        let gate = StepGate()
+        let result = try startRun(on: path, gate: gate)
+
+        // The caller holds on to the sequence itself: only the loop's
+        // iterator goes away, and that alone has to stop the run.
+        let events = result.events
+        for try await event in events {
+            if case .runItemEvent(.toolCalled, _) = event {
+                await gate.firstCall()
+                break
+            }
+        }
+
+        withExtendedLifetime(events) {
+            #expect(result.task.isCancelled)
+        }
+        await gate.open()
+        _ = await result.task.result
+
+        #expect(await gate.calls == 1)
+        #expect(ToolLoopStub.requestCount == 1)
+    }
+
     @Test("cancelling the consuming task stops the run", arguments: StreamingPath.allCases)
     func cancellingConsumerStopsRun(path: StreamingPath) async throws {
         ToolLoopStub.reset()
