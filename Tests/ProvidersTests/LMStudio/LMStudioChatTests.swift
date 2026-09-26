@@ -22,8 +22,10 @@ import Testing
 struct LMStudioChatTests {
     @Test("LM Studio inherits from OpenAI so all wire methods come for free")
     func lmStudioIsOpenAISubclass() {
-        let lmstudio = LMStudio()
-        #expect(lmstudio is OpenAI, "LMStudio must extend OpenAI to share createResponse / createChatCompletion")
+        // Checked at compile time (an `is` test would be statically true): this
+        // stops building if LMStudio no longer extends OpenAI, which it must to
+        // share createResponse / createChatCompletion.
+        let _: OpenAI = LMStudio()
     }
 
     @Test("LM Studio declares lmStudioOpenAICompat state policy")
