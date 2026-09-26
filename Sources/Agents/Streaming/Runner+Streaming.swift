@@ -7,7 +7,10 @@ extension Runner {
     ///
     /// The agent loop runs in a background `Task`, pushing `AgentStreamEvent`s
     /// through the returned `RunResultStreaming.events` stream. The caller
-    /// consumes events with `for try await event in result.events { ... }`.
+    /// consumes events with `for try await event in result.events { ... }`;
+    /// stopping early — breaking out of that loop or cancelling the task
+    /// running it — cancels the run, and `result.cancel()` stops it from
+    /// elsewhere.
     ///
     /// This mirrors the Python Agents SDK's `Runner.run_streamed()` pattern.
     ///
@@ -43,7 +46,7 @@ extension Runner {
     ) -> RunResultStreaming {
         let (stream, continuation) = AsyncThrowingStream<AgentStreamEvent, Error>.makeStream()
 
-        let resultRef = RunResultStreaming(events: stream, continuation: continuation, task: Task {})
+        let resultRef = RunResultStreaming(stream: stream, continuation: continuation, task: Task {})
 
         let task = Task<Void, Error> {
             do {
@@ -71,6 +74,17 @@ extension Runner {
         }
 
         resultRef.task = task
+        // A consumer whose task is cancelled while it reads terminates the
+        // stream with `.cancelled` (its loop just sees the end) — stop the run
+        // with it instead of letting it start turns and call tools up to
+        // `maxTurns` for nobody. Consumers that break out of their loop are
+        // caught by `RunResultStreaming.events`; `.finished` is always the
+        // run's own end or an explicit `cancel()`.
+        continuation.onTermination = { termination in
+            if case .cancelled = termination {
+                task.cancel()
+            }
+        }
         return resultRef
     }
 
