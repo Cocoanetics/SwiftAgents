@@ -288,7 +288,7 @@ final class CodingAgent: Agent, @unchecked Sendable {
         for entry in entries.sorted().prefix(maxEntries) {
             var isDir: ObjCBool = false
             let fullPath = (dir as NSString).appendingPathComponent(entry)
-            FileManager.default.fileExists(atPath: fullPath, isDirectory: &isDir)
+            _ = FileManager.default.fileExists(atPath: fullPath, isDirectory: &isDir)
             lines.append(isDir.boolValue ? "\(entry)/" : entry)
         }
         if entries.count > maxEntries {
