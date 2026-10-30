@@ -22,14 +22,24 @@ open class API: @unchecked Sendable {
 
     /// `var` so ``use(sessionConfiguration:streamConfiguration:)`` can swap it;
     /// set a configuration via the initializer to stub or proxy HTTP.
-    var session: URLSession
+    var session: URLSession {
+        get { sessionLock.withLock { sessions.session } }
+        set { sessionLock.withLock { sessions.session = newValue } }
+    }
 
     /// Session for the SSE streaming endpoints. Kept separate from `session`
     /// because that one caps the *total* response load at 360 s
     /// (`timeoutIntervalForResource`), which would hard-kill long generations
     /// mid-stream. Both timeouts here are 600 s, matching the dedicated
     /// stream sessions the Responses and Anthropic paths use.
-    var streamSession: URLSession
+    var streamSession: URLSession {
+        get { sessionLock.withLock { sessions.stream } }
+        set { sessionLock.withLock { sessions.stream = newValue } }
+    }
+
+    /// Guards the session pair so `use(...)` is safe while requests are starting.
+    private let sessionLock = NSLock()
+    private var sessions: (session: URLSession, stream: URLSession)
 
     let versionPath: String
 
@@ -128,10 +138,8 @@ open class API: @unchecked Sendable {
         self.credential = credential
         self.endpointURL = endpointURL
         self.versionPath = versionPath
-        (session, streamSession) = Self.makeSessions(
-            configuration: configuration,
-            streamConfiguration: streamConfiguration
-        )
+        let made = Self.makeSessions(configuration: configuration, streamConfiguration: streamConfiguration)
+        sessions = (made.0, made.1)
     }
 
     /// Replaces both sessions, with the same rules as the initializer.
@@ -139,10 +147,8 @@ open class API: @unchecked Sendable {
         sessionConfiguration: URLSessionConfiguration,
         streamConfiguration: URLSessionConfiguration? = nil
     ) {
-        (session, streamSession) = Self.makeSessions(
-            configuration: sessionConfiguration,
-            streamConfiguration: streamConfiguration
-        )
+        let made = Self.makeSessions(configuration: sessionConfiguration, streamConfiguration: streamConfiguration)
+        sessionLock.withLock { sessions = (made.0, made.1) }
     }
 
     private static func makeSessions(
