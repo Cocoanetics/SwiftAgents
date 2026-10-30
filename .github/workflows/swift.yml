@@ -208,5 +208,12 @@ jobs:
           # Build with the SQLiteVectorStore trait so the vec0 + FTS5 store
           # compiles for Android and its stub-embedder tests run in the
           # emulator (NL compiles out; the OpenAI test skips without a key).
-          swift-build-flags: --traits SQLiteVectorStore
+          #
+          # `--build-system native`: Swift 6.4 defaults to Swift Build, whose
+          # `.build/out/Products/…` layout has no `*.resources` bundles where
+          # the action's packaging step (`cp $BUILD_DIR/*.resources`) looks, so
+          # the emulator run died with "unable to find bundle named
+          # SwiftAgents_ProvidersTests". The action resolves BUILD_DIR with these
+          # same flags, so the native layout it was written for comes back.
+          swift-build-flags: --traits SQLiteVectorStore --build-system native
           swift-test-flags: --traits SQLiteVectorStore --filter ProvidersTests
