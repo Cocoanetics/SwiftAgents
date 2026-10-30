@@ -17,8 +17,8 @@
 //
 
 import Foundation
-@testable import Agents
-@testable import Providers
+import Agents
+import Providers
 import SwiftMCP
 import Testing
 #if canImport(FoundationNetworking)
@@ -234,17 +234,17 @@ struct ChatGPTCodexLiveTests {
         )
 
         CodexLiveProxy.reset()
-        let api = ChatGPTCodex(authorization: ChatGPTCodexAuthorization(
-            accessToken: credential.accessToken,
-            accountID: credential.accountID
-        ))
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [CodexLiveProxy.self]
         configuration.timeoutIntervalForRequest = 300
         configuration.timeoutIntervalForResource = 300
-        let proxied = URLSession(configuration: configuration)
-        api.session = proxied
-        api.streamSession = proxied
+        let api = ChatGPTCodex(
+            authorization: ChatGPTCodexAuthorization(
+                accessToken: credential.accessToken,
+                accountID: credential.accountID
+            ),
+            configuration: configuration
+        )
 
         let agent = BasicAgent(
             name: "CodexLiveAgent",

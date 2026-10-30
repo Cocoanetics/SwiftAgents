@@ -27,10 +27,16 @@ public final class ChatGPTCodex: OpenAI, @unchecked Sendable {
     /// to api.openai.com; this is the subclass its doc comment anticipates.)
     override public var prefersResponsesStreaming: Bool { true }
 
-    public init(authorization: ChatGPTCodexAuthorization) {
+    public init(
+        authorization: ChatGPTCodexAuthorization,
+        configuration: URLSessionConfiguration? = nil,
+        streamConfiguration: URLSessionConfiguration? = nil
+    ) {
         super.init(
             credential: authorization,
-            endpointURL: URL(string: "https://chatgpt.com/backend-api/codex")!
+            endpointURL: URL(string: "https://chatgpt.com/backend-api/codex")!,
+            configuration: configuration,
+            streamConfiguration: streamConfiguration
         )
     }
 
