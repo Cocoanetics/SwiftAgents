@@ -90,7 +90,8 @@ public actor JSONLTracingProcessor: TracingProcessor {
         )
 
         if !FileManager.default.fileExists(atPath: fileURL.path) {
-            FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+            // A failed create surfaces as `FileHandle(forWritingTo:)` throwing below.
+            _ = FileManager.default.createFile(atPath: fileURL.path, contents: nil)
         }
 
         let handle = try FileHandle(forWritingTo: fileURL)

@@ -32,7 +32,7 @@ struct EmbeddingTaskPrefixTests {
     }
 
     @Test("known instruction-tuned families resolve across provider id forms")
-    func familyTableResolves() {
+    func familyTableResolves() throws {
         let nomic = EmbeddingTaskPrefix(query: "search_query: ", document: "search_document: ")
         // LM Studio, Ollama, and bare Hugging Face id forms all hit the family.
         #expect(EmbeddingTaskPrefix.forModel("text-embedding-nomic-embed-text-v1.5") == nomic)
@@ -42,9 +42,9 @@ struct EmbeddingTaskPrefixTests {
         #expect(EmbeddingTaskPrefix.forModel("nomicai-modernbert-embed-base") == nomic)
 
         // mxbai instructs queries and embeds documents raw.
-        let mxbai = try? #require(EmbeddingTaskPrefix.forModel("text-embedding-mxbai-embed-large-v1"))
-        #expect(mxbai?.query == "Represent this sentence for searching relevant passages: ")
-        #expect(mxbai?.document.isEmpty == true)
+        let mxbai = try #require(EmbeddingTaskPrefix.forModel("text-embedding-mxbai-embed-large-v1"))
+        #expect(mxbai.query == "Represent this sentence for searching relevant passages: ")
+        #expect(mxbai.document.isEmpty)
 
         // intfloat/e5 — matched on "e5-" so version suffixes like "v1.5"
         // can't trip it.
