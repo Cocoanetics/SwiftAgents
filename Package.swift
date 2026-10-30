@@ -82,6 +82,12 @@ let package = Package(
 		.executable(
 			name: "Coder",
 			targets: ["Coder"]
+		),
+		// `imagegen` — command-line client for the OpenAI Images API
+		// (generate / edit / batch), a Swift port of Codex's image_gen.py.
+		.executable(
+			name: "imagegen",
+			targets: ["imagegen"]
 		)
 	],
 	// Opt-in trait gating the SQLiteKit-backed `SQLiteVectorStore`
@@ -231,6 +237,14 @@ let package = Package(
 				)
 			],
 			path: "Examples/Coder"
+		),
+		.executableTarget(
+			name: "imagegen",
+			dependencies: [
+				"Providers",
+				.product(name: "ArgumentParser", package: "swift-argument-parser")
+			],
+			path: "Examples/ImageGen"
 		),
 		.testTarget(
 			name: "ProvidersTests",

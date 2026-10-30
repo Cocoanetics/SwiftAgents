@@ -15,6 +15,7 @@ Early. Split out from the private AgentCorp project so the public agent surface 
 - **`SemanticStore`** — semantic-search stores behind one `SemanticStore` protocol: the in-memory `LocalVectorStore`, the hosted `OpenAIVectorStore`, and the persistent `SQLiteVectorStore` (opt-in via the `SQLiteVectorStore` package trait). See [Docs/SemanticStore.md](Docs/SemanticStore.md).
 - **`TerminalUI`** — ANSI colours, slash-command parser, terminal handler. Used by the bundled CLI; reusable by other tools.
 - **`Coder`** — an in-process coding-agent CLI (executable target). Tool surface: `bash`, `read`, `write`, `edit`, `ls`, `grep`, `find`, plus `apply_patch` for models that support it. Also runs as an ACP agent: `swift run Coder acp` serves the [Agent Client Protocol](https://agentclientprotocol.com) on stdio (via [SwiftACP](https://github.com/Cocoanetics/SwiftACP)), so editors like Zed can drive it — including the client's per-session MCP servers and per-session model switching (`--model`, `/model`, or the native `session/set_model`). Reference implementation of an `Agent` against the Responses API.
+- **`imagegen`** — a command-line client for the OpenAI Images API (a Swift port of Codex's `image_gen.py`): `generate`, `edit` and `generate-batch` with exact control over model (`gpt-image-2.5-sunburst`, `gpt-image-2.5-flare`, `gpt-image-2`), size, quality, background and format. The same client is available to any Swift program as `OpenAI.generateImages(_:)`, `editImages(_:)` and `generateImageBatch(_:)` in `Providers`.
 
 ## Usage
 
@@ -95,6 +96,7 @@ swift test                              # full suite (integration tests need key
 swift test --filter LocalVectorStore    # offline-only
 swift run Coder --help                  # the Coder CLI
 swift run Coder acp                     # serve Coder over ACP on stdio
+swift run imagegen generate --prompt "…" --dry-run   # the Images API CLI
 ```
 
 ## Provenance
