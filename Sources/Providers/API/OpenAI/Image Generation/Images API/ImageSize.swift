@@ -64,10 +64,11 @@ public struct ImageSize: RawRepresentable, Hashable, Sendable, Codable, Expressi
 
     /// The width and height, or `nil` for `auto` and anything that isn't `WxH`.
     public var dimensions: (width: Int, height: Int)? {
-        let parts = rawValue.lowercased().split(separator: "x", omittingEmptySubsequences: false)
+        // Exactly the wire form: ASCII digits, a lowercase `x`, digits.
+        let parts = rawValue.split(separator: "x", omittingEmptySubsequences: false)
         guard parts.count == 2,
-              let width = Int(parts[0]), let height = Int(parts[1]),
-              parts.allSatisfy({ $0.allSatisfy(\.isASCII) })
+              parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy { ("0"..."9").contains($0) } }),
+              let width = Int(parts[0]), let height = Int(parts[1])
         else { return nil }
         return (width, height)
     }

@@ -71,7 +71,9 @@ struct ImageSizeTests {
     @Test("dimensions parse WxH only")
     func dimensions() {
         #expect(ImageSize("2048x1152").dimensions?.width == 2048)
-        #expect(ImageSize("2048X1152").dimensions?.height == 1152)
+        #expect(ImageSize("2048X1152").dimensions == nil)
+        #expect(ImageSize("+1024x+1024").dimensions == nil)
+        #expect(ImageSize("1024x1024x2").dimensions == nil)
         #expect(ImageSize.auto.dimensions == nil)
     }
 }
