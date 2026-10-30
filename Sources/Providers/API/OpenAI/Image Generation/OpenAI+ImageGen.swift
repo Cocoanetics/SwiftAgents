@@ -22,6 +22,11 @@ public extension OpenAI {
 
      - Throws: An error if the image generation request fails or if the parameters are invalid for the selected model.
      */
+    @available(
+        *,
+        deprecated,
+        message: "Use generateImages(_:) with an ImageRequest: open model names, any valid size, 2.5 models."
+    )
     func generateImage(
         prompt: String,
         model: ImageGenerationModel

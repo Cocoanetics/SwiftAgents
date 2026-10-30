@@ -4,6 +4,7 @@ included:
   # Coder moved from Sources/Coder to Examples/Coder but is still a SPM
   # product — keep it under the same lint rules as the package sources.
   - Examples/Coder
+  - Examples/ImageGen
 
 excluded:
   # Test fixtures (JSON / PNG / text payloads bundled as test resources).
