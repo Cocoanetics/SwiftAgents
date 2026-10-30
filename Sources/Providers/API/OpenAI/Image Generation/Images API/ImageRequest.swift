@@ -168,8 +168,16 @@ public struct ImageEditRequest: Sendable {
         guard !images.isEmpty else {
             throw ImageGenerationError.invalidParameter("an edit needs at least one image")
         }
+        guard images.count <= Self.maxImages else {
+            throw ImageGenerationError.invalidParameter(
+                "an edit takes at most \(Self.maxImages) images (got \(images.count))"
+            )
+        }
         return try request.validate()
     }
+
+    /// The Images API accepts at most this many input images per edit.
+    public static let maxImages = 16
 
     /// The multipart body. `input_fidelity` is deliberately never sent: `gpt-image-2`
     /// rejects it and the guide doesn't document it for the 2.5 models.

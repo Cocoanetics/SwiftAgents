@@ -213,6 +213,16 @@ struct ImageEncodingTests {
         }
     }
 
+    @Test("an edit takes at most 16 images")
+    func editImageLimit() throws {
+        let image = ImageInput(data: Data([1]), filename: "a.png")
+        let request = ImageRequest(prompt: "p")
+        try ImageEditRequest(request: request, images: Array(repeating: image, count: 16)).validate()
+        #expect(throws: ImageGenerationError.self) {
+            try ImageEditRequest(request: request, images: Array(repeating: image, count: 17)).validate()
+        }
+    }
+
     @Test("batch lines override the defaults, blank lines and comments are skipped")
     func batchParsing() throws {
         let jsonl = """

@@ -103,6 +103,17 @@ struct Edit: AsyncParsableCommand {
     }
 }
 
+/// The `--dry-run --json` plan of a batch.
+private struct BatchDryRun: Encodable {
+    struct Job: Encodable {
+        var index: Int
+        var plan: DryRun?
+        var error: String?
+    }
+
+    var jobs: [Job]
+}
+
 /// The `--json` result of a batch.
 private struct BatchReport: Encodable {
     struct Job: Encodable {
@@ -158,17 +169,19 @@ struct GenerateBatch: AsyncParsableCommand {
                 format: job.request.outputFormat
             )
             return Result {
+                try job.request.validate()
                 try Output.checkWritable(paths, force: run.force)
-                if let duplicate = paths.first(where: { !claimed.insert($0).inserted }) {
+                if let duplicate = paths.first(where: { claimed.contains($0) }) {
                     throw OutputError.exists("\(duplicate) (another job in this batch writes it)")
                 }
+                claimed.formUnion(paths)
                 return paths
             }
         }
 
         if run.dryRun {
+            var planned: [BatchDryRun.Job] = []
             for (index, job) in parsed.enumerated() {
-                print("job \(index + 1):")
                 switch plans[index] {
                     case let .success(paths):
                         let plan = DryRun(
@@ -176,9 +189,21 @@ struct GenerateBatch: AsyncParsableCommand {
                             request: job.request,
                             outputs: paths
                         )
-                        try printDryRun(plan, json: false)
+                        planned.append(.init(index: index + 1, plan: plan, error: nil))
                     case let .failure(error):
-                        print("  would fail: \(error.localizedDescription)")
+                        planned.append(.init(index: index + 1, plan: nil, error: error.localizedDescription))
+                }
+            }
+            if run.json {
+                try Output.printJSON(BatchDryRun(jobs: planned))
+            } else {
+                for job in planned {
+                    print("job \(job.index):")
+                    if let plan = job.plan {
+                        try printDryRun(plan, json: false)
+                    } else if let error = job.error {
+                        print("  would fail: \(error)")
+                    }
                 }
             }
             return
