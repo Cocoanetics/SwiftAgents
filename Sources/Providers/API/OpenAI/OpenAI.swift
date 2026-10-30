@@ -25,12 +25,16 @@ open class OpenAI: API, @unchecked Sendable {
     override public init(
         credential: (any RequestAuthorizing)? = nil,
         endpointURL: URL = .openAI,
-        versionPath: String = "v1"
+        versionPath: String = "v1",
+        configuration: URLSessionConfiguration? = nil,
+        streamConfiguration: URLSessionConfiguration? = nil
     ) {
         super.init(
             credential: credential ?? ProcessInfo.processInfo.environment["OPENAI_API_KEY"].map(Credential.bearer),
             endpointURL: endpointURL,
-            versionPath: versionPath
+            versionPath: versionPath,
+            configuration: configuration,
+            streamConfiguration: streamConfiguration
         )
         // Auto-register an `OpenAITraceExporter` against the global
         // `TraceProvider` the first time any OpenAI client is created with

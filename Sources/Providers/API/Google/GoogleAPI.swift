@@ -36,13 +36,17 @@ public class GoogleAPI: API, @unchecked Sendable {
     override public init(
         credential: (any RequestAuthorizing)? = nil,
         endpointURL: URL = .googleAI,
-        versionPath: String = "v1beta"
+        versionPath: String = "v1beta",
+        configuration: URLSessionConfiguration? = nil,
+        streamConfiguration: URLSessionConfiguration? = nil
     ) {
         super.init(
             credential: credential
                 ?? ProcessInfo.processInfo.environment["GEMINI_API_KEY"].map(Credential.googleAPIKey),
             endpointURL: endpointURL,
-            versionPath: versionPath
+            versionPath: versionPath,
+            configuration: configuration,
+            streamConfiguration: streamConfiguration
         )
         defaultThinkingConfig = GoogleThinkingConfig(includeThoughts: true)
     }

@@ -20,8 +20,8 @@ public extension URL {
 open class API: @unchecked Sendable {
     package let endpointURL: URL
 
-    /// `var` (not `let`) purely as a test seam: offline tests swap in a
-    /// session whose configuration routes through a stubbed `URLProtocol`.
+    /// `var` so ``use(sessionConfiguration:streamConfiguration:)`` can swap it;
+    /// set a configuration via the initializer to stub or proxy HTTP.
     var session: URLSession
 
     /// Session for the SSE streaming endpoints. Kept separate from `session`
@@ -29,7 +29,6 @@ open class API: @unchecked Sendable {
     /// (`timeoutIntervalForResource`), which would hard-kill long generations
     /// mid-stream. Both timeouts here are 600 s, matching the dedicated
     /// stream sessions the Responses and Anthropic paths use.
-    /// `var` for the same test seam as `session`.
     var streamSession: URLSession
 
     let versionPath: String
@@ -113,28 +112,66 @@ open class API: @unchecked Sendable {
 
     // MARK: - Initialization
 
-    public init(credential: (any RequestAuthorizing)? = nil, endpointURL: URL = .openAI, versionPath: String = "v1") {
+    /// - Parameters:
+    ///   - configuration: Builds `session` when given (a `URLProtocol` stub, a
+    ///     proxy, custom timeouts, …); otherwise the default 360 s session.
+    ///   - streamConfiguration: Builds `streamSession` when given. If only
+    ///     `configuration` is given, the stream session derives from a copy of
+    ///     it with the 600 s streaming timeouts, so one stub covers both.
+    public init(
+        credential: (any RequestAuthorizing)? = nil,
+        endpointURL: URL = .openAI,
+        versionPath: String = "v1",
+        configuration: URLSessionConfiguration? = nil,
+        streamConfiguration: URLSessionConfiguration? = nil
+    ) {
         self.credential = credential
         self.endpointURL = endpointURL
         self.versionPath = versionPath
+        (session, streamSession) = Self.makeSessions(
+            configuration: configuration,
+            streamConfiguration: streamConfiguration
+        )
+    }
 
-        // Create a URLSessionConfiguration
-        let configuration = URLSessionConfiguration.default
-        // Set the timeout interval for the request (in seconds)
-        configuration.timeoutIntervalForRequest = 360 // For example, 30 seconds
-        configuration.timeoutIntervalForResource = 360
+    /// Replaces both sessions, with the same rules as the initializer.
+    public func use(
+        sessionConfiguration: URLSessionConfiguration,
+        streamConfiguration: URLSessionConfiguration? = nil
+    ) {
+        (session, streamSession) = Self.makeSessions(
+            configuration: sessionConfiguration,
+            streamConfiguration: streamConfiguration
+        )
+    }
 
-        // Create a URLSession with the configuration
-        session = URLSession(configuration: configuration)
+    private static func makeSessions(
+        configuration: URLSessionConfiguration?,
+        streamConfiguration: URLSessionConfiguration?
+    ) -> (URLSession, URLSession) {
+        let sessionConfiguration: URLSessionConfiguration
+        if let configuration {
+            sessionConfiguration = configuration
+        } else {
+            sessionConfiguration = .default
+            sessionConfiguration.timeoutIntervalForRequest = 360
+            sessionConfiguration.timeoutIntervalForResource = 360
+        }
 
         // Streaming needs a generous *resource* timeout: the request timeout
         // only bounds idle time between bytes, but the resource timeout caps
         // the whole transfer — a long generation would be cut off mid-stream
         // by the 360 s above.
-        let streamConfiguration = URLSessionConfiguration.default
-        streamConfiguration.timeoutIntervalForRequest = 600
-        streamConfiguration.timeoutIntervalForResource = 600
-        streamSession = URLSession(configuration: streamConfiguration)
+        let streamSessionConfiguration: URLSessionConfiguration
+        if let streamConfiguration {
+            streamSessionConfiguration = streamConfiguration
+        } else {
+            // `copy()` keeps `protocolClasses` etc. from a caller-supplied configuration.
+            streamSessionConfiguration = (configuration?.copy() as? URLSessionConfiguration) ?? .default
+            streamSessionConfiguration.timeoutIntervalForRequest = 600
+            streamSessionConfiguration.timeoutIntervalForResource = 600
+        }
+        return (URLSession(configuration: sessionConfiguration), URLSession(configuration: streamSessionConfiguration))
     }
 
     // MARK: - Models

@@ -59,13 +59,17 @@ public class Anthropic: API, @unchecked Sendable {
     public init(
         credential: (any RequestAuthorizing)? = nil,
         endpointURL: URL = .anthropic,
-        anthropicVersion: String = Anthropic.defaultAnthropicVersion
+        anthropicVersion: String = Anthropic.defaultAnthropicVersion,
+        configuration: URLSessionConfiguration? = nil,
+        streamConfiguration: URLSessionConfiguration? = nil
     ) {
         self.anthropicVersion = anthropicVersion
         super.init(
             credential: credential ?? ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"].map(Credential.apiKey),
             endpointURL: endpointURL,
-            versionPath: "v1"
+            versionPath: "v1",
+            configuration: configuration,
+            streamConfiguration: streamConfiguration
         )
     }
 
@@ -241,11 +245,6 @@ public class Anthropic: API, @unchecked Sendable {
         if streamingRequest.referencesUploadedFiles {
             urlRequest.setValue(Anthropic.filesAPIBeta, forHTTPHeaderField: "anthropic-beta")
         }
-
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 600
-        config.timeoutIntervalForResource = 600
-        let streamSession = URLSession(configuration: config)
 
         let (asyncBytes, response) = try await streamSession.bytes(for: urlRequest)
         return try await processAnthropicStream(asyncBytes: asyncBytes, response: response)

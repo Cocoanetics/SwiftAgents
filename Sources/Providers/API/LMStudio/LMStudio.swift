@@ -48,12 +48,16 @@ public class LMStudio: OpenAI, @unchecked Sendable {
 
     public init(
         credential: (any RequestAuthorizing)? = nil,
-        endpointURL: URL = .lmStudio
+        endpointURL: URL = .lmStudio,
+        configuration: URLSessionConfiguration? = nil,
+        streamConfiguration: URLSessionConfiguration? = nil
     ) {
         super.init(
             credential: credential ?? ProcessInfo.processInfo.environment["LM_API_TOKEN"].map(Credential.bearer),
             endpointURL: endpointURL,
-            versionPath: "v1"
+            versionPath: "v1",
+            configuration: configuration,
+            streamConfiguration: streamConfiguration
         )
     }
 }
