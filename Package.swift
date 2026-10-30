@@ -86,8 +86,8 @@ let package = Package(
 	],
 	// Opt-in trait gating the SQLiteKit-backed `SQLiteVectorStore`
 	// (sqlite-vec `vec0` + FTS5). OFF by default so the standard build
-	// stays lean and the Windows / Android jobs don't compile SQLiteKit's
-	// closure. Enable with `swift build --traits SQLiteVectorStore`.
+	// stays lean: without the trait SwiftPM neither fetches nor compiles
+	// SQLiteKit. Enable with `swift build --traits SQLiteVectorStore`.
 	traits: [
 		.trait(
 			name: "SQLiteVectorStore",
@@ -132,8 +132,10 @@ let package = Package(
 		// SQLiteKit's `vec0` (sqlite-vec) + FTS5 engines back the opt-in
 		// `SQLiteVectorStore`. Standalone package (extracted from SwiftPorts);
 		// its only closure is the vendored CSQLite amalgamation. Pinned to
-		// `main` until it tags a release. Resolved always, but only compiled
-		// when the `SQLiteVectorStore` trait is on (see SemanticStore).
+		// `main` until it tags a release. SemanticStore's trait-conditional
+		// product dependency is its only use, so SwiftPM prunes SQLiteKit and
+		// CSQLite from resolution unless the `SQLiteVectorStore` trait is on
+		// (a default-trait Package.resolved doesn't pin them).
 		.package(
 			url: "https://github.com/Cocoanetics/SQLiteKit",
 			branch: "main",
